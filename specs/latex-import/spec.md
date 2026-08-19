@@ -82,7 +82,10 @@ not translate cleanly.
   headings. Each retained block has deterministic identity and ordering,
   normalized retrieval text, its active section when known, and exact original
   UTF-16 source provenance across reachable includes. Nested standard lists
-  preserve every outer and inner item in rendered order.
+  preserve every visible outer and inner item in rendered order. Nested figure,
+  table, code, and math environments are omitted from list-item retrieval text
+  without changing the item's exact source or range or its dedicated semantic
+  inventories.
 - Converted files declare `renderedFormat: "scholarmark-v1"`; consumers must not
   mistake Kirjolab directives for neutral Markdown.
 - Import is explicit and one-way. Reimport creates another project; it does not
@@ -190,6 +193,8 @@ not translate cleanly.
 - Every retained prose block and figure source range round-trips through the
   original decoded file; prose ids, ordering, and section relationships are
   deterministic and locale-independent.
+- Nested non-prose environments and their internal item markers never leak into
+  normalized list-item retrieval text.
 - Figure provenance retains archive and resolved asset paths, content hash,
   caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,

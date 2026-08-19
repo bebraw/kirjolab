@@ -289,7 +289,20 @@ describe("paper-import conformance corpus", () => {
       range,
     }));
 
-    expect({ archiveSha256: sha256Hex(fixture.archive), blocks }).toEqual(fixture.expected);
+    expect({
+      archiveSha256: sha256Hex(fixture.archive),
+      blocks,
+      excludedEnvironmentInventories: {
+        figures: conversion.figures.map(({ requestedPath, archivePath, caption }) => ({
+          requestedPath,
+          archivePath,
+          caption: caption?.value,
+        })),
+        tables: conversion.tables.map(({ environment }) => environment),
+        codeBlocks: conversion.codeBlocks.map(({ environment, value }) => ({ environment, value })),
+        equations: conversion.equations.map(({ value }) => value),
+      },
+    }).toEqual(fixture.expected);
     for (const block of blocks) {
       const original =
         block.range.path === "main.tex"

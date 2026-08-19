@@ -32,9 +32,12 @@ LaTeX as semantic structure and PDF as page and visual authority.
   source, and an original-file range. Inclusion traversal carries the active
   section into included files where possible. If exact provenance cannot be
   established, conversion omits the block and emits a typed diagnostic rather
-  than returning transformed offsets. Nested `itemize` and `enumerate`
-  structures retain every item in both the inventory and the rendered
-  Scholarmark projection.
+  than returning transformed offsets. List-item retrieval text excludes nested
+  figure, table, code, and math environments while its exact source and range
+  retain the whole authored item and each excluded construct remains available
+  through its dedicated inventory. Nested `itemize` and `enumerate` structures
+  retain every visible item in both the inventory and the rendered Scholarmark
+  projection.
 - Figure provenance retains the original archive asset path, resolved consumer
   asset path, content hash, caption, label, every source reference range, and
   resolution diagnostics. Asset bytes remain separate from generated output.
@@ -194,6 +197,9 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - Prose ids and ordering are locale-independent and deterministic; prose before
   the first section has a null section id, and reachable included files retain
   the active section relationship where it can be established exactly.
+- Nested prose-excluded environments never enter normalized list-item text or
+  expose their internal item markers as prose, while the list item's exact
+  original source and UTF-16 range remain unchanged.
 - A backslash introduces a command or environment only when its immediately
   preceding backslash run has even length. Escaped commands remain inert in
   ordinary text, comments, and literal-code environments without shifting
@@ -252,10 +258,13 @@ LaTeX as semantic structure and PDF as page and visual authority.
 **Scenario: Recover ordinary prose under its active section**
 
 - Given: a multi-file manuscript has prose before its first section, paragraphs
-  and list items under a section, Unicode, CRLF, citations, and equations
+  and list items under a section, nested non-prose environments, Unicode, CRLF,
+  citations, and equations
 - When: neutral conversion emits its prose-block inventory
 - Then: every retained block round-trips to exact authored source and carries
-  its deterministic kind, order, and active section relationship
+  its deterministic kind, order, and active section relationship; list-item
+  retrieval text keeps only surrounding prose while dedicated inventories keep
+  the excluded figures, tables, code blocks, and equations
 
 **Scenario: Install the private package candidate**
 

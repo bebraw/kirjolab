@@ -43,7 +43,7 @@ describe("product-neutral LaTeX conversion", () => {
 
     expect(Object.isFrozen(options)).toBe(true);
     expect(options).toEqual({ maximumSemanticRecords: 50_000 });
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v2");
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v3");
   });
 
   it("enforces a typed aggregate semantic-record ceiling at and above the consumer boundary", () => {
@@ -539,6 +539,96 @@ Second paragraph.\end{document}`;
       expect(source.slice(block.range.start, block.range.end)).toBe(block.source);
     }
     expect(conversion.files[0]?.content).toBe("- Outer.\n  1. Inner.\n- Tail.\n");
+  });
+
+  it("excludes nested figures from list-item retrieval text without changing exact provenance", () => {
+    const itemSource =
+      "\\item Before 😀.\r\n" +
+      "\\begin{figure}\r\n" +
+      "\\includegraphics{plot}\r\n" +
+      "\\caption{Hidden 😀}\r\n" +
+      "\\end{figure}\r\n" +
+      "After Å.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(
+      analyzeLatexArchiveFiles([tex("paper.tex", source), image("plot.png", new Uint8Array([137, 80, 78, 71]))]),
+      { rootPath: "paper.tex" },
+    );
+
+    expect(conversion.proseBlocks).toHaveLength(1);
+    expect(conversion.proseBlocks[0]).toMatchObject({ kind: "list-item", text: "Before 😀. After Å." });
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expect(conversion.figures).toHaveLength(1);
+    expect(conversion.figures[0]?.caption?.value).toBe("Hidden 😀");
+  });
+
+  it("excludes multiple nested table, code, and math environments while retaining visible nested items", () => {
+    const nestedItemSource = "\\item Nested before.\r\n" + "\\begin{align}\r\nhidden &= nested\r\n\\end{align}\r\n" + "Nested after.";
+    const outerItemSource =
+      "\\item Visible Ω.\r\n" +
+      "\\begin{table}\r\n" +
+      "\\begin{itemize}\r\n\\item Hidden table list.\r\n\\end{itemize}\r\n" +
+      "\\item Hidden table marker.\r\n" +
+      "\\begin{tabular}{c}\r\nHidden table.\r\n\\end{tabular}\r\n" +
+      "\\end{table}\r\n" +
+      "Between.\r\n" +
+      "\\begin{lstlisting}\r\nconst hidden = true;\r\n\\end{lstlisting}\r\n" +
+      "\\begin{equation}\r\nhidden = math\r\n\\end{equation}\r\n" +
+      `\\begin{enumerate}\r\n${nestedItemSource}\r\n\\end{enumerate}\r\n` +
+      "Tail.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${outerItemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Visible Ω. Between. Tail." },
+      { kind: "list-item", text: "Nested before. Nested after." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, outerItemSource);
+    expectOriginalRange(conversion.proseBlocks[1]!, "paper.tex", source, nestedItemSource);
+    expect(conversion.tables.map(({ environment }) => environment)).toEqual(["tabular"]);
+    expect(conversion.codeBlocks.map(({ value }) => value)).toEqual(["const hidden = true;"]);
+    expect(conversion.equations.map(({ value }) => value)).toEqual(["hidden = math", "hidden &= nested"]);
+  });
+
+  it("does not leak prose from an excluded environment that crosses a nested list boundary", () => {
+    const source =
+      "\\documentclass{article}\\begin{document}" +
+      "\\begin{itemize}\\item Outer before." +
+      "\\begin{figure}\\begin{enumerate}\\item Hidden inside figure.\\end{figure}" +
+      "\\item Visible after figure.\\end{enumerate}" +
+      "Outer after.\\end{itemize}" +
+      "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Outer before. Outer after." },
+      { kind: "list-item", text: "Visible after figure." },
+    ]);
+    for (const block of conversion.proseBlocks) expect(source.slice(block.range.start, block.range.end)).toBe(block.source);
+
+    const inverseSource =
+      "\\documentclass{article}\\begin{document}" +
+      "\\begin{itemize}\\item Outer before." +
+      "\\begin{enumerate}\\item Visible before figure.\\begin{figure}Hidden figure content.\\end{enumerate}" +
+      "\\end{figure}Outer after.\\end{itemize}" +
+      "\\end{document}";
+    const inverseConversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", inverseSource)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(inverseConversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Outer before. Outer after." },
+      { kind: "list-item", text: "Visible before figure." },
+    ]);
+    for (const block of inverseConversion.proseBlocks) {
+      expect(inverseSource.slice(block.range.start, block.range.end)).toBe(block.source);
+    }
   });
 
   it("renders same-type nested lists without exposing raw item commands", () => {

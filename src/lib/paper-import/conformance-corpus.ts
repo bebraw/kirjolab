@@ -13,7 +13,7 @@ const reviewedExpected = {
     selectedRoot: null,
     convertedFilePaths: ["main.md", "sections/results.md"],
     schemaVersion: 2,
-    converterVersion: "latex-converter-v2",
+    converterVersion: "latex-converter-v3",
     rootPath: "main.tex",
     bibliographyPath: "refs.bib",
     assets: [{ path: "figures/plot.png", mediaType: "image/png" }],
@@ -69,8 +69,8 @@ const reviewedExpected = {
   },
   identity: {
     archiveManifestSha256: "3133fface09acacdbf72e57227870b6827c128d111a9a6494f0eb5b42e499014",
-    conversionManifestSha256: "f49952f9f505bc5db20b2a8eb63c4bc5eed15cdc237e7f202133ee3a13eb00cf",
-    previewDigest: "8b46b68d4150c5fb220862f0a8af9a0201dcc2fbf8c3cd77ace648f32f1f55af",
+    conversionManifestSha256: "85026543d4b45da02ebb13aa2f4256280cfaec6d935f3662834cefccb75b7dcb",
+    previewDigest: "658e6eeed3507f8348a407eb3463af11e877151d48dd6b7662ef2e3cea974555",
   },
   ranges: [
     { path: "main.tex", start: 25, end: 50, source: "\\title{Ångström 😀 study}" },
@@ -285,7 +285,7 @@ export interface EscapedCommandsConformanceFixtureV2 {
 }
 
 const proseBlocksExpected = {
-  archiveSha256: "b9e7f4cc48b982f0f534c6d8c6b714db895c0dd22e4dae7ea57af8e350e5e947",
+  archiveSha256: "f9a2ce34700a373c9ca55fda592ea34809706c08990149a818a482e37f4da07e",
   blocks: [
     {
       id: "main.tex#prose-1",
@@ -331,11 +331,21 @@ const proseBlocksExpected = {
       id: "part.tex#prose-3",
       kind: "list-item",
       sectionId: "main.tex#section-1",
-      text: "Second item with \\(z\\).",
-      source: "\\item Second item with \\(z\\).",
-      range: { path: "part.tex", start: 74, end: 103, unit: "utf16-code-unit" },
+      text: "Before 😀. After Å.",
+      source:
+        "\\item Before 😀.\r\n\\begin{figure}\r\n\\includegraphics{plot}\r\n\\caption{Hidden figure}\r\n\\end{figure}\r\n\\begin{table}\r\n\\begin{tabular}{c}Hidden table\\end{tabular}\r\n\\end{table}\r\n\\begin{lstlisting}\r\nhidden code\r\n\\end{lstlisting}\r\n\\begin{equation}hidden math\\end{equation}\r\nAfter Å.",
+      range: { path: "part.tex", start: 74, end: 346, unit: "utf16-code-unit" },
     },
   ],
+  excludedEnvironmentInventories: {
+    figures: [{ requestedPath: "plot", archivePath: "plot.png", caption: "Hidden figure" }],
+    tables: ["tabular"],
+    codeBlocks: [
+      { environment: "lstlisting", value: "hidden code" },
+      { environment: "verbatim", value: "literal hidden" },
+    ],
+    equations: ["hidden math"],
+  },
 } as const;
 
 export interface ProseBlocksConformanceFixtureV2 {
@@ -476,7 +486,19 @@ const proseBlocksPartSource =
   "Inherited Å prose.\r\n\r\n" +
   "\\begin{itemize}\r\n" +
   "\\item First item with \\cite{one}.\r\n" +
-  "\\item Second item with \\(z\\).\r\n" +
+  "\\item Before 😀.\r\n" +
+  "\\begin{figure}\r\n" +
+  "\\includegraphics{plot}\r\n" +
+  "\\caption{Hidden figure}\r\n" +
+  "\\end{figure}\r\n" +
+  "\\begin{table}\r\n" +
+  "\\begin{tabular}{c}Hidden table\\end{tabular}\r\n" +
+  "\\end{table}\r\n" +
+  "\\begin{lstlisting}\r\n" +
+  "hidden code\r\n" +
+  "\\end{lstlisting}\r\n" +
+  "\\begin{equation}hidden math\\end{equation}\r\n" +
+  "After Å.\r\n" +
   "\\end{itemize}\r\n\r\n" +
   "% hidden\r\n" +
   "\\begin{verbatim}\r\n" +
@@ -620,7 +642,11 @@ export function createProseBlocksConformanceFixtureV2(): ProseBlocksConformanceF
   return {
     schemaVersion: paperImportConformanceCorpusVersion,
     id: "latex-prose-blocks-v1",
-    archive: zipFixture({ "main.tex": strToU8(proseBlocksMainSource), "part.tex": strToU8(proseBlocksPartSource) }),
+    archive: zipFixture({
+      "main.tex": strToU8(proseBlocksMainSource),
+      "part.tex": strToU8(proseBlocksPartSource),
+      "plot.png": new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    }),
     sourceByPath: { "main.tex": proseBlocksMainSource, "part.tex": proseBlocksPartSource },
     selection: { rootPath: "main.tex" },
     expected: proseBlocksExpected,
