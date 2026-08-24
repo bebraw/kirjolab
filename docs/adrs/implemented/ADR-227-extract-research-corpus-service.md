@@ -49,6 +49,12 @@ surface. New clients use the corpus API. Later changes may transfer physical
 storage ownership only through an explicit migration ADR with rollback and
 reconciliation rules. Dual writes are prohibited.
 
+For PDF intake, both HTTP surfaces call one shared operation that streams the
+owner-scoped R2 object, creates or reuses the Durable Object draft, removes a
+redundant or failed upload, and submits the three independent extraction jobs.
+The standalone service therefore supports new frontend writes without adding a
+second storage implementation.
+
 ## Trigger
 
 The user wants PDFs, documents, and their extraction lifecycle reusable by

@@ -35,6 +35,10 @@ recreated by each consumer.
 - Original PDF bytes are available only through the protected HTTP
   representation route. The route preserves ETag, conditional, `HEAD`, and
   single-range behavior and uses a private non-cacheable response policy.
+- New PDFs enter through a bounded raw-body HTTP upload. The service requires
+  `application/pdf`, an exact positive `Content-Length` no greater than 25 MB,
+  and accepts a sanitized `X-File-Name`. Kirjolab's compatibility upload calls
+  the same R2, draft-creation, and extraction-queue operation.
 - MCP never embeds original binary bytes. It can return a protected HTTP link
   to the original representation.
 - Extraction kinds are the existing independent `pdf-text`, `pdf-highlights`,
@@ -50,6 +54,9 @@ recreated by each consumer.
 - `GET /v1/artifacts` lists the authenticated owner's safe PDF artifact
   summaries with a maximum of 100 results and an optional opaque `after`
   artifact id.
+- `POST /v1/artifacts` accepts one raw PDF body and returns the created safe
+  artifact document with `201`, or the existing fingerprint-matched draft with
+  `200`.
 - `GET /v1/artifacts/{artifactId}` returns one safe artifact summary.
 - `GET|HEAD /v1/artifacts/{artifactId}/representations/original` streams the
   exact protected PDF representation.
@@ -88,6 +95,14 @@ Given an artifact owned by the authenticated owner, when its original
 representation is requested with a valid byte range, then the exact bytes and
 range metadata are returned. Another owner's artifact is not discoverable.
 
+### Shared PDF intake
+
+Given an authenticated client with a PDF no larger than 25 MB, when it posts
+the exact-length body to `/v1/artifacts`, then the service stores one
+owner-scoped object, creates or reuses one draft, queues the three independent
+extractions, and returns no storage locator. Kirjolab's compatibility upload
+uses that same operation rather than a second write implementation.
+
 ### Asynchronous extraction
 
 Given an existing PDF, when a client starts `pdf-text` extraction, then the
@@ -114,10 +129,10 @@ copy or dual write.
 
 ## Quality Guardrails
 
-- Pure service tests cover safe projection, owner lookup, pagination,
-  extraction lifecycle, missing artifacts, and page bounds.
+- Pure service tests cover safe projection, owner lookup, PDF intake,
+  pagination, extraction lifecycle, missing artifacts, and page bounds.
 - HTTP tests cover methods, status codes, no-store policies, range delegation,
-  and origin rejection.
+  bounded PDF upload, preflight headers, and origin rejection.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler.
 - Configuration validation proves the corpus Worker binds to the existing
@@ -125,9 +140,9 @@ copy or dual write.
 
 ## Current Milestone
 
-- Implemented: independently deployable corpus boundary, versioned HTTP contract,
-  and stateless MCP projection over the existing storage and extraction
-  authorities.
-- Deferred: source intake, web-document representations, semantic search,
+- Implemented: independently deployable corpus boundary, shared PDF intake,
+  versioned HTTP contract, and stateless MCP projection over the existing
+  storage and extraction authorities.
+- Deferred: web-document intake and representations, semantic search,
   reusable annotations, delegated OAuth, physical namespace ownership transfer,
   and retirement of Kirjolab's compatibility routes.

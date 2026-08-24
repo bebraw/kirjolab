@@ -33,6 +33,64 @@ describe("Research Corpus HTTP adapter", () => {
     });
   });
 
+  it("accepts a bounded raw PDF upload and returns its safe artifact document", async () => {
+    const service = serviceFixture();
+    const response = await handleCorpusHttp(
+      new Request("https://corpus.example/v1/artifacts", {
+        method: "POST",
+        headers: {
+          "content-length": "4",
+          "content-type": "application/pdf",
+          origin: "https://writer.example",
+          "x-file-name": encodeURIComponent("draft.pdf"),
+        },
+        body: new Blob(["%PDF"]),
+      }),
+      service,
+      new Set(["https://writer.example"]),
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://writer.example");
+    expect(service.ingestPdf).toHaveBeenCalledWith(expect.objectContaining({ name: "draft.pdf", size: 4 }));
+    await expect(response.json()).resolves.toEqual({
+      artifact: expect.objectContaining({
+        id: artifactId,
+        links: expect.objectContaining({ original: expect.stringContaining("/representations/original") }),
+      }),
+      created: true,
+    });
+  });
+
+  it("preflights the custom PDF filename header for an allowed frontend", async () => {
+    const response = await handleCorpusHttp(
+      new Request("https://corpus.example/v1/artifacts", { method: "OPTIONS", headers: { origin: "https://writer.example" } }),
+      serviceFixture(),
+      new Set(["https://writer.example"]),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-headers")).toContain("X-File-Name");
+    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
+  });
+
+  it("rejects missing, oversized, and incorrectly typed PDF uploads before ingestion", async () => {
+    const service = serviceFixture();
+    const request = (headers: HeadersInit, body: BodyInit | null = new Blob(["%PDF"])) =>
+      handleCorpusHttp(new Request("https://corpus.example/v1/artifacts", { method: "POST", headers, body }), service, new Set());
+
+    const missingLength = await request({ "content-type": "application/pdf" });
+    const oversized = await request({ "content-length": String(25 * 1024 * 1024 + 1), "content-type": "application/pdf" });
+    const unsupported = await request({ "content-length": "4", "content-type": "text/plain" });
+    const missingBody = await request({ "content-length": "4", "content-type": "application/pdf" }, null);
+
+    expect(missingLength.status).toBe(411);
+    expect(oversized.status).toBe(413);
+    expect(unsupported.status).toBe(415);
+    expect(missingBody.status).toBe(400);
+    expect(service.ingestPdf).not.toHaveBeenCalled();
+  });
+
   it("preserves protected range metadata and strips the body for HEAD", async () => {
     const service = serviceFixture();
     service.openOriginal = vi.fn(
@@ -161,12 +219,13 @@ describe("Research Corpus HTTP adapter", () => {
 
     expect(absent.status).toBe(404);
     expect(method.status).toBe(405);
-    expect(method.headers.get("allow")).toBe("GET, OPTIONS");
+    expect(method.headers.get("allow")).toBe("GET, POST, OPTIONS");
   });
 });
 
 function serviceFixture(): CorpusApplication & {
   listArtifacts: ReturnType<typeof vi.fn<CorpusApplication["listArtifacts"]>>;
+  ingestPdf: ReturnType<typeof vi.fn<CorpusApplication["ingestPdf"]>>;
   getArtifact: ReturnType<typeof vi.fn<CorpusApplication["getArtifact"]>>;
   getExtraction: ReturnType<typeof vi.fn<CorpusApplication["getExtraction"]>>;
   startExtraction: ReturnType<typeof vi.fn<CorpusApplication["startExtraction"]>>;
@@ -187,6 +246,7 @@ function serviceFixture(): CorpusApplication & {
   };
   return {
     listArtifacts: vi.fn(async () => ({ artifacts: [artifact], next: null })),
+    ingestPdf: vi.fn(async () => ({ artifact, created: true })),
     getArtifact: vi.fn(async () => artifact),
     getExtraction: vi.fn(async () => extraction),
     startExtraction: vi.fn(async () => extraction),

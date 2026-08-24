@@ -1,11 +1,13 @@
 import { readBoundedRequestBytes } from "../api/request-body";
 import type { ArtifactAnalysisKind } from "../domain/reference-library";
+import { normalizePdfFilename } from "../library-pdf-ingest";
 import { CorpusInvalidCursorError, CorpusNotFoundError, CorpusNotReadyError, type CorpusApplication } from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
 import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 
 const extractionKinds = new Set<ArtifactAnalysisKind>(["pdf-highlights", "pdf-references", "pdf-text"]);
 const maximumCommandBytes = 1_024;
+const maximumPdfBytes = 25 * 1_024 * 1_024;
 
 export async function handleCorpusHttp(
   request: Request,
@@ -31,12 +33,19 @@ export async function handleCorpusHttp(
 async function routeCorpusRequest(request: Request, service: CorpusApplication): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/v1/artifacts") {
-    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
-    const limitValue = url.searchParams.get("limit");
-    const limit = limitValue === null ? undefined : Number(limitValue);
-    const after = url.searchParams.get("after");
-    const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
-    return json(corpusArtifactPageDocument(page, url.origin), 200);
+    if (request.method === "GET") {
+      const limitValue = url.searchParams.get("limit");
+      const limit = limitValue === null ? undefined : Number(limitValue);
+      const after = url.searchParams.get("after");
+      const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
+      return json(corpusArtifactPageDocument(page, url.origin), 200);
+    }
+    if (request.method === "POST") {
+      const input = pdfUpload(request);
+      const result = await service.ingestPdf(input);
+      return json({ artifact: corpusArtifactDocument(result.artifact, url.origin), created: result.created }, result.created ? 201 : 200);
+    }
+    return methodNotAllowed("GET, POST, OPTIONS");
   }
 
   const artifactMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})$/iu.exec(url.pathname);
@@ -76,6 +85,22 @@ async function routeCorpusRequest(request: Request, service: CorpusApplication):
   }
 
   return jsonError("Corpus route not found", 404);
+}
+
+function pdfUpload(request: Request): { readonly body: ReadableStream<Uint8Array>; readonly name: string; readonly size: number } {
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.toLowerCase() !== "application/pdf") {
+    throw new CorpusUnsupportedMediaTypeError("Only PDF uploads are supported");
+  }
+  if (!request.body) throw new CorpusInvalidRequestError("PDF body is required", 400);
+  const header = request.headers.get("content-length");
+  const size = header === null ? Number.NaN : Number(header);
+  if (!Number.isSafeInteger(size) || size <= 0) throw new CorpusInvalidRequestError("Content-Length is required", 411);
+  if (size > maximumPdfBytes) throw new CorpusRequestTooLargeError("PDF exceeds the 25 MB limit");
+  return {
+    body: request.body,
+    name: normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
+    size,
+  };
 }
 
 async function readRetryFailed(request: Request): Promise<boolean> {
@@ -119,6 +144,7 @@ function corpusErrorResponse(error: unknown): Response | null {
   if (error instanceof CorpusNotFoundError) return jsonError(error.message, 404);
   if (error instanceof CorpusNotReadyError) return jsonError(error.message, 409);
   if (error instanceof CorpusRequestTooLargeError) return jsonError(error.message, 413);
+  if (error instanceof CorpusInvalidRequestError) return jsonError(error.message, error.status);
   if (error instanceof CorpusUnsupportedMediaTypeError) return jsonError(error.message, 415);
   if (error instanceof CorpusInvalidCursorError || error instanceof RangeError || error instanceof SyntaxError) {
     return jsonError(error.message, 400);
@@ -130,7 +156,7 @@ function corsResponse(origin: string | null): Response {
   const response = new Response(null, {
     status: 204,
     headers: {
-      "access-control-allow-headers": "Content-Type, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
+      "access-control-allow-headers": "Content-Type, X-File-Name, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
       "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
       "access-control-max-age": "600",
     },
@@ -157,3 +183,11 @@ function methodNotAllowed(allow: string): Response {
 
 class CorpusRequestTooLargeError extends RangeError {}
 class CorpusUnsupportedMediaTypeError extends Error {}
+class CorpusInvalidRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}

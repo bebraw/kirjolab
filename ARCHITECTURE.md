@@ -121,8 +121,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   existing owner-scoped Reference Library Durable Object, R2 objects, and Queue
   jobs behind that service with one write path and no copied authority.
 - Use versioned HTTP/JSON for corpus application data and protected conditional
-  or ranged artifact bytes. Project the same contracts through a stateless MCP
-  handler for bounded semantic discovery and page-level extracted text. Never
+  or ranged artifact bytes. Accept PDF intake as an exact-length, owner-scoped,
+  bounded HTTP stream through the same storage/draft/queue operation used by
+  compatibility routes. Project the read and extraction contracts through a
+  stateless MCP handler for bounded semantic discovery and page-level extracted text. Never
   return private binary artifacts, R2 object keys, owner keys, Durable Object
   locators, Queue payloads, or credentials through MCP. Authenticate before
   owner selection and validate any browser origin against an exact allowlist.

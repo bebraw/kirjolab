@@ -62,6 +62,9 @@ describe("Research Corpus Worker", () => {
 
 function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" | "CORPUS_ALLOWED_ORIGINS">> = {}) {
   const library: CorpusLibraryAuthority = {
+    createPdfDraft: vi.fn(async () => {
+      throw new Error("not used");
+    }),
     getSnapshot: vi.fn(async () => ({
       references: [],
       referenceKeyStates: {},
@@ -88,8 +91,22 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     CORPUS_ALLOWED_ORIGINS: "",
     REFERENCE_LIBRARIES: { getByName },
     ARTIFACT_ANALYSIS_QUEUE: { send: vi.fn(async (_job: ArtifactAnalysisJob) => undefined) },
-    PAPERS: { get: vi.fn(async () => null) },
+    PAPERS: { delete: vi.fn(async () => undefined), get: vi.fn(async () => null), put: vi.fn(async () => unusedR2Object()) },
     ...overrides,
   };
   return { env, getByName };
+}
+
+function unusedR2Object(): R2Object {
+  return {
+    key: "unused",
+    version: "unused",
+    size: 0,
+    etag: "unused",
+    httpEtag: '"unused"',
+    checksums: { toJSON: () => ({}) },
+    uploaded: new Date(0),
+    storageClass: "Standard",
+    writeHttpMetadata: () => undefined,
+  };
 }

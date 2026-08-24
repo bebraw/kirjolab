@@ -6,9 +6,10 @@ import {
   type ArtifactAnalysis,
   type ArtifactAnalysisKind,
 } from "../domain/reference-library";
+import { ingestLibraryPdf, type LibraryPdfIngestAuthority } from "../library-pdf-ingest";
 import { ResearchCorpusService } from "./service";
 
-export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary {
+export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary, LibraryPdfIngestAuthority {
   getSnapshot(includeArchived?: boolean): Promise<unknown>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<unknown>;
 }
@@ -16,10 +17,10 @@ export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary {
 export interface CorpusCloudflareEnvironment {
   readonly REFERENCE_LIBRARIES: { getByName(ownerKey: string): CorpusLibraryAuthority };
   readonly ARTIFACT_ANALYSIS_QUEUE?: ArtifactAnalysisJobQueue;
-  readonly PAPERS: Pick<R2Bucket, "get">;
+  readonly PAPERS: Pick<R2Bucket, "delete" | "get" | "put">;
 }
 
-export function createCloudflareCorpusService(ownerKey: string, env: CorpusCloudflareEnvironment): ResearchCorpusService {
+export function createCloudflareCorpusService(ownerKey: string, actor: string, env: CorpusCloudflareEnvironment): ResearchCorpusService {
   const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
   return new ResearchCorpusService({
     catalog: {
@@ -28,6 +29,17 @@ export function createCloudflareCorpusService(ownerKey: string, env: CorpusCloud
         if (!isReferenceLibrarySnapshot(snapshot)) throw new Error("Research Corpus authority returned an invalid snapshot");
         return snapshot;
       },
+    },
+    intake: {
+      ingest: async (input) =>
+        await ingestLibraryPdf(
+          { actor, body: input.body, name: input.name, ownerKey, size: input.size },
+          {
+            authority: library,
+            ...(env.ARTIFACT_ANALYSIS_QUEUE ? { queue: env.ARTIFACT_ANALYSIS_QUEUE } : {}),
+            storage: env.PAPERS,
+          },
+        ),
     },
     extractions: {
       get: async (artifactId, kind) => validatedAnalysis(await library.getArtifactAnalysis(artifactId, kind)),

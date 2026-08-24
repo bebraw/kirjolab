@@ -154,7 +154,9 @@ Research Corpus is a separate Worker over the existing private Library, R2,
 and analysis Queue authorities. Deploy Kirjolab first, then follow the
 [production runbook](./docs/operations/production.md#research-corpus-service)
 to validate and release its versioned HTTP API and private stateless MCP
-endpoint. Bare corpus deploys also default to loopback authentication and fail
+endpoint. The HTTP API supports bounded raw-PDF intake as well as artifact and
+extraction reads; MCP keeps binary intake and original bytes out of model
+context. Bare corpus deploys also default to loopback authentication and fail
 closed on a public hostname.
 
 ## Development and Tests

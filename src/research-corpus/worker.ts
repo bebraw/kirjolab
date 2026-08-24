@@ -27,7 +27,7 @@ export async function handleResearchCorpusRequest(request: Request, env: Researc
   const pathname = new URL(request.url).pathname;
   if (!pathname.startsWith("/v1/") && pathname !== "/mcp") return corpusJsonError("Corpus route not found", 404);
 
-  const service = createCloudflareCorpusService(authentication.identity.ownerKey, env);
+  const service = createCloudflareCorpusService(authentication.identity.ownerKey, authentication.identity.email, env);
   try {
     if (pathname === "/mcp") return await handleCorpusMcp(request, service, allowedOrigins);
     return await handleCorpusHttp(request, service, allowedOrigins);

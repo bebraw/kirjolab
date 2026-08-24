@@ -45,6 +45,7 @@ import {
   type WebSnapshot,
 } from "../domain/reference-library";
 import { enqueueArtifactAnalysis } from "../artifact-analysis-job";
+import { ingestLibraryPdf, normalizePdfFilename } from "../library-pdf-ingest";
 import {
   isReferenceDiscoveryQuery,
   mergeReferenceDiscoveryCandidates,
@@ -1828,36 +1829,20 @@ async function uploadLibraryPdf(
   const size = Number(request.headers.get("content-length") ?? "0");
   if (!Number.isFinite(size) || size <= 0) return jsonError("Content-Length is required", 411);
   if (size > maximumPdfBytes) return jsonError("PDF exceeds the 25 MB limit", 413);
-  const id = crypto.randomUUID();
-  const objectKey = `libraries/${ownerKey}/${id}.pdf`;
-  const stream = new FixedLengthStream(size);
-  const upload = env.PAPERS.put(objectKey, stream.readable, { httpMetadata: { contentType: "application/pdf" } });
-  const pipeline = request.body.pipeTo(stream.writable);
-  const [stored] = await Promise.all([upload, pipeline]);
-  const artifact: LibraryPdfArtifact = {
-    id,
-    referenceId: null,
-    name: safeFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
-    contentType: "application/pdf",
-    size,
-    objectKey,
-    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
-    rights: "private",
-    createdAt: new Date().toISOString(),
-  };
-  let draft: PdfDraftResult;
-  try {
-    draft = await library.createPdfDraft(artifact, actor);
-  } catch (error) {
-    await env.PAPERS.delete(objectKey);
-    throw error;
-  }
-  if (!draft.created) await env.PAPERS.delete(objectKey);
-  await Promise.all([
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env.ARTIFACT_ANALYSIS_QUEUE, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-text", env.ARTIFACT_ANALYSIS_QUEUE, library),
-  ]);
+  const draft = await ingestLibraryPdf(
+    {
+      actor,
+      body: request.body,
+      name: normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
+      ownerKey,
+      size,
+    },
+    {
+      authority: library,
+      ...(env.ARTIFACT_ANALYSIS_QUEUE ? { queue: env.ARTIFACT_ANALYSIS_QUEUE } : {}),
+      storage: env.PAPERS,
+    },
+  );
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
 }
 
@@ -1919,9 +1904,7 @@ function annotatedPdfFilename(value: string): string {
 }
 
 function safeFilename(value: string): string {
-  const decoded = decodeURIComponent(value);
-  const sanitized = decoded.replaceAll(/[\r\n"/\\]/gu, "-").trim();
-  return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized || "paper"}.pdf`;
+  return normalizePdfFilename(value);
 }
 
 function noStore(): { headers: { "cache-control": string } } {

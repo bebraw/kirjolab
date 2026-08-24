@@ -52,6 +52,20 @@ describe("ResearchCorpusService", () => {
     await expect(service.getArtifact(crypto.randomUUID())).rejects.toBeInstanceOf(CorpusNotFoundError);
   });
 
+  it("ingests a PDF through the authority and projects only the safe artifact contract", async () => {
+    const { service, ports } = fixture();
+    const body = new Blob(["%PDF"]).stream();
+
+    const result = await service.ingestPdf({ name: "draft.pdf", size: 4, body });
+
+    expect(ports.intake.ingest).toHaveBeenCalledWith({ name: "draft.pdf", size: 4, body });
+    expect(result).toEqual({
+      artifact: expect.objectContaining({ id: firstArtifact.id, name: "paper-a.pdf" }),
+      created: true,
+    });
+    expect(JSON.stringify(result)).not.toContain(firstArtifact.objectKey);
+  });
+
   it("keeps extraction requests idempotent and retries failures only explicitly", async () => {
     const ready = analysis("ready");
     const failed = analysis("failed");
@@ -109,6 +123,9 @@ function fixture(options: { readonly currentAnalysis?: ArtifactAnalysis | null }
   const ports: CorpusServicePorts = {
     catalog: {
       snapshot: vi.fn(async () => snapshot()),
+    },
+    intake: {
+      ingest: vi.fn(async () => ({ reference: snapshot().references[0]!, artifact: firstArtifact, created: true })),
     },
     extractions: {
       get: vi.fn(async () => currentAnalysis),

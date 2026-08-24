@@ -196,6 +196,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
   and resources for safe artifact metadata, extraction status and requests,
   and individual PDF text pages. Original PDF bytes remain on the protected
   HTTP representation route and never enter MCP results.
+- Upload a development PDF with a raw `application/pdf` body to
+  `POST /v1/artifacts`, an exact `Content-Length`, and a URL-encoded
+  `X-File-Name`. The 25 MB limit and fixed-length R2 stream apply before the
+  shared draft and extraction-queue operation runs.
 - Copy `.env.example` to the ignored `.env` to enable the companion; use
   `npm run model:companion` only for standalone troubleshooting.
 - Install the Playwright browser with `npm run playwright:install`.

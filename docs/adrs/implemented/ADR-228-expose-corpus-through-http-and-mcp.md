@@ -23,8 +23,9 @@ storage locators, and bound every result that can enter model context.
 Expose one protocol-neutral Research Corpus application service through two
 adapters:
 
-- a versioned HTTP/JSON data plane for artifact metadata, extraction lifecycle,
-  bounded result pages, and protected conditional or ranged original bytes;
+- a versioned HTTP/JSON data plane for bounded raw-PDF intake, artifact
+  metadata, extraction lifecycle, bounded result pages, and protected
+  conditional or ranged original bytes;
   and
 - a stateless MCP endpoint for semantic artifact discovery, extraction status,
   explicit extraction requests, and bounded extracted-page reading.

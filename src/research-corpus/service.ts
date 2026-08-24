@@ -4,6 +4,7 @@ import {
   type ArtifactAnalysisKind,
   type BibliographicRecord,
   type LibraryPdfArtifact,
+  type PdfDraftResult,
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 
@@ -43,6 +44,17 @@ export interface CorpusArtifactPage {
   readonly next: string | null;
 }
 
+export interface CorpusPdfUpload {
+  readonly body: ReadableStream<Uint8Array>;
+  readonly name: string;
+  readonly size: number;
+}
+
+export interface CorpusPdfIngestion {
+  readonly artifact: CorpusArtifact;
+  readonly created: boolean;
+}
+
 export type CorpusExtraction = Omit<ArtifactAnalysis, "result">;
 
 export interface CorpusPdfTextPage {
@@ -60,6 +72,10 @@ export interface CorpusCatalogPort {
   snapshot(): Promise<ReferenceLibrarySnapshot>;
 }
 
+export interface CorpusIntakePort {
+  ingest(input: CorpusPdfUpload): Promise<PdfDraftResult>;
+}
+
 export interface CorpusExtractionPort {
   get(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
   start(artifact: LibraryPdfArtifact, kind: ArtifactAnalysisKind, force: boolean): Promise<ArtifactAnalysis>;
@@ -71,12 +87,14 @@ export interface CorpusOriginalPort {
 
 export interface CorpusServicePorts {
   readonly catalog: CorpusCatalogPort;
+  readonly intake: CorpusIntakePort;
   readonly extractions: CorpusExtractionPort;
   readonly originals: CorpusOriginalPort;
 }
 
 export interface CorpusApplication {
   listArtifacts(options?: { readonly after?: string; readonly limit?: number }): Promise<CorpusArtifactPage>;
+  ingestPdf(input: CorpusPdfUpload): Promise<CorpusPdfIngestion>;
   getArtifact(artifactId: string): Promise<CorpusArtifact>;
   getExtraction(artifactId: string, kind: ArtifactAnalysisKind): Promise<CorpusExtraction | null>;
   startExtraction(artifactId: string, kind: ArtifactAnalysisKind, retryFailed?: boolean): Promise<CorpusExtraction>;
@@ -113,6 +131,11 @@ export class ResearchCorpusService implements CorpusApplication {
   async getArtifact(artifactId: string): Promise<CorpusArtifact> {
     const { artifact, references } = await this.#findArtifact(artifactId);
     return projectArtifact(artifact, references);
+  }
+
+  async ingestPdf(input: CorpusPdfUpload): Promise<CorpusPdfIngestion> {
+    const result = await this.#ports.intake.ingest(input);
+    return { artifact: projectArtifact(result.artifact, [result.reference]), created: result.created };
   }
 
   async getExtraction(artifactId: string, kind: ArtifactAnalysisKind): Promise<CorpusExtraction | null> {

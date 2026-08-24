@@ -154,6 +154,7 @@ function mcpRequest(method: string, params: unknown, headers: Record<string, str
 
 function serviceFixture(): CorpusApplication & {
   listArtifacts: ReturnType<typeof vi.fn<CorpusApplication["listArtifacts"]>>;
+  ingestPdf: ReturnType<typeof vi.fn<CorpusApplication["ingestPdf"]>>;
   getArtifact: ReturnType<typeof vi.fn<CorpusApplication["getArtifact"]>>;
   getExtraction: ReturnType<typeof vi.fn<CorpusApplication["getExtraction"]>>;
   startExtraction: ReturnType<typeof vi.fn<CorpusApplication["startExtraction"]>>;
@@ -174,6 +175,7 @@ function serviceFixture(): CorpusApplication & {
   };
   return {
     listArtifacts: vi.fn(async () => ({ artifacts: [artifact], next: null })),
+    ingestPdf: vi.fn(async () => ({ artifact, created: true })),
     getArtifact: vi.fn(async () => artifact),
     getExtraction: vi.fn(async () => extraction),
     startExtraction: vi.fn(async () => extraction),

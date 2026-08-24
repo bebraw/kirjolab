@@ -109,9 +109,12 @@ and lists corpus versions. The config defaults to local authentication, so a
 bare deploy is not a production shortcut.
 
 From a signed-in browser, verify `GET /v1/artifacts` returns only the expected
-owner's safe artifact metadata, open one protected original representation,
-request or inspect `pdf-text` extraction, and read one extracted page. Verify
-an unconfigured browser origin receives `403`. Connect private MCP clients to
+owner's safe artifact metadata. With a designated smoke-test owner, upload a
+small disposable PDF through `POST /v1/artifacts`, verify the response contains
+no object or owner locator, open its protected original representation, request
+or inspect `pdf-text` extraction, and read one extracted page. Remove the smoke
+artifact through the existing Kirjolab Library UI after verification. Verify an
+unconfigured browser origin receives `403`. Connect private MCP clients to
 `/mcp` only through the Access-protected deployment and verify tool discovery;
 the current service does not advertise a public OAuth authorization server.
 Do not make the MCP endpoint public until delegated authorization is approved
