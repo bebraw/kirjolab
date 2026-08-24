@@ -585,6 +585,37 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(new Set(reservations.map(({ analysis }) => analysis.requestedAt)).size).toBe(1);
   });
 
+  it("does not postpone an earlier artifact publication alarm", async () => {
+    const ownerKey = `artifact-analysis-alarm-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const earlierAlarm = Date.now() + 20_000;
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      await state.storage.setAlarm(earlierAlarm);
+      expect(await state.storage.getAlarm()).toBe(earlierAlarm);
+    });
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z");
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(await state.storage.getAlarm()).toBe(earlierAlarm);
+    });
+  });
+
   it("recovers an unconfirmed Queue publication through a durable alarm", async () => {
     const ownerKey = `artifact-analysis-outbox-${crypto.randomUUID()}`;
     const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);

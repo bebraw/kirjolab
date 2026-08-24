@@ -1201,7 +1201,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       await this.env.ARTIFACT_ANALYSIS_QUEUE.sendBatch(jobs.map((body) => ({ body, contentType: "json" as const })));
     } catch (error) {
       console.error("Artifact analysis outbox publication failed", error);
-      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationRetryMilliseconds);
+      await this.#scheduleArtifactAnalysisPublicationAlarm(artifactAnalysisPublicationRetryMilliseconds);
       return;
     }
     this.ctx.storage.transactionSync(() => {
@@ -1210,7 +1210,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       }
     });
     if (this.#artifactAnalyses.hasPendingPublications()) {
-      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
+      await this.#scheduleArtifactAnalysisPublicationAlarm(artifactAnalysisPublicationDelayMilliseconds);
     } else {
       await this.ctx.storage.deleteAlarm();
     }
@@ -2250,7 +2250,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     requestedAt: string,
     force: boolean,
   ): Promise<ArtifactAnalysisQueueReservation> {
-    await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
+    await this.#scheduleArtifactAnalysisPublicationAlarm(artifactAnalysisPublicationDelayMilliseconds);
     return this.ctx.storage.transactionSync(() => {
       const reservation = this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
       if (reservation.shouldPublish) {
@@ -2267,10 +2267,15 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const hasUnownedPublications = this.#artifactAnalyses.hasUnownedPublications();
     const migrationOwnerKey = hasUnownedPublications ? this.ctx.id.name : undefined;
     if (hasUnownedPublications && !migrationOwnerKey) throw new Error("Reference Library requires an owner-scoped Durable Object name");
-    if ((await this.ctx.storage.getAlarm()) === null) {
-      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
-    }
+    await this.#scheduleArtifactAnalysisPublicationAlarm(artifactAnalysisPublicationDelayMilliseconds);
     if (migrationOwnerKey) this.#artifactAnalyses.adoptUnownedPublications(migrationOwnerKey);
+  }
+
+  async #scheduleArtifactAnalysisPublicationAlarm(delayMilliseconds: number): Promise<void> {
+    const scheduledAt = Date.now() + delayMilliseconds;
+    const currentAlarm = await this.ctx.storage.getAlarm();
+    if (currentAlarm !== null && currentAlarm <= scheduledAt) return;
+    await this.ctx.storage.setAlarm(scheduledAt);
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {

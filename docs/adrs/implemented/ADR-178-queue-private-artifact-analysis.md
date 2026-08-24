@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-29
 
-**Amended:** 2026-08-24 — preserve rollout compatibility, recover Queue publication through a durable outbox, and reconcile pre-outbox jobs
+**Amended:** 2026-08-24 — preserve rollout compatibility, recover Queue publication through a durable outbox, reconcile pre-outbox jobs, and preserve earlier alarm deadlines
 
 ## Context
 
@@ -47,6 +47,10 @@ next batch while rows remain, and explicitly reschedules after a Queue failure.
 Starting, completing, or failing that exact generation also clears its stale
 outbox row. Queue consumers remain idempotent because termination after Queue
 acceptance but before outbox deletion can produce a duplicate delivery.
+Alarm scheduling compares the requested deadline with the one existing alarm
+and updates storage only when no alarm exists or the requested deadline is
+earlier. A later reservation therefore cannot postpone recovery already due for
+an older outbox row.
 
 Apply an append-only migration that inserts a placeholder outbox row for every
 queued generation left by the pre-outbox workflow. During Durable Object
