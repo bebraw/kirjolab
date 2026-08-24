@@ -1460,7 +1460,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Run expensive, retriable private-artifact inspection behind a versioned Queue
   job contract containing owner, artifact, fingerprint, kind, and request time,
   never artifact bytes. Persist fingerprint-qualified lifecycle and bounded
-  results in the owner Library Durable Object. Consumers must be idempotent,
+  results in the owner Library Durable Object. Atomically reserve Queue
+  publication there so concurrent ordinary starts emit one message for one
+  persisted generation; qualify send-failure rollback by fingerprint and
+  request time. Consumers must be idempotent,
   close managed-browser sessions, and expose only candidate data for explicit
   review. Supply the job's exact private R2 bytes to managed Chromium through
   request interception rather than a public or bearer-token artifact route.

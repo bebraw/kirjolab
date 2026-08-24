@@ -37,13 +37,13 @@ describe("artifact analysis job submission", () => {
     expect(JSON.stringify(queue.send.mock.calls)).not.toContain("objectKey");
   });
 
-  it("does not submit a job when the authority returns an existing state", async () => {
-    const library = libraryFixture({ ...analysis, status: "ready", completedAt: requestedAt });
+  it("does not submit a duplicate job without an authority publication reservation", async () => {
+    const library = libraryFixture(analysis, false);
     const queue = { send: vi.fn(async () => undefined) };
 
     const result = await enqueueArtifactAnalysis("owner-key", artifactId, "pdf-text", queue, library);
 
-    expect(result.status).toBe("ready");
+    expect(result.status).toBe("queued");
     expect(queue.send).not.toHaveBeenCalled();
   });
 
@@ -74,9 +74,9 @@ describe("artifact analysis job submission", () => {
   });
 });
 
-function libraryFixture(value: ArtifactAnalysis = analysis) {
+function libraryFixture(value: ArtifactAnalysis = analysis, shouldPublish = true) {
   return {
-    queueArtifactAnalysis: vi.fn(async () => value),
+    queueArtifactAnalysis: vi.fn(async () => ({ analysis: value, shouldPublish })),
     failArtifactAnalysis: vi.fn(async () => true),
   };
 }

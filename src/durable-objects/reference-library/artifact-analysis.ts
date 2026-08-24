@@ -4,6 +4,7 @@ import {
   isPdfTextAnalysisResult,
   type ArtifactAnalysis,
   type ArtifactAnalysisKind,
+  type ArtifactAnalysisQueueReservation,
   type ArtifactAnalysisResult,
 } from "../../domain/reference-library/artifact-analysis";
 
@@ -31,7 +32,7 @@ export class ArtifactAnalysisService {
     return row ? artifactAnalysisFromRow(row) : null;
   }
 
-  queue(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
+  queue(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysisQueueReservation {
     const artifact = this.sql.exec<ArtifactFingerprintRow>("SELECT fingerprint FROM artifacts WHERE id = ?", artifactId).toArray()[0];
     if (!artifact) throw new Error("PDF artifact not found");
     const existing = this.#row(artifactId, kind);
@@ -40,7 +41,7 @@ export class ArtifactAnalysisService {
       existing?.fingerprint === artifact.fingerprint &&
       (existing.status === "queued" || existing.status === "running" || existing.status === "ready")
     ) {
-      return artifactAnalysisFromRow(existing);
+      return { analysis: artifactAnalysisFromRow(existing), shouldPublish: false };
     }
     this.sql.exec(
       `INSERT INTO artifact_analyses
@@ -59,7 +60,7 @@ export class ArtifactAnalysisService {
       kind,
       requestedAt,
     );
-    return artifactAnalysisFromRow(this.#row(artifactId, kind)!);
+    return { analysis: artifactAnalysisFromRow(this.#row(artifactId, kind)!), shouldPublish: true };
   }
 
   start(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {

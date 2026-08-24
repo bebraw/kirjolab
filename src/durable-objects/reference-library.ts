@@ -18,6 +18,7 @@ import type { CitationResearchQueueItem, QueueCitationReferenceInput } from "../
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,
+  ArtifactAnalysisQueueReservation,
   ArtifactAnalysisResult,
   PdfReferenceAnalysisCandidate,
   PdfReferenceAnalysisResult,
@@ -1158,7 +1159,12 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
+  queueArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force = false,
+  ): ArtifactAnalysisQueueReservation {
     return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
   }
 

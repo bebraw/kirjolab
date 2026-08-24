@@ -1,7 +1,17 @@
-import type { ArtifactAnalysis, ArtifactAnalysisJob, ArtifactAnalysisKind } from "./domain/reference-library";
+import type {
+  ArtifactAnalysis,
+  ArtifactAnalysisJob,
+  ArtifactAnalysisKind,
+  ArtifactAnalysisQueueReservation,
+} from "./domain/reference-library";
 
 export interface ArtifactAnalysisJobLibrary {
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force?: boolean): Promise<ArtifactAnalysis>;
+  queueArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force?: boolean,
+  ): Promise<ArtifactAnalysisQueueReservation>;
   failArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,
@@ -27,8 +37,9 @@ export async function enqueueArtifactAnalysis(
   const requestedAt = now();
   if (!queue) return unavailableAnalysis(artifactId, kind, requestedAt);
 
-  const analysis = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
-  if (analysis.status !== "queued") return analysis;
+  const reservation = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
+  const { analysis } = reservation;
+  if (!reservation.shouldPublish) return analysis;
   const job: ArtifactAnalysisJob = {
     version: 1,
     ownerKey,

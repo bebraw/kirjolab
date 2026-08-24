@@ -126,7 +126,7 @@ function fixture() {
     getPdfArtifactPage: vi.fn(async () => page()),
     getPdfArtifact: vi.fn(async () => ({ artifact, reference: null })),
     getArtifactAnalysis: vi.fn(async () => null),
-    queueArtifactAnalysis: vi.fn(async () => queued),
+    queueArtifactAnalysis: vi.fn(async () => ({ analysis: queued, shouldPublish: true })),
     failArtifactAnalysis: vi.fn(async () => true),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
   };

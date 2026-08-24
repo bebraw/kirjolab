@@ -1975,7 +1975,10 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     ),
     importHighlights: vi.fn(async () => []),
     getArtifactAnalysis,
-    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({ ...analysis, kind })),
+    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({
+      analysis: { ...analysis, kind },
+      shouldPublish: true,
+    })),
     failArtifactAnalysis: vi.fn(async () => true),
     getPdfReferenceReviewQueue: vi.fn(async (): Promise<PdfReferenceReviewQueue | null> => ({
       artifactId: artifact.id,

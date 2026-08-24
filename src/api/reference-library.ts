@@ -14,6 +14,7 @@ import {
   type ArtifactAnalysisBackfillStatus,
   type ArtifactAnalysisJob,
   type ArtifactAnalysisKind,
+  type ArtifactAnalysisQueueReservation,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -174,7 +175,12 @@ interface ReferenceLibraryApi {
     candidates: readonly LibraryHighlightImportCandidate[],
   ): Promise<LibraryHighlight[]>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force?: boolean): Promise<ArtifactAnalysis>;
+  queueArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force?: boolean,
+  ): Promise<ArtifactAnalysisQueueReservation>;
   failArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,

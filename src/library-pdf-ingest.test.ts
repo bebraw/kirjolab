@@ -98,7 +98,10 @@ function fixture(options: { readonly created?: boolean } = {}) {
   });
   const authority = {
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: options.created ?? true })),
-    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysis["kind"]) => analysis(kind)),
+    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysis["kind"]) => ({
+      analysis: analysis(kind),
+      shouldPublish: true,
+    })),
     failArtifactAnalysis: vi.fn(async () => true),
   };
   const stored = new Map<string, Uint8Array>();

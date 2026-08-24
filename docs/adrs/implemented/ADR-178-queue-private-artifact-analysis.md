@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-29
 
+**Amended:** 2026-08-24
+
 ## Context
 
 Imported-highlight detection needs PDF.js text extraction and canvas rendering.
@@ -26,6 +28,13 @@ and request time. Store queued, running, ready, and failed state plus bounded
 results in the owner's Reference Library Durable Object. Every state transition
 checks the artifact fingerprint and request time, making duplicate or stale
 deliveries harmless.
+
+Reserve Queue publication atomically in that Durable Object. The queue-state
+RPC returns both the current analysis and whether this caller owns publication;
+only the caller that created or explicitly forced the queued generation sends
+the message. Concurrent ordinary starts return the same persisted generation
+without publishing duplicates. Queue-send failure may mark only that same
+fingerprint- and request-qualified generation as failed.
 
 Use Cloudflare Browser Run with its Puppeteer binding for PDF.js and canvas
 execution. The consumer loads the exact bounded R2 object, intercepts the
@@ -54,6 +63,8 @@ silently create library records or citation-graph assertions.
   Detect button.
 - Queue retries and Durable Object guards make analysis resilient and
   idempotent.
+- Concurrent start requests publish one Queue message for one persisted job
+  generation.
 - Private PDFs are not exposed through a new HTTP capability.
 - PDF bibliography extraction reuses the job lifecycle without coupling its
   result schema or UI state to highlights.

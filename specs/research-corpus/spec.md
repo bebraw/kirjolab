@@ -62,8 +62,9 @@ recreated by each consumer.
 - MCP never embeds original binary bytes. It can return a protected HTTP link
   to the original representation.
 - Extraction kinds are the existing independent `pdf-text`, `pdf-highlights`,
-  and `pdf-references` jobs. Requests are idempotent unless an explicit retry is
-  made after failure.
+  and `pdf-references` jobs. The owner-scoped storage authority atomically
+  reserves Queue publication so concurrent ordinary requests publish one job
+  generation. An explicit retry after failure creates a new generation.
 - Starting extraction returns a fingerprint-qualified asynchronous job. Ready
   extracted data is bounded by the existing validated result contracts.
 - Failed extraction status exposes a stable public failure message; persisted
@@ -133,6 +134,10 @@ uses that same operation rather than a second write implementation.
 Given an existing PDF, when a client starts `pdf-text` extraction, then the
 existing versioned job is queued once and a fingerprint-qualified status is
 returned without waiting for processing.
+
+Given concurrent clients starting the same extraction generation, exactly one
+authority response grants Queue publication and every caller observes the same
+persisted request identity.
 
 ### Bounded semantic reading
 
