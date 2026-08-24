@@ -177,7 +177,9 @@ export class ResearchCorpusService implements CorpusApplication {
     return {
       artifactId,
       fingerprint: artifact.fingerprint,
-      ...resultPage,
+      page: resultPage.page,
+      text: resultPage.text,
+      source: resultPage.source,
       pagesScanned: analysis.result.pagesScanned,
       pagesTotal: analysis.result.pagesTotal,
       truncated: analysis.result.truncated,

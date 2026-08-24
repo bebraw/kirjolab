@@ -112,8 +112,25 @@ describe("ResearchCorpusService", () => {
     expect(extractionResult).not.toHaveProperty("internalLocator");
   });
 
-  it("returns one ready text page with extraction provenance", async () => {
-    const { service } = fixture({ currentAnalysis: analysis("ready") });
+  it("returns one explicitly projected ready text page", async () => {
+    const ready = analysis("ready");
+    const privatePage = {
+      page: 2,
+      text: "Second page",
+      source: "ocr" as const,
+      internalLocator: "libraries/owner/private-page.json",
+    };
+    const currentAnalysis: ArtifactAnalysis = {
+      ...ready,
+      result: {
+        pages: [{ page: 1, text: "First page", source: "native" }, privatePage],
+        pagesScanned: 2,
+        pagesTotal: 2,
+        ocrPages: 1,
+        truncated: false,
+      },
+    };
+    const { service } = fixture({ currentAnalysis });
 
     await expect(service.readPdfTextPage(firstArtifact.id, 2)).resolves.toEqual({
       artifactId: firstArtifact.id,
