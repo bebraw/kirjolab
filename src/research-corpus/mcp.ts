@@ -169,15 +169,20 @@ async function resourceResult<Result>(operation: () => Promise<Result>): Promise
   try {
     return await operation();
   } catch (error) {
-    const expected =
+    const domainError =
       error instanceof CorpusNotFoundError ||
       error instanceof CorpusNotReadyError ||
       error instanceof CorpusInvalidCursorError ||
       error instanceof CorpusInvalidInputError;
-    if (!expected) console.error("Research Corpus MCP resource operation failed", error);
+    const invalidParameters = domainError || error instanceof z.ZodError;
+    if (!invalidParameters) console.error("Research Corpus MCP resource operation failed", error);
     throw new ProtocolError(
-      expected ? ProtocolErrorCode.InvalidParams : ProtocolErrorCode.InternalError,
-      expected && error instanceof Error ? error.message : "Corpus resource operation failed",
+      invalidParameters ? ProtocolErrorCode.InvalidParams : ProtocolErrorCode.InternalError,
+      error instanceof z.ZodError
+        ? "Corpus resource parameters are invalid"
+        : domainError && error instanceof Error
+          ? error.message
+          : "Corpus resource operation failed",
     );
   }
 }

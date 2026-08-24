@@ -104,6 +104,8 @@ recreated by each consumer.
 - Tool names and input schemas are stable compatibility surfaces. MCP content
   mirrors the structured result and remains JSON-serializable.
 - Expected resource and tool failures use stable owner-safe messages.
+- Malformed MCP resource-template variables return protocol `InvalidParams`
+  with a stable validation message and do not invoke the application service.
   Unexpected failures are logged server-side and reduced to generic MCP error
   messages before crossing either callback boundary.
 
