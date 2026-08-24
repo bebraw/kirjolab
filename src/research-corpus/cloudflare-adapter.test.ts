@@ -131,7 +131,7 @@ function fixture() {
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
   };
   const getByName = vi.fn(() => library);
-  const queue = { send: vi.fn(async () => undefined) };
+  const queue = { send: vi.fn(async () => queueSendResponse()) };
   const papers = new TestPapers();
   const env: CorpusCloudflareEnvironment = {
     REFERENCE_LIBRARIES: { getByName },
@@ -153,6 +153,10 @@ function unusedR2Object(): R2Object {
     storageClass: "Standard",
     writeHttpMetadata: () => undefined,
   };
+}
+
+function queueSendResponse(): QueueSendResponse {
+  return { metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } } };
 }
 
 class TestPapers implements Pick<R2Bucket, "delete" | "get" | "put"> {

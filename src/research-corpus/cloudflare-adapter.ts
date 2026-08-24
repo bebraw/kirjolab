@@ -1,4 +1,4 @@
-import { enqueueArtifactAnalysis, type ArtifactAnalysisJobLibrary, type ArtifactAnalysisJobQueue } from "../artifact-analysis-job";
+import { enqueueArtifactAnalysis, type ArtifactAnalysisJobLibrary } from "../artifact-analysis-job";
 import { downloadR2Object } from "../api/r2-download";
 import {
   isArtifactAnalysis,
@@ -18,8 +18,8 @@ export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary, Libr
 
 export interface CorpusCloudflareEnvironment {
   readonly REFERENCE_LIBRARIES: { getByName(ownerKey: string): CorpusLibraryAuthority };
-  readonly ARTIFACT_ANALYSIS_QUEUE?: ArtifactAnalysisJobQueue;
-  readonly PAPERS: Pick<R2Bucket, "delete" | "get" | "put">;
+  readonly ARTIFACT_ANALYSIS_QUEUE: Pick<ResearchCorpusBindings["ARTIFACT_ANALYSIS_QUEUE"], "send">;
+  readonly PAPERS: Pick<ResearchCorpusBindings["PAPERS"], "delete" | "get" | "put">;
 }
 
 export function createCloudflareCorpusService(ownerKey: string, actor: string, env: CorpusCloudflareEnvironment): ResearchCorpusService {
@@ -47,7 +47,7 @@ export function createCloudflareCorpusService(ownerKey: string, actor: string, e
           { actor, body: input.body, name: input.name, ownerKey, size: input.size },
           {
             authority: library,
-            ...(env.ARTIFACT_ANALYSIS_QUEUE ? { queue: env.ARTIFACT_ANALYSIS_QUEUE } : {}),
+            queue: env.ARTIFACT_ANALYSIS_QUEUE,
             storage: env.PAPERS,
           },
         ),

@@ -2032,11 +2032,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - `npm run diagnostics:codebase` is useful during review and refactoring, but passing or failing it is not a readiness baseline by itself.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
 - Build typed browser code with esbuild into the existing ignored `.generated/` directory before Wrangler bundles the Worker.
-- Regenerate committed Worker binding types with `npm run worker:types` whenever
-  `wrangler.jsonc` bindings change. Generation, the fast quality gate, and
-  production preflight must all disable Wrangler's automatic `.env` and
-  `.dev.vars` discovery so machine-local values cannot enter the committed
-  declaration or make its freshness environment-dependent.
+- Regenerate each committed Worker binding declaration with its registered
+  `worker:types` command whenever the corresponding Wrangler bindings change.
+  Derive Worker composition and platform-adapter binding types from that
+  generated interface; hand-write only narrower capability methods that the
+  generator cannot discover across an external service boundary. Generation,
+  the fast quality gate, and production preflight must all disable Wrangler's
+  automatic `.env` and `.dev.vars` discovery so machine-local values cannot
+  enter the committed declaration or make its freshness environment-dependent.
 - Keep committed Wrangler authentication variables fail-closed for hosted use:
   `AUTH_MODE=local` with blank Access values. The repository-owned production
   deploy command alone supplies `AUTH_MODE=access`, the exact team domain, and

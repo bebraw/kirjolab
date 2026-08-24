@@ -182,6 +182,9 @@ copy or dual write.
   rejects a corpus hostname that would replace an allowed frontend origin.
 - A corpus-specific generated binding artifact is checked by the fast quality
   gate and again before either dry-run-only or uploading production deploys.
+  The Worker composition and its R2 and Queue adapter ports derive their types
+  from that artifact, while the external Durable Object RPC surface is narrowed
+  explicitly because Wrangler cannot generate another Worker's class methods.
 - Workers-runtime intake tests use Cloudflare's real `FixedLengthStream` and
   reject bodies shorter or longer than the declared PDF length before creating
   Library state.
