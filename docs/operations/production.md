@@ -31,8 +31,8 @@ export KIRJOLAB_CROSSREF_MAILTO=you@example.org
 ```
 
 `KIRJOLAB_CROSSREF_MAILTO` may be omitted. The other values are required and
-the preflight rejects blank, loopback, `workers.dev`, `pages.dev`, malformed,
-and placeholder values.
+the preflight rejects blank, loopback, `workers.dev`, `pages.dev`, terminal-dot,
+malformed, and placeholder values.
 
 For broader reviewed metadata discovery, configure provider keys as Worker
 secrets. OpenAlex runs before Crossref when configured. Semantic Scholar uses
@@ -111,9 +111,9 @@ export KIRJOLAB_CORPUS_ALLOWED_ORIGINS=https://write.your-domain.example
 
 `KIRJOLAB_ACCESS_TEAM_DOMAIN` remains the shared Access team domain. Separate
 multiple allowed frontend origins with commas. Every entry must be a canonical
-HTTPS origin without a path, query, fragment, credentials, or trailing slash.
-Do not use `*`; the deploy preflight rejects non-origin values and the Worker
-reflects CORS only after an exact match.
+HTTPS origin without a path, query, fragment, credentials, trailing slash, or
+terminal DNS root dot. Do not use `*`; the deploy preflight rejects non-origin
+values and the Worker reflects CORS only after an exact match.
 `KIRJOLAB_PRODUCTION_URL` must remain the canonical primary application URL;
 the preflight validates it independently and rejects a corpus hostname that
 would replace it even when it is absent from the allowed-origin list.

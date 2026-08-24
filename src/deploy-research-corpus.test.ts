@@ -28,6 +28,20 @@ describe("Research Corpus production deployment", () => {
     ["origin path", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://write.kirjolab.test/path" }],
     ["HTTP origin", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "http://write.kirjolab.test" }],
     [
+      "primary/corpus terminal-dot alias",
+      {
+        KIRJOLAB_CORPUS_PRODUCTION_URL: "https://write.kirjolab.test.",
+        KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://lab.kirjolab.test",
+      },
+    ],
+    [
+      "corpus/frontend terminal-dot alias",
+      {
+        KIRJOLAB_PRODUCTION_URL: "https://primary.kirjolab.test",
+        KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://corpus.kirjolab.test.",
+      },
+    ],
+    [
       "primary/corpus hostname collision outside the origin allowlist",
       {
         KIRJOLAB_CORPUS_PRODUCTION_URL: "https://write.kirjolab.test",

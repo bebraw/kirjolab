@@ -207,7 +207,8 @@ copy or dual write.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace and
   rejects a corpus hostname that would replace either the canonical primary
-  application hostname or an allowed frontend origin.
+  application hostname or an allowed frontend origin, including terminal-dot
+  spellings of the same DNS name.
 - A corpus-specific generated binding artifact is checked by the fast quality
   gate and again before either dry-run-only or uploading production deploys.
   The Worker composition and its R2 and Queue adapter ports derive their types

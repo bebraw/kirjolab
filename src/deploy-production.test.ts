@@ -32,6 +32,7 @@ describe("production deployment preflight", () => {
     ["URL path", { KIRJOLAB_PRODUCTION_URL: "https://write.kirjolab.test/app" }, "HTTPS custom hostname"],
     ["URL credentials", { KIRJOLAB_PRODUCTION_URL: "https://user:pass@write.kirjolab.test" }, "HTTPS custom hostname"],
     ["URL port", { KIRJOLAB_PRODUCTION_URL: "https://write.kirjolab.test:8443" }, "HTTPS custom hostname"],
+    ["terminal-dot hostname", { KIRJOLAB_PRODUCTION_URL: "https://write.kirjolab.test." }, "HTTPS custom hostname"],
     ["loopback", { KIRJOLAB_PRODUCTION_URL: "https://127.0.0.1" }, "HTTPS custom hostname"],
     ["workers.dev", { KIRJOLAB_PRODUCTION_URL: "https://kirjolab.workers.dev" }, "HTTPS custom hostname"],
     ["placeholder hostname", { KIRJOLAB_PRODUCTION_URL: "https://change-me.invalid" }, "HTTPS custom hostname"],

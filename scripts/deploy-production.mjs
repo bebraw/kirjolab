@@ -27,6 +27,7 @@ export function productionConfiguration(environment = process.env) {
     url.pathname !== "/" ||
     url.search ||
     url.hash ||
+    url.hostname.endsWith(".") ||
     loopbackHost.test(url.hostname) ||
     url.hostname.endsWith(".workers.dev") ||
     url.hostname.endsWith(".pages.dev") ||
