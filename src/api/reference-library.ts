@@ -14,6 +14,7 @@ import {
   type ArtifactAnalysisBackfillStatus,
   type ArtifactAnalysisJob,
   type ArtifactAnalysisKind,
+  type ArtifactAnalysisQueueReservation,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -44,6 +45,8 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
+import { enqueueArtifactAnalysis } from "../artifact-analysis-job";
+import { ingestLibraryPdf, normalizePdfFilename } from "../library-pdf-ingest";
 import {
   isReferenceDiscoveryQuery,
   mergeReferenceDiscoveryCandidates,
@@ -172,13 +175,17 @@ interface ReferenceLibraryApi {
     candidates: readonly LibraryHighlightImportCandidate[],
   ): Promise<LibraryHighlight[]>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force?: boolean): Promise<ArtifactAnalysis>;
-  failArtifactAnalysis(
+  reserveArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force?: boolean,
+  ): Promise<ArtifactAnalysisQueueReservation>;
+  confirmArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     fingerprint: string,
     requestedAt: string,
-    error: string,
   ): Promise<boolean>;
   getPdfReferenceReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue | null>;
   reviewPdfReferenceCandidate(
@@ -495,7 +502,9 @@ async function handlePdfReferenceBackfill(context: ReferenceLibraryRouteContext)
       .filter((_artifact, index) => !analyses[index] || analyses[index]?.status === "failed")
       .slice(0, maximumBackfillQueueBatch);
     const queued = await Promise.all(
-      candidates.map(async ({ id }) => await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env, library)),
+      candidates.map(
+        async ({ id }) => await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
+      ),
     );
     queuedNow = queued.filter(({ status }) => status === "queued").length;
     for (const [index, artifact] of artifacts.entries()) {
@@ -766,9 +775,27 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
   }
   if (!result.created) await context.env.PAPERS.delete(objectKey);
   await Promise.all([
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-highlights", context.env, context.library),
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-references", context.env, context.library),
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-text", context.env, context.library),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-highlights",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-references",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-text",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
   ]);
   return Response.json({ ...result, provenance }, { status: result.created ? 201 : 200, ...noStore() });
 }
@@ -813,13 +840,13 @@ async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteConte
   const kind: ArtifactAnalysisKind = match[2];
   if (request.method === "POST") {
     if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
-    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library, true);
+    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env.ARTIFACT_ANALYSIS_QUEUE, library, true);
     return Response.json(analysis, { status: 202, ...noStore() });
   }
   const analysis = await library.getArtifactAnalysis(match[1], kind);
   if (!analysis) {
     if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
-    return Response.json(await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library), {
+    return Response.json(await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env.ARTIFACT_ANALYSIS_QUEUE, library), {
       status: 202,
       ...noStore(),
     });
@@ -1807,79 +1834,21 @@ async function uploadLibraryPdf(
   const size = Number(request.headers.get("content-length") ?? "0");
   if (!Number.isFinite(size) || size <= 0) return jsonError("Content-Length is required", 411);
   if (size > maximumPdfBytes) return jsonError("PDF exceeds the 25 MB limit", 413);
-  const id = crypto.randomUUID();
-  const objectKey = `libraries/${ownerKey}/${id}.pdf`;
-  const stream = new FixedLengthStream(size);
-  const upload = env.PAPERS.put(objectKey, stream.readable, { httpMetadata: { contentType: "application/pdf" } });
-  const pipeline = request.body.pipeTo(stream.writable);
-  const [stored] = await Promise.all([upload, pipeline]);
-  const artifact: LibraryPdfArtifact = {
-    id,
-    referenceId: null,
-    name: safeFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
-    contentType: "application/pdf",
-    size,
-    objectKey,
-    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
-    rights: "private",
-    createdAt: new Date().toISOString(),
-  };
-  let draft: PdfDraftResult;
-  try {
-    draft = await library.createPdfDraft(artifact, actor);
-  } catch (error) {
-    await env.PAPERS.delete(objectKey);
-    throw error;
-  }
-  if (!draft.created) await env.PAPERS.delete(objectKey);
-  await Promise.all([
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-text", env, library),
-  ]);
+  const draft = await ingestLibraryPdf(
+    {
+      actor,
+      body: request.body,
+      name: normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
+      ownerKey,
+      size,
+    },
+    {
+      authority: library,
+      ...(env.ARTIFACT_ANALYSIS_QUEUE ? { queue: env.ARTIFACT_ANALYSIS_QUEUE } : {}),
+      storage: env.PAPERS,
+    },
+  );
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
-}
-
-async function enqueueArtifactAnalysis(
-  ownerKey: string,
-  artifactId: string,
-  kind: ArtifactAnalysisKind,
-  env: ReferenceLibraryApiEnv,
-  library: ReferenceLibraryApi,
-  force = false,
-): Promise<ArtifactAnalysis> {
-  const requestedAt = new Date().toISOString();
-  if (!env.ARTIFACT_ANALYSIS_QUEUE) {
-    return {
-      artifactId,
-      fingerprint: "",
-      kind,
-      status: "failed",
-      result: null,
-      error: "Artifact analysis queue is unavailable",
-      requestedAt,
-      startedAt: null,
-      completedAt: requestedAt,
-    };
-  }
-  const analysis = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
-  if (analysis.status !== "queued") return analysis;
-  const job: ArtifactAnalysisJob = {
-    version: 1,
-    ownerKey,
-    artifactId,
-    fingerprint: analysis.fingerprint,
-    kind,
-    requestedAt: analysis.requestedAt,
-  };
-  try {
-    await env.ARTIFACT_ANALYSIS_QUEUE.send(job, { contentType: "json" });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Artifact analysis could not be queued";
-    await library.failArtifactAnalysis(artifactId, kind, analysis.fingerprint, analysis.requestedAt, message);
-    return { ...analysis, status: "failed", error: message.slice(0, 1_000), completedAt: new Date().toISOString() };
-  }
-  return analysis;
 }
 
 async function downloadLibraryPdf(
@@ -1940,9 +1909,7 @@ function annotatedPdfFilename(value: string): string {
 }
 
 function safeFilename(value: string): string {
-  const decoded = decodeURIComponent(value);
-  const sanitized = decoded.replaceAll(/[\r\n"/\\]/gu, "-").trim();
-  return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized || "paper"}.pdf`;
+  return normalizePdfFilename(value);
 }
 
 function noStore(): { headers: { "cache-control": string } } {

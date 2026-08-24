@@ -18,6 +18,7 @@ import type { CitationResearchQueueItem, QueueCitationReferenceInput } from "../
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,
+  ArtifactAnalysisQueueReservation,
   ArtifactAnalysisResult,
   PdfReferenceAnalysisCandidate,
   PdfReferenceAnalysisResult,
@@ -40,6 +41,10 @@ import {
   type LibraryHighlightImportCandidate,
   type LibraryNote,
   type LibraryPdfArtifact,
+  type LibraryPdfArtifactItem,
+  type LibraryPdfArtifactPage,
+  type LibraryPdfCatalogItem,
+  type LegacyLibraryPdfArtifactPage,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
   type LibraryPdfNote,
@@ -67,6 +72,9 @@ import {
   type WebSnapshot,
   type WebSource,
   suggestPdfReferenceMatch,
+  libraryPdfCatalogItemByteLength,
+  maximumLibraryPdfArtifactPageBytes,
+  projectLibraryPdfCatalogItem,
   referenceReconciliationReason,
 } from "../domain/reference-library";
 import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
@@ -76,6 +84,8 @@ import { currentRecoveryBookmark } from "./recovery";
 
 const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
 const maximumMetadataPreviewCacheEntries = 16;
+const artifactAnalysisPublicationDelayMilliseconds = 30_000;
+const artifactAnalysisPublicationRetryMilliseconds = 60_000;
 const uuidPattern = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu;
 
 interface MetadataPreviewCacheEntry {
@@ -311,11 +321,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.#artifactAnalyses = new ArtifactAnalysisService(ctx.storage.sql);
-    ctx.blockConcurrencyWhile(async () => {
-      this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
-      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), referenceLibraryMigrations);
-      this.#backfillReferenceKeys();
-    });
+    ctx.blockConcurrencyWhile(async () => await initializeReferenceLibraryStorage(this.ctx, () => this.#backfillReferenceKeys()));
   }
 
   getSnapshot(includeArchived = false): ReferenceLibrarySnapshot {
@@ -368,6 +374,40 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .filter((row) => referenceIds.has(row.reference_id))
         .map(readingFromRow),
     };
+  }
+
+  getPdfArtifactPage(after: string | null, limit: number): LegacyLibraryPdfArtifactPage | null {
+    const rows = this.#pdfArtifactPageRows(after, limit);
+    if (!rows) return null;
+    const items = rows.slice(0, limit).map((row) => {
+      const artifact = artifactFromRow(row);
+      return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
+    });
+    return { items, next: rows.length > limit ? (items.at(-1)?.artifact.id ?? null) : null };
+  }
+
+  getCorpusPdfArtifactPage(after: string | null, limit: number): LibraryPdfArtifactPage | null {
+    const rows = this.#pdfArtifactPageRows(after, limit);
+    if (!rows) return null;
+    const page = this.#pdfArtifactItems(rows.slice(0, limit));
+    return {
+      items: page.items,
+      next: rows.length > limit || page.truncated ? (page.items.at(-1)?.artifact.id ?? null) : null,
+    };
+  }
+
+  getPdfArtifact(artifactId: string): LibraryPdfArtifactItem | null {
+    const row = this.ctx.storage.sql
+      .exec<ArtifactRow>(
+        `SELECT a.* FROM artifacts a
+         LEFT JOIN library_references r ON r.id = a.reference_id
+         WHERE a.id = ? AND (a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)) LIMIT 1`,
+        artifactId,
+      )
+      .toArray()[0];
+    if (!row) return null;
+    const artifact = artifactFromRow(row);
+    return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
   }
 
   async getBackupSnapshot(): Promise<{ snapshot: ReferenceLibrarySnapshot; bookmark: string | null }> {
@@ -1096,13 +1136,38 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
-    return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
+  async queueArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force = false,
+  ): Promise<ArtifactAnalysis> {
+    return (await this.#reserveArtifactAnalysisQueuePublication(artifactId, kind, requestedAt, force)).analysis;
+  }
+
+  // Versioned replacement for queueArtifactAnalysis across the Durable Object RPC boundary.
+  async reserveArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force = false,
+  ): Promise<ArtifactAnalysisQueueReservation> {
+    return await this.#reserveArtifactAnalysisQueuePublication(artifactId, kind, requestedAt, force);
+  }
+
+  // Invoked across the Durable Object RPC boundary after Queue confirms durable acceptance.
+  confirmArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    fingerprint: string,
+    requestedAt: string,
+  ): boolean {
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.confirmPublication(artifactId, kind, fingerprint, requestedAt));
   }
 
   // Invoked across the Durable Object RPC boundary.
   startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
-    return this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt));
   }
 
   // Invoked across the Durable Object RPC boundary.
@@ -1113,12 +1178,37 @@ export class ReferenceLibrary extends DurableObject<Env> {
     requestedAt: string,
     result: ArtifactAnalysisResult,
   ): boolean {
-    return this.#artifactAnalyses.complete(artifactId, kind, fingerprint, requestedAt, result);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.complete(artifactId, kind, fingerprint, requestedAt, result));
   }
 
   // Invoked across the Durable Object RPC boundary.
   failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
-    return this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error));
+  }
+
+  override async alarm(): Promise<void> {
+    const jobs = this.#artifactAnalyses.pendingPublications(100);
+    if (jobs.length === 0) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
+    try {
+      await this.env.ARTIFACT_ANALYSIS_QUEUE.sendBatch(jobs.map((body) => ({ body, contentType: "json" as const })));
+    } catch (error) {
+      console.error("Artifact analysis outbox publication failed", error);
+      await scheduleArtifactAnalysisPublicationAlarm(this.ctx.storage, artifactAnalysisPublicationRetryMilliseconds);
+      return;
+    }
+    this.ctx.storage.transactionSync(() => {
+      for (const job of jobs) {
+        this.#artifactAnalyses.confirmPublication(job.artifactId, job.kind, job.fingerprint, job.requestedAt);
+      }
+    });
+    if (this.#artifactAnalyses.hasPendingPublications()) {
+      await scheduleArtifactAnalysisPublicationAlarm(this.ctx.storage, artifactAnalysisPublicationDelayMilliseconds);
+    } else {
+      await this.ctx.storage.deleteAlarm();
+    }
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {
@@ -2092,6 +2182,81 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifactFromRow(row);
   }
 
+  #pdfArtifactItems(rows: readonly ArtifactRow[]): { readonly items: LibraryPdfCatalogItem[]; readonly truncated: boolean } {
+    const items: LibraryPdfCatalogItem[] = [];
+    let byteLength = 1_024;
+    for (const row of rows) {
+      const artifact = artifactFromRow(row);
+      const item = projectLibraryPdfCatalogItem({
+        artifact,
+        reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null,
+      });
+      const itemByteLength = libraryPdfCatalogItemByteLength(item);
+      if (byteLength + itemByteLength > maximumLibraryPdfArtifactPageBytes) {
+        if (items.length === 0) throw new Error("PDF artifact catalog item exceeds its RPC byte budget");
+        return { items, truncated: true };
+      }
+      items.push(item);
+      byteLength += itemByteLength;
+    }
+    return { items, truncated: false };
+  }
+
+  #pdfArtifactPageRows(after: string | null, limit: number): ArtifactRow[] | null {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("PDF artifact page size must be between 1 and 100");
+    const eligible = "a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)";
+    const cursor = after
+      ? this.ctx.storage.sql
+          .exec<{ id: string; created_at: string }>(
+            `SELECT a.id, a.created_at FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE a.id = ? AND (${eligible}) LIMIT 1`,
+            after,
+          )
+          .toArray()[0]
+      : undefined;
+    if (after && !cursor) return null;
+    return cursor
+      ? this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE (${eligible}) AND (a.created_at < ? OR (a.created_at = ? AND a.id > ?))
+             ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            cursor.created_at,
+            cursor.created_at,
+            cursor.id,
+            limit + 1,
+          )
+          .toArray()
+      : this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE ${eligible} ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            limit + 1,
+          )
+          .toArray();
+  }
+
+  async #reserveArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force: boolean,
+  ): Promise<ArtifactAnalysisQueueReservation> {
+    await scheduleArtifactAnalysisPublicationAlarm(this.ctx.storage, artifactAnalysisPublicationDelayMilliseconds);
+    return this.ctx.storage.transactionSync(() => {
+      const reservation = this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
+      if (reservation.shouldPublish) {
+        const ownerKey = this.ctx.id.name;
+        if (!ownerKey) throw new Error("Reference Library requires an owner-scoped Durable Object name");
+        this.#artifactAnalyses.reservePublication(ownerKey, reservation.analysis);
+      }
+      return reservation;
+    });
+  }
+
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {
     const tags: Record<string, string[]> = {};
     for (const row of this.ctx.storage.sql
@@ -2206,6 +2371,46 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (!row) throw new Error("Private highlight not found");
     return { kind, page: row.page, quote: row.quote, comment: row.comment };
   }
+}
+
+export async function initializeReferenceLibraryStorage(ctx: DurableObjectState, backfillReferenceKeys: () => void): Promise<void> {
+  const artifactAnalyses = new ArtifactAnalysisService(ctx.storage.sql);
+  ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
+  if (requiresArtifactAnalysisPublicationReconciliationAlarm(ctx.storage.sql)) {
+    await scheduleArtifactAnalysisPublicationAlarm(ctx.storage, artifactAnalysisPublicationDelayMilliseconds);
+  }
+  runSQLiteMigrations(cloudflareSQLiteStorage(ctx.storage), referenceLibraryMigrations);
+  backfillReferenceKeys();
+  if (!artifactAnalyses.hasPendingPublications()) return;
+  const hasUnownedPublications = artifactAnalyses.hasUnownedPublications();
+  const migrationOwnerKey = hasUnownedPublications ? ctx.id.name : undefined;
+  if (hasUnownedPublications && !migrationOwnerKey) throw new Error("Reference Library requires an owner-scoped Durable Object name");
+  await scheduleArtifactAnalysisPublicationAlarm(ctx.storage, artifactAnalysisPublicationDelayMilliseconds);
+  if (migrationOwnerKey) artifactAnalyses.adoptUnownedPublications(migrationOwnerKey);
+}
+
+function requiresArtifactAnalysisPublicationReconciliationAlarm(sql: SqlStorage): boolean {
+  const tables = new Set(
+    sql
+      .exec<{ name: string }>(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'table' AND name IN ('_kirjolab_migrations', 'artifact_analyses')`,
+      )
+      .toArray()
+      .map(({ name }) => name),
+  );
+  if (!tables.has("_kirjolab_migrations") || !tables.has("artifact_analyses")) return false;
+  const reconciliationApplied =
+    sql.exec<{ present: number }>("SELECT 1 AS present FROM _kirjolab_migrations WHERE version = 17 LIMIT 1").toArray().length > 0;
+  if (reconciliationApplied) return false;
+  return sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analyses WHERE status = 'queued' LIMIT 1").toArray().length > 0;
+}
+
+async function scheduleArtifactAnalysisPublicationAlarm(storage: DurableObjectStorage, delayMilliseconds: number): Promise<void> {
+  const scheduledAt = Date.now() + delayMilliseconds;
+  const currentAlarm = await storage.getAlarm();
+  if (currentAlarm !== null && currentAlarm <= scheduledAt) return;
+  await storage.setAlarm(scheduledAt);
 }
 
 function mergeBibliographicRecords(

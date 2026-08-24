@@ -31,8 +31,8 @@ export KIRJOLAB_CROSSREF_MAILTO=you@example.org
 ```
 
 `KIRJOLAB_CROSSREF_MAILTO` may be omitted. The other values are required and
-the preflight rejects blank, loopback, `workers.dev`, `pages.dev`, malformed,
-and placeholder values.
+the preflight rejects blank, loopback, `workers.dev`, `pages.dev`, terminal-dot,
+malformed, and placeholder values.
 
 For broader reviewed metadata discovery, configure provider keys as Worker
 secrets. OpenAlex runs before Crossref when configured. Semantic Scholar uses
@@ -70,6 +70,106 @@ Wrangler to replace conflicting Dashboard-managed route metadata after the
 repository-controlled preflight passes. Keep production bindings and routes in
 the repository deployment configuration instead of editing them independently
 in the Dashboard. Record the release commit and deployed version ID.
+
+## Research Corpus Service
+
+Research Corpus is deployed as the separate `kirjolab-research-corpus` Worker.
+It reaches the existing `ReferenceLibrary` Durable Object namespace through a
+cross-script binding and uses the same private R2 bucket and analysis Queue.
+Deploy the primary `kirjolab` Worker first: it owns the Durable Object class and
+the sole Queue consumer. Cross-script RPC changes are additive: the primary
+deployment must expose new method names while preserving the previous methods
+and response shapes, then the corpus deployment may begin using the new names.
+The corpus config contains no migrations and must not be changed to create
+another `ReferenceLibrary` namespace.
+
+Create a second Cloudflare Access self-hosted application for the corpus custom
+hostname. It may use the same policy and team as Kirjolab, but record its own
+application audience. In the Access application's CORS settings, enable
+**Bypass OPTIONS requests to origin**. The corpus Worker then validates the
+requested route and exact `Origin` itself and answers preflight without reading
+owner state; Access must continue to authenticate every non-`OPTIONS` request.
+Do not configure Access to answer preflight on the Worker's behalf because that
+would omit the corpus-specific conditional, range, and MCP headers. Disable the
+Worker's `workers.dev` route. Then set:
+
+In the same Access application's **Advanced settings**, enable **Managed
+OAuth**. Keep the Access policy user-based and do not add a Service Auth policy:
+the corpus owner is derived from the verified user email, and service tokens
+do not define an owner. Allow `localhost` or `127.0.0.1` dynamic-client redirect
+URIs only when the chosen MCP client needs them, and otherwise list the exact
+HTTPS redirect URIs used by approved clients. Keep the OAuth access-token
+lifetime short and let the longer Access grant session drive refresh and policy
+re-evaluation.
+
+```bash
+export KIRJOLAB_PRODUCTION_URL=https://write.your-domain.example
+export KIRJOLAB_CORPUS_PRODUCTION_URL=https://corpus.your-domain.example
+export KIRJOLAB_CORPUS_ACCESS_AUD=your_corpus_application_audience_tag
+export KIRJOLAB_CORPUS_ALLOWED_ORIGINS=https://write.your-domain.example
+```
+
+`KIRJOLAB_ACCESS_TEAM_DOMAIN` remains the shared Access team domain. Separate
+multiple allowed frontend origins with commas. Every entry must be a canonical
+HTTPS origin without a path, query, fragment, credentials, trailing slash, or
+terminal DNS root dot. Do not use `*`; the deploy preflight rejects non-origin
+values and the Worker reflects CORS only after an exact match.
+`KIRJOLAB_PRODUCTION_URL` must remain the canonical primary application URL;
+the preflight validates it independently and rejects a corpus hostname that
+would replace it even when it is absent from the allowed-origin list.
+
+Validate and deploy only after the primary Worker is available:
+
+```bash
+npm run deploy:corpus:dry-run
+npm run deploy:corpus
+```
+
+The release command validates the custom hostname, corpus audience, and exact
+origin list, checks `research-corpus-configuration.d.ts` against
+`wrangler.corpus.jsonc`, performs a strict dry run, uploads, and lists corpus
+versions. The config defaults to local authentication, so a bare deploy is not
+a production shortcut.
+
+From a signed-in browser, verify `GET /v1/artifacts` returns only the expected
+owner's safe artifact metadata. With a designated smoke-test owner, upload a
+small disposable PDF through `POST /v1/artifacts`, verify the response contains
+no object or owner locator, open its protected original representation, request
+or inspect `pdf-text` extraction, and read one extracted page. Remove the smoke
+artifact through the existing Kirjolab Library UI after verification. Verify an
+unconfigured browser origin receives `403`.
+
+Connect an RFC 8707-compatible MCP client to the full
+`https://corpus.your-domain.example/mcp` URL. The first request should receive
+Access authorization metadata, open the user's browser login, and then complete
+tool discovery as that user. Confirm `list_corpus_artifacts` returns only that
+user's corpus. The Worker validates the Access JWT supplied after this flow; it
+does not accept the opaque OAuth token as an application credential itself.
+
+For a user-operated client that supports custom headers but not Managed OAuth,
+`cloudflared` is the fallback:
+
+```bash
+cloudflared access login https://corpus.your-domain.example
+export KIRJOLAB_CORPUS_USER_TOKEN="$(cloudflared access token -app=https://corpus.your-domain.example)"
+```
+
+Configure that client to send
+`cf-access-token: $KIRJOLAB_CORPUS_USER_TOKEN`, then clear the shell variable
+after the session. Never paste this token into repository configuration, logs,
+or chat. This is still an interactive user identity, not a service token.
+
+Managed OAuth is approved only for the private Access deployment. Do not make
+the MCP endpoint public or introduce service identities until an ADR defines
+multi-tenant authorization and explicit identity-to-owner mapping.
+
+Inspect or roll back this Worker with the explicit config so the operation does
+not target Kirjolab accidentally:
+
+```bash
+npx wrangler versions list --config wrangler.corpus.jsonc
+npx wrangler rollback VERSION_ID --config wrangler.corpus.jsonc
+```
 
 ## Smoke Checks
 

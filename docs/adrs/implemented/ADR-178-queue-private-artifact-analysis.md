@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-29
 
+**Amended:** 2026-08-24 — preserve rollout compatibility, recover Queue publication through a durable outbox, reconcile pre-outbox jobs, and preserve earlier alarm deadlines
+
 ## Context
 
 Imported-highlight detection needs PDF.js text extraction and canvas rendering.
@@ -26,6 +28,44 @@ and request time. Store queued, running, ready, and failed state plus bounded
 results in the owner's Reference Library Durable Object. Every state transition
 checks the artifact fingerprint and request time, making duplicate or stale
 deliveries harmless.
+
+Reserve Queue publication atomically in that Durable Object. The additive
+`reserveArtifactAnalysisQueuePublication` RPC returns both the current analysis
+and whether this caller owns publication. Only the caller that created or
+explicitly forced the queued generation sends
+the message. Concurrent ordinary starts return the same persisted generation
+without publishing duplicates.
+
+Persist a fingerprint- and request-qualified publication outbox row in the
+same SQLite transaction as a newly queued generation. Schedule the owner
+Durable Object's alarm before that transaction commits. The requesting Worker
+still attempts an immediate Queue send for latency and removes the matching
+outbox row only after Queue confirms durable acceptance. A send or confirmation
+failure leaves the analysis queued and the outbox pending. The alarm publishes
+at most 100 pending jobs per batch, deletes only confirmed rows, schedules the
+next batch while rows remain, and explicitly reschedules after a Queue failure.
+Starting, completing, or failing that exact generation also clears its stale
+outbox row. Queue consumers remain idempotent because termination after Queue
+acceptance but before outbox deletion can produce a duplicate delivery.
+Alarm scheduling compares the requested deadline with the one existing alarm
+and updates storage only when no alarm exists or the requested deadline is
+earlier. A later reservation therefore cannot postpone recovery already due for
+an older outbox row.
+
+Before committing the append-only reconciliation migration for a Library with
+pre-outbox queued generations, arm or preserve its recovery alarm. The
+migration inserts a placeholder outbox row for every queued generation left by
+the pre-outbox workflow. During Durable Object initialization, replace each
+placeholder with the object name before serving events. This upgrade
+reconciliation runs once, so it recovers the old commit-before-send failure
+window without repeatedly republishing a queued generation whose current
+outbox row was already confirmed. If initialization stops after the migration
+commits, the guard alarm still wakes the object without another request.
+
+Retain `queueArtifactAnalysis` with its original plain `ArtifactAnalysis`
+response while an older Worker may call it. New consumers use the additive
+reservation RPC. This keeps the provider-first cross-script rollout compatible
+when old and new Worker versions overlap.
 
 Use Cloudflare Browser Run with its Puppeteer binding for PDF.js and canvas
 execution. The consumer loads the exact bounded R2 object, intercepts the
@@ -54,6 +94,12 @@ silently create library records or citation-graph assertions.
   Detect button.
 - Queue retries and Durable Object guards make analysis resilient and
   idempotent.
+- Durable alarm recovery prevents a queued analysis from depending on the
+  requesting Worker surviving through Queue acceptance.
+- Queued generations persisted before the outbox existed enter the same durable
+  recovery path on upgrade.
+- Concurrent start requests publish one Queue message for one persisted job
+  generation.
 - Private PDFs are not exposed through a new HTTP capability.
 - PDF bibliography extraction reuses the job lifecycle without coupling its
   result schema or UI state to highlights.
@@ -68,6 +114,8 @@ silently create library records or citation-graph assertions.
   limit, while fulfilling the intercepted browser request.
 - Local unit tests validate orchestration boundaries; full managed-browser
   behavior still requires a Browser Run integration environment.
+- Each owner Durable Object now stores a small publication outbox and may wake
+  on an alarm until Queue accepts every pending job.
 - Heuristic bibliography parsing favors conventional headings and numbered or
   author-year entries; unusual layouts remain visible only after future parser
   improvements rather than being guessed into library records.

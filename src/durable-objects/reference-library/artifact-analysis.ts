@@ -3,7 +3,9 @@ import {
   isPdfReferenceAnalysisResult,
   isPdfTextAnalysisResult,
   type ArtifactAnalysis,
+  type ArtifactAnalysisJob,
   type ArtifactAnalysisKind,
+  type ArtifactAnalysisQueueReservation,
   type ArtifactAnalysisResult,
 } from "../../domain/reference-library/artifact-analysis";
 
@@ -23,6 +25,14 @@ interface ArtifactAnalysisRow extends Record<string, SqlStorageValue> {
   readonly completed_at: string | null;
 }
 
+interface ArtifactAnalysisPublicationRow extends Record<string, SqlStorageValue> {
+  readonly artifact_id: string;
+  readonly fingerprint: string;
+  readonly kind: string;
+  readonly owner_key: string;
+  readonly requested_at: string;
+}
+
 export class ArtifactAnalysisService {
   constructor(private readonly sql: SqlStorage) {}
 
@@ -31,7 +41,7 @@ export class ArtifactAnalysisService {
     return row ? artifactAnalysisFromRow(row) : null;
   }
 
-  queue(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
+  queue(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysisQueueReservation {
     const artifact = this.sql.exec<ArtifactFingerprintRow>("SELECT fingerprint FROM artifacts WHERE id = ?", artifactId).toArray()[0];
     if (!artifact) throw new Error("PDF artifact not found");
     const existing = this.#row(artifactId, kind);
@@ -40,7 +50,7 @@ export class ArtifactAnalysisService {
       existing?.fingerprint === artifact.fingerprint &&
       (existing.status === "queued" || existing.status === "running" || existing.status === "ready")
     ) {
-      return artifactAnalysisFromRow(existing);
+      return { analysis: artifactAnalysisFromRow(existing), shouldPublish: false };
     }
     this.sql.exec(
       `INSERT INTO artifact_analyses
@@ -59,7 +69,70 @@ export class ArtifactAnalysisService {
       kind,
       requestedAt,
     );
-    return artifactAnalysisFromRow(this.#row(artifactId, kind)!);
+    return { analysis: artifactAnalysisFromRow(this.#row(artifactId, kind)!), shouldPublish: true };
+  }
+
+  reservePublication(ownerKey: string, analysis: ArtifactAnalysis): void {
+    this.sql.exec(
+      `INSERT INTO artifact_analysis_publications
+         (artifact_id, fingerprint, kind, owner_key, requested_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (artifact_id, kind) DO UPDATE SET
+         fingerprint = excluded.fingerprint,
+         owner_key = excluded.owner_key,
+         requested_at = excluded.requested_at`,
+      analysis.artifactId,
+      analysis.fingerprint,
+      analysis.kind,
+      ownerKey,
+      analysis.requestedAt,
+    );
+  }
+
+  pendingPublications(limit: number): ArtifactAnalysisJob[] {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("Publication batch size must be between 1 and 100");
+    return this.sql
+      .exec<ArtifactAnalysisPublicationRow>(
+        "SELECT * FROM artifact_analysis_publications ORDER BY requested_at, artifact_id, kind LIMIT ?",
+        limit,
+      )
+      .toArray()
+      .map((row) => ({
+        version: 1,
+        ownerKey: row.owner_key,
+        artifactId: row.artifact_id,
+        fingerprint: row.fingerprint,
+        kind: artifactAnalysisKind(row.kind),
+        requestedAt: row.requested_at,
+      }));
+  }
+
+  confirmPublication(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
+    return (
+      this.sql.exec(
+        `DELETE FROM artifact_analysis_publications
+         WHERE artifact_id = ? AND kind = ? AND fingerprint = ? AND requested_at = ?`,
+        artifactId,
+        kind,
+        fingerprint,
+        requestedAt,
+      ).rowsWritten === 1
+    );
+  }
+
+  hasPendingPublications(): boolean {
+    return this.sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analysis_publications LIMIT 1").toArray().length > 0;
+  }
+
+  hasUnownedPublications(): boolean {
+    return (
+      this.sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analysis_publications WHERE owner_key = '' LIMIT 1").toArray()
+        .length > 0
+    );
+  }
+
+  adoptUnownedPublications(ownerKey: string): void {
+    this.sql.exec("UPDATE artifact_analysis_publications SET owner_key = ? WHERE owner_key = ''", ownerKey);
   }
 
   start(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
@@ -73,6 +146,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 
@@ -100,6 +174,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 
@@ -115,6 +190,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 

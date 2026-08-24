@@ -88,6 +88,12 @@ export interface ArtifactAnalysis {
   readonly completedAt: string | null;
 }
 
+/** Atomic authority decision indicating whether the caller owns Queue publication. */
+export interface ArtifactAnalysisQueueReservation {
+  readonly analysis: ArtifactAnalysis;
+  readonly shouldPublish: boolean;
+}
+
 export interface ArtifactAnalysisJob {
   readonly version: 1;
   readonly ownerKey: string;

@@ -186,6 +186,20 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
   not require a Cloudflare Access assertion or a `.dev.vars` file.
+- Start Research Corpus on `http://127.0.0.1:8788` with
+  `npm run dev:corpus`. Wrangler runs `wrangler.corpus.jsonc` as the exposed
+  primary Worker and `wrangler.jsonc` as its auxiliary Durable Object and Queue
+  authority, so both surfaces see one local Library namespace. Do not run this
+  command beside E2E, which also reserves port 8788.
+- Inspect the local corpus through `GET /v1/artifacts`; connect an MCP client to
+  `/mcp`. Local authentication remains loopback-only. MCP exposes bounded tools
+  and resources for safe artifact metadata, extraction status and requests,
+  and individual PDF text pages. Original PDF bytes remain on the protected
+  HTTP representation route and never enter MCP results.
+- Upload a development PDF with a raw `application/pdf` body to
+  `POST /v1/artifacts`, an exact `Content-Length`, and a URL-encoded
+  `X-File-Name`. The 25 MB limit and fixed-length R2 stream apply before the
+  shared draft and extraction-queue operation runs.
 - Copy `.env.example` to the ignored `.env` to enable the companion; use
   `npm run model:companion` only for standalone troubleshooting.
 - Install the Playwright browser with `npm run playwright:install`.
@@ -209,10 +223,18 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Explicitly rebuild the full incremental mutation report with
   `npm run mutation:incremental:refresh`.
 - Run TypeScript checks with `npm run typecheck`.
+- Validate a hosted corpus release without uploading it with
+  `npm run deploy:corpus:dry-run`; use `npm run deploy:corpus` only after the
+  primary Kirjolab Worker and the corpus Access application exist.
 - Regenerate committed Worker bindings with `npm run worker:types`; this
   intentionally ignores `.env` and `.dev.vars` so output is reproducible.
+- Regenerate the standalone Research Corpus bindings with
+  `npm run worker:types:corpus`. Its generated file omits duplicate runtime
+  declarations but uses the primary generated Worker runtime types already in
+  the project.
 - Check committed Worker bindings without rewriting them with
-  `npm run worker:types:check`.
+  `npm run worker:types:check` and corpus bindings with
+  `npm run worker:types:corpus:check`.
 - Run Lighthouse with `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`.
 - Refresh the ignored Build Week submission images through a dedicated debug
   Chrome session with `npm run media:build-week`; check an existing set without

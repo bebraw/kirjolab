@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kirjolab-research-corpus",
+  "main": "src/research-corpus/worker.ts",
+  "compatibility_date": "2026-06-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "AUTH_MODE": "local",
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "CORPUS_ALLOWED_ORIGINS": "",
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary", "script_name": "kirjolab" }],
+  },
+  "queues": {
+    "producers": [{ "binding": "ARTIFACT_ANALYSIS_QUEUE", "queue": "kirjolab-artifact-analysis" }],
+  },
+  "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
+  "limits": { "cpu_ms": 300000 },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
+  },
+}

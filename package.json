@@ -16,6 +16,10 @@
     "@cloudflare/puppeteer@1.2.0": {
       "@puppeteer/browsers": "3.0.6"
     },
+    "fast-uri": "3.1.6",
+    "postcss": {
+      "nanoid": "3.3.18"
+    },
     "typed-rest-client": {
       "qs": "6.15.3"
     }
@@ -84,8 +88,11 @@
     "ci:local:container": "node ./scripts/run-local-ci.mjs",
     "ci:local:container:retry": "agent-ci retry",
     "deploy": "node ./scripts/deploy-production.mjs",
+    "deploy:corpus": "node ./scripts/deploy-research-corpus.mjs",
+    "deploy:corpus:dry-run": "node ./scripts/deploy-research-corpus.mjs --dry-run-only",
     "deploy:dry-run": "node ./scripts/deploy-production.mjs --dry-run-only",
     "dev": "node --env-file-if-exists=.env ./scripts/run-dev.mjs",
+    "dev:corpus": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --config wrangler.corpus.jsonc --config wrangler.jsonc --ip 127.0.0.1 --port 8788 --log-level error --show-interactive-dev-session=false",
     "dev:worker": "KIRJOLAB_BROWSER_SHELL_MODE=development CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:type-aware && npm run diagnostics:health",
     "diagnostics:dependencies": "node ./scripts/report-dependency-costs.mjs",
@@ -114,7 +121,7 @@
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
-    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run worker:types:corpus:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",
@@ -128,7 +135,9 @@
     "typecheck:workers": "node ./scripts/run-typescript-7.mjs --noEmit -p tsconfig.workers-test.json",
     "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs",
     "worker:types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
-    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check"
+    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
+    "worker:types:corpus": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false",
+    "worker:types:corpus:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --check --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.19.1",
@@ -163,8 +172,10 @@
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.2.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "@octokit/auth-app": "8.2.0",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
+    "agents": "0.21.0",
     "cytoscape": "3.34.0",
     "fflate": "0.8.3",
     "lit": "3.3.3",
@@ -173,6 +184,7 @@
     "scholarmark": "0.8.0",
     "valibot": "1.4.2",
     "xstate": "5.32.5",
-    "yjs": "13.6.31"
+    "yjs": "13.6.31",
+    "zod": "4.4.3"
   }
 }

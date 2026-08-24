@@ -8,6 +8,7 @@
     "src/client/service-worker.ts",
     "src/lib/paper-import/index.ts",
     "src/lib/paper-import/conformance.ts",
+    "src/research-corpus/worker.ts",
     "src/test-support/cloudflare-workers.ts",
     "scripts/citation-provider-diagnostics-entry.ts",
     "scripts/codemirror-parity-spike.ts",

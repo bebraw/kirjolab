@@ -1,10 +1,153 @@
 import { env } from "cloudflare:workers";
-import { runInDurableObject } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
-import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/reference-library";
-import { ReferenceLibrary } from "./reference-library";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { describe, expect, it, vi } from "vitest";
+import {
+  maximumLibraryPdfArtifactPageBytes,
+  type LibraryPdfArtifact,
+  type LibraryPdfArtifactPage,
+  type WebCaptureRegistration,
+} from "../domain/reference-library";
+import { initializeReferenceLibraryStorage, ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
+  it("pages reusable PDF catalog records beside SQLite", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`corpus-page-${crypto.randomUUID()}`);
+    const older = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "older.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: "libraries/owner/older.pdf",
+        fingerprint: `sha256:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-08-23T08:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const newer = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "newer.pdf",
+        contentType: "application/pdf",
+        size: 200,
+        objectKey: "libraries/owner/newer.pdf",
+        fingerprint: `sha256:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-08-24T08:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    await library.updateReferenceMetadata(
+      newer.reference.id,
+      {
+        type: "x".repeat(101),
+        title: "x".repeat(2_001),
+        authors: Array.from({ length: 101 }, () => "x".repeat(501)),
+        year: "x".repeat(101),
+        venue: "x".repeat(2_001),
+        doi: "x".repeat(501),
+        url: "x".repeat(2_001),
+        abstract: "x".repeat(20_001),
+      },
+      "x".repeat(501),
+    );
+
+    const legacy = await library.getPdfArtifactPage(null, 1);
+    const first = await library.getCorpusPdfArtifactPage(null, 1);
+    const second = await library.getCorpusPdfArtifactPage(first?.next ?? null, 1);
+
+    expect(first).toMatchObject({
+      items: [{ artifact: { id: newer.artifact.id }, reference: { id: newer.reference.id } }],
+      next: newer.artifact.id,
+    });
+    expect(first?.items[0]?.artifact).not.toHaveProperty("objectKey");
+    expect(first?.items[0]?.reference).not.toHaveProperty("archivedAt");
+    expect(first?.items[0]?.reference).not.toHaveProperty("deletedAt");
+    expect(first?.items[0]?.reference).toMatchObject({
+      type: "x".repeat(100),
+      title: "x".repeat(2_000),
+      authors: Array.from({ length: 100 }, () => "x".repeat(500)),
+      year: "x".repeat(100),
+      venue: "x".repeat(2_000),
+      doi: "x".repeat(500),
+      url: "x".repeat(2_000),
+      abstract: "x".repeat(20_000),
+      provenance: { title: { actor: "x".repeat(500) } },
+    });
+    expect(new TextEncoder().encode(JSON.stringify(first)).byteLength).toBeLessThanOrEqual(maximumLibraryPdfArtifactPageBytes);
+    expect(second).toMatchObject({
+      items: [{ artifact: { id: older.artifact.id }, reference: { id: older.reference.id } }],
+      next: null,
+    });
+    expect(legacy).toMatchObject({
+      items: [
+        { artifact: { id: newer.artifact.id, objectKey: newer.artifact.objectKey }, reference: { archivedAt: null, deletedAt: null } },
+      ],
+      next: newer.artifact.id,
+    });
+    expect(await library.getCorpusPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();
+    expect(await library.getPdfArtifact(older.artifact.id)).toEqual({ artifact: older.artifact, reference: older.reference });
+    expect(await library.getPdfArtifact(crypto.randomUUID())).toBeNull();
+  });
+
+  it("continues byte-bounded multibyte catalog pages without loss", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`corpus-byte-page-${crypto.randomUUID()}`);
+    const artifacts: LibraryPdfArtifact[] = [];
+    const metadata = {
+      type: "€".repeat(100),
+      authors: Array.from({ length: 100 }, () => "€".repeat(500)),
+      year: "€".repeat(100),
+      venue: "€".repeat(2_000),
+      doi: "€".repeat(500),
+      url: "€".repeat(2_000),
+      abstract: "€".repeat(20_000),
+    };
+    for (let index = 0; index < 100; index += 1) {
+      const draft = await library.createPdfDraft(
+        {
+          id: crypto.randomUUID(),
+          referenceId: null,
+          name: "€".repeat(512),
+          contentType: "application/pdf",
+          size: 100,
+          objectKey: `libraries/owner/${index}.pdf`,
+          fingerprint: `${String(index).padStart(3, "0")}${"€".repeat(497)}`,
+          rights: "private",
+          createdAt: "2026-08-24T08:00:00.000Z",
+        },
+        "owner@example.test",
+      );
+      artifacts.push(draft.artifact);
+      const identity = String(index).padStart(3, "0");
+      await library.updateReferenceMetadata(
+        draft.reference.id,
+        { ...metadata, title: `${identity}${"€".repeat(1_997)}`, doi: `10.5555/${identity}${"€".repeat(489)}` },
+        "€".repeat(500),
+      );
+    }
+
+    const pages: LibraryPdfArtifactPage[] = [];
+    let cursor: string | null = null;
+    for (let index = 0; index < 100; index += 1) {
+      const page = await library.getCorpusPdfArtifactPage(cursor, 100);
+      if (!page) throw new Error("Expected a valid corpus catalog page");
+      pages.push(page);
+      expect(new TextEncoder().encode(JSON.stringify(page)).byteLength).toBeLessThanOrEqual(maximumLibraryPdfArtifactPageBytes);
+      if (!page.next) break;
+      cursor = page.next;
+    }
+
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.at(-1)?.next).toBeNull();
+    const actualIds = pages.flatMap((page) => page.items.map((item) => item.artifact.id));
+    const expectedIds = artifacts.map((artifact) => artifact.id).sort();
+    expect(actualIds).toEqual(expectedIds);
+    expect(new Set(actualIds).size).toBe(100);
+  });
+
   it("atomically attaches a fingerprinted PDF to an existing reference", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`oa-pdf-${crypto.randomUUID()}`);
     const [imported] = await library.importBibTeX("@article{open2026, title={Open paper}, doi={10.1000/open}}", "owner@example.test");
@@ -312,11 +455,19 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     const firstRequest = "2026-07-29T10:00:01.000Z";
-    const queued = await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", firstRequest);
-    expect(queued).toMatchObject({ status: "queued", requestedAt: firstRequest, result: null });
+    const queued = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", firstRequest);
+    expect(queued).toMatchObject({
+      analysis: { status: "queued", requestedAt: firstRequest, result: null },
+      shouldPublish: true,
+    });
+    const legacyQueued = await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", "ignored");
+    expect(legacyQueued).toMatchObject({ status: "queued", requestedAt: firstRequest, result: null });
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(true);
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
-    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", "ignored")).status).toBe("running");
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", "ignored")).toMatchObject({
+      analysis: { status: "running", requestedAt: firstRequest },
+      shouldPublish: false,
+    });
 
     const result = {
       candidates: [
@@ -344,7 +495,10 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
 
     const retryRequest = "2026-07-29T10:01:00.000Z";
-    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", retryRequest, true)).status).toBe("queued");
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", retryRequest, true)).toMatchObject({
+      analysis: { status: "queued" },
+      shouldPublish: true,
+    });
     expect(
       await library.failArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest, "stale failure"),
     ).toBe(false);
@@ -382,7 +536,10 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       referencesStartPage: 8,
       truncated: false,
     };
-    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-references", referenceRequest)).status).toBe("queued");
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-references", referenceRequest)).toMatchObject({
+      analysis: { status: "queued" },
+      shouldPublish: true,
+    });
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-references", draft.artifact.fingerprint, referenceRequest)).toBe(
       true,
     );
@@ -398,6 +555,315 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-references")).toMatchObject({
       status: "ready",
       result: referenceResult,
+    });
+  });
+
+  it("grants exactly one Queue publication reservation for concurrent duplicate starts", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`artifact-analysis-reservation-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+
+    const reservations = await Promise.all([
+      library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z"),
+      library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:02.000Z"),
+    ]);
+
+    expect(reservations.filter(({ shouldPublish }) => shouldPublish)).toHaveLength(1);
+    expect(new Set(reservations.map(({ analysis }) => analysis.requestedAt)).size).toBe(1);
+  });
+
+  it("does not postpone an earlier artifact publication alarm", async () => {
+    const ownerKey = `artifact-analysis-alarm-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const earlierAlarm = Date.now() + 20_000;
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      await state.storage.setAlarm(earlierAlarm);
+      expect(await state.storage.getAlarm()).toBe(earlierAlarm);
+    });
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z");
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(await state.storage.getAlarm()).toBe(earlierAlarm);
+    });
+  });
+
+  it("brings a later artifact publication alarm forward", async () => {
+    const ownerKey = `artifact-analysis-alarm-forward-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const laterAlarm = Date.now() + 120_000;
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      await state.storage.setAlarm(laterAlarm);
+      expect(await state.storage.getAlarm()).toBe(laterAlarm);
+    });
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z");
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(await state.storage.getAlarm()).toBeLessThan(laterAlarm);
+    });
+  });
+
+  it("recovers an unconfirmed Queue publication through a durable alarm", async () => {
+    const ownerKey = `artifact-analysis-outbox-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    await runInDurableObject(library, async (instance: ReferenceLibrary, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ owner_key: string; artifact_id: string; kind: string; requested_at: string }>(
+            "SELECT owner_key, artifact_id, kind, requested_at FROM artifact_analysis_publications",
+          )
+          .toArray(),
+      ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations WHERE version = 16")
+          .toArray(),
+      ).toEqual([{ version: 16, name: "recover-artifact-analysis-publication" }]);
+      expect(await state.storage.getAlarm()).not.toBeNull();
+      await instance.alarm();
+    });
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
+      expect(await state.storage.getAlarm()).toBeNull();
+    });
+  });
+
+  it("keeps the outbox and reschedules after the Queue rejects an alarm publication", async () => {
+    const ownerKey = `artifact-analysis-alarm-failure-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      const bindings = (instance as ReferenceLibrary & { readonly env: Env }).env;
+      vi.spyOn(bindings.ARTIFACT_ANALYSIS_QUEUE, "sendBatch").mockRejectedValueOnce(new Error("Queue unavailable"));
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+    let ranAlarm = false;
+    try {
+      ranAlarm = await runDurableObjectAlarm(library);
+      await runInDurableObject(library, async (instance: ReferenceLibrary, state) => {
+        const bindings = (instance as ReferenceLibrary & { readonly env: Env }).env;
+        expect(bindings.ARTIFACT_ANALYSIS_QUEUE.sendBatch).toHaveBeenCalledOnce();
+        expect(
+          state.storage.sql
+            .exec<{ owner_key: string; artifact_id: string; kind: string; requested_at: string }>(
+              "SELECT owner_key, artifact_id, kind, requested_at FROM artifact_analysis_publications",
+            )
+            .toArray(),
+        ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+        expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
+      });
+    } finally {
+      await runInDurableObject(library, () => vi.restoreAllMocks());
+    }
+
+    expect(ranAlarm).toBe(true);
+  });
+
+  it("reconciles only queued pre-outbox generations when the Library upgrades", async () => {
+    const ownerKey = `artifact-analysis-upgrade-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const readyArtifactId = crypto.randomUUID();
+    const readyDraft = await library.createPdfDraft(
+      {
+        id: readyArtifactId,
+        referenceId: null,
+        name: "ready-analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${readyArtifactId}.pdf`,
+        fingerprint: `etag:${readyArtifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    const reservation = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    expect(
+      await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
+    ).toBe(true);
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
+      state.storage.sql.exec(
+        `INSERT INTO artifact_analyses
+           (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
+         VALUES
+           (?, ?, 'pdf-highlights', 'running', '', '', ?, ?, NULL),
+           (?, ?, 'pdf-references', 'failed', '', 'Browser unavailable', ?, ?, ?),
+           (?, ?, 'pdf-text', 'ready', ?, '', ?, ?, ?)`,
+        draft.artifact.id,
+        draft.artifact.fingerprint,
+        requestedAt,
+        requestedAt,
+        draft.artifact.id,
+        draft.artifact.fingerprint,
+        requestedAt,
+        requestedAt,
+        requestedAt,
+        readyDraft.artifact.id,
+        readyDraft.artifact.fingerprint,
+        JSON.stringify({ pages: [], pagesScanned: 0, pagesTotal: 0, ocrPages: 0, truncated: false }),
+        requestedAt,
+        requestedAt,
+        requestedAt,
+      );
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      await state.storage.deleteAlarm();
+    });
+
+    await evictDurableObject(library);
+    expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-text")).toMatchObject({ status: "queued", requestedAt });
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations WHERE version = 17")
+          .toArray(),
+      ).toEqual([{ version: 17, name: "reconcile-queued-artifact-analysis-publications" }]);
+      expect(
+        state.storage.sql
+          .exec<{ owner_key: string; artifact_id: string; kind: string; requested_at: string }>(
+            "SELECT owner_key, artifact_id, kind, requested_at FROM artifact_analysis_publications",
+          )
+          .toArray(),
+      ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+      expect(await state.storage.getAlarm()).not.toBeNull();
+    });
+  });
+
+  it("keeps a recovery alarm when initialization fails after publication reconciliation", async () => {
+    const ownerKey = `artifact-analysis-upgrade-failure-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    const reservation = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    expect(
+      await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
+    ).toBe(true);
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      await state.storage.deleteAlarm();
+      await expect(
+        initializeReferenceLibraryStorage(state, () => {
+          throw new Error("Injected post-migration initialization failure");
+        }),
+      ).rejects.toThrow("Injected post-migration initialization failure");
+      expect(state.storage.sql.exec<{ version: number }>("SELECT version FROM _kirjolab_migrations WHERE version = 17").toArray()).toEqual([
+        { version: 17 },
+      ]);
+      expect(await state.storage.getAlarm()).not.toBeNull();
     });
   });
 

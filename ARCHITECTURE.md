@@ -113,6 +113,33 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   atomic transactions. Keep Durable Object RPC, authorization, coordination,
   blobs, jobs, scheduling, HTTP/WebSocket hosting, and deployment policy out of
   that database contract.
+- Keep reusable source identity, artifact metadata and rights, original
+  representations, extraction jobs, and immutable extraction results behind
+  the protocol-neutral Research Corpus application service. Kirjolab retains
+  manuscript, collaboration, project membership, citation aliases and links,
+  claims, reviews, and UI workflow ownership. During migration, adapt the
+  existing owner-scoped Reference Library Durable Object, R2 objects, and Queue
+  jobs behind that service with one write path and no copied authority.
+- Keep Corpus-to-Library cross-script RPC payloads purpose-specific and
+  bounded by serialized bytes as well as item count. Select a field-bounded
+  catalog projection and individual artifact/reference records beside the
+  owner-scoped Library SQLite authority; never move a complete private Library
+  snapshot across the service binding to paginate or look up one artifact.
+  Evolve these RPCs additively: deploy a new provider method before switching
+  consumers, and retain the old method and response shape through the
+  provider-first mixed-version rollout.
+- Use versioned HTTP/JSON for corpus application data and protected conditional
+  or ranged artifact bytes. Accept PDF intake as an exact-length, owner-scoped,
+  bounded HTTP stream through the same storage/draft/queue operation used by
+  compatibility routes. Project the read and extraction contracts through a
+  stateless MCP handler for bounded semantic discovery and page-level extracted text. Never
+  return private binary artifacts, R2 object keys, owner keys, Durable Object
+  locators, Queue payloads, or credentials through MCP. Authenticate before
+  owner selection and validate any browser origin against an exact allowlist.
+  For the private hosted MCP deployment, delegate the standard authorization
+  code flow to Access Managed OAuth and continue validating the resulting user
+  JWT at the Worker. Require a verified email and non-empty subject for owner
+  selection; do not map Access service tokens to user-owned corpora.
 - Treat the Docker Compose self-host profile as a loopback-only, single-replica
   evaluation surface until native identity, blob, job, scheduling, hosting, and
   collaboration adapters are implemented. Its workerd/Miniflare state is not a
@@ -1436,7 +1463,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Run expensive, retriable private-artifact inspection behind a versioned Queue
   job contract containing owner, artifact, fingerprint, kind, and request time,
   never artifact bytes. Persist fingerprint-qualified lifecycle and bounded
-  results in the owner Library Durable Object. Consumers must be idempotent,
+  results in the owner Library Durable Object. Atomically reserve Queue
+  publication there so concurrent ordinary starts emit one message for one
+  persisted generation. Persist a matching publication outbox row and recover
+  it with the Durable Object alarm; arm or preserve recovery before committing
+  the migration that reconciles pre-outbox queued generations into that path
+  exactly once during upgrade; clear an outbox row only after Queue acceptance
+  or a qualified lifecycle transition. Consumers must be idempotent because
+  alarm recovery may redeliver a job accepted before outbox acknowledgement.
+  Always reschedule the alarm after a Queue failure while outbox rows remain,
+  and never move an already scheduled earlier outbox deadline later when
+  another reservation arrives,
   close managed-browser sessions, and expose only candidate data for explicit
   review. Supply the job's exact private R2 bytes to managed Chromium through
   request interception rather than a public or bearer-token artifact route.
@@ -2005,15 +2042,21 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - `npm run diagnostics:codebase` is useful during review and refactoring, but passing or failing it is not a readiness baseline by itself.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
 - Build typed browser code with esbuild into the existing ignored `.generated/` directory before Wrangler bundles the Worker.
-- Regenerate committed Worker binding types with `npm run worker:types` whenever
-  `wrangler.jsonc` bindings change. Generation, the fast quality gate, and
-  production preflight must all disable Wrangler's automatic `.env` and
-  `.dev.vars` discovery so machine-local values cannot enter the committed
-  declaration or make its freshness environment-dependent.
+- Regenerate each committed Worker binding declaration with its registered
+  `worker:types` command whenever the corresponding Wrangler bindings change.
+  Derive Worker composition and platform-adapter binding types from that
+  generated interface; hand-write only narrower capability methods that the
+  generator cannot discover across an external service boundary. Generation,
+  the fast quality gate, and production preflight must all disable Wrangler's
+  automatic `.env` and `.dev.vars` discovery so machine-local values cannot
+  enter the committed declaration or make its freshness environment-dependent.
 - Keep committed Wrangler authentication variables fail-closed for hosted use:
   `AUTH_MODE=local` with blank Access values. The repository-owned production
   deploy command alone supplies `AUTH_MODE=access`, the exact team domain, and
-  audience after validating the protected custom hostname.
+  audience after validating the protected custom hostname. Validate the corpus
+  hostname separately from the canonical primary application hostname and
+  every allowed frontend origin; never let a corpus deploy replace one of
+  those routes.
 
 ## Capability Kits
 
