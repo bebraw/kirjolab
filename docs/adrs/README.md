@@ -27,7 +27,10 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No ADRs are currently accepted and awaiting implementation.
+| ADR                                                                 | Status   | Summary                                                                                        |
+| ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| [ADR-228](./accepted/ADR-228-expose-corpus-through-http-and-mcp.md) | Accepted | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.       |
+| [ADR-227](./accepted/ADR-227-extract-research-corpus-service.md)    | Accepted | Extract a reusable corpus service incrementally over the existing private storage authorities. |
 
 ## Implemented ADRs
 

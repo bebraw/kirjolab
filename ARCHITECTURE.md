@@ -113,6 +113,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   atomic transactions. Keep Durable Object RPC, authorization, coordination,
   blobs, jobs, scheduling, HTTP/WebSocket hosting, and deployment policy out of
   that database contract.
+- Keep reusable source identity, artifact metadata and rights, original
+  representations, extraction jobs, and immutable extraction results behind
+  the protocol-neutral Research Corpus application service. Kirjolab retains
+  manuscript, collaboration, project membership, citation aliases and links,
+  claims, reviews, and UI workflow ownership. During migration, adapt the
+  existing owner-scoped Reference Library Durable Object, R2 objects, and Queue
+  jobs behind that service with one write path and no copied authority.
+- Use versioned HTTP/JSON for corpus application data and protected conditional
+  or ranged artifact bytes. Project the same contracts through a stateless MCP
+  handler for bounded semantic discovery and page-level extracted text. Never
+  return private binary artifacts, R2 object keys, owner keys, Durable Object
+  locators, Queue payloads, or credentials through MCP. Authenticate before
+  owner selection and validate any browser origin against an exact allowlist.
 - Treat the Docker Compose self-host profile as a loopback-only, single-replica
   evaluation surface until native identity, blob, job, scheduling, hosting, and
   collaboration adapters are implemented. Its workerd/Miniflare state is not a
