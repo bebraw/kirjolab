@@ -4,6 +4,8 @@
 
 **Date:** 2026-08-24
 
+**Amended:** 2026-08-24 — preserve additive cross-script rollout compatibility
+
 ## Context
 
 The first Research Corpus adapter reused the Reference Library's complete
@@ -22,10 +24,12 @@ queries in another database.
 
 Expose two purpose-specific Reference Library RPC queries for Research Corpus:
 
-- a PDF artifact page selected by the existing stable artifact order, bounded
+- `getCorpusPdfArtifactPage`, a PDF artifact page selected by the existing
+  stable artifact order, bounded
   to 100 items and a 16 MiB serialized payload budget, with a cursor resolved
   beside SQLite; and
-- one PDF artifact plus its optional non-deleted bibliographic record.
+- `getPdfArtifact`, one PDF artifact plus its optional non-deleted
+  bibliographic record.
 
 The page uses a dedicated catalog projection. It omits storage locators and
 reference lifecycle fields, bounds every display field and array, and loads and
@@ -39,6 +43,12 @@ Return `null` for an invalid page cursor or absent artifact. Keep archived
 references visible to match the prior migration behavior, but exclude deleted
 references and their attached artifacts. Validate every cross-script page and
 item again in the corpus adapter before public projection.
+
+Keep the earlier `getPdfArtifactPage` method and its complete artifact/reference
+item shape intact while an older corpus Worker may still be running.
+Cross-script RPC changes must be additive across the documented provider-first
+rollout; a consumer switches to a new method name only after the provider
+exposes it.
 
 Do not call the complete Reference Library snapshot RPC from Research Corpus.
 The snapshot remains available to Kirjolab compatibility, backup, and existing
@@ -62,7 +72,8 @@ Cloudflare's RPC message-size limit.
 
 **Negative:**
 
-- The Reference Library exposes two more RPC methods during the migration.
+- The Reference Library retains one compatibility RPC until a later release
+  proves that no deployed consumer calls it.
 - Catalog consumers use a narrower DTO than single-artifact authority lookups,
   and the page query and its application projection require paired contract
   tests.

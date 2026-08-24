@@ -6,7 +6,7 @@ import type {
 } from "./domain/reference-library";
 
 export interface ArtifactAnalysisJobLibrary {
-  queueArtifactAnalysis(
+  reserveArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     requestedAt: string,
@@ -37,7 +37,7 @@ export async function enqueueArtifactAnalysis(
   const requestedAt = now();
   if (!queue) return unavailableAnalysis(artifactId, kind, requestedAt);
 
-  const reservation = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
+  const reservation = await library.reserveArtifactAnalysisQueuePublication(artifactId, kind, requestedAt, force);
   const { analysis } = reservation;
   if (!reservation.shouldPublish) return analysis;
   const job: ArtifactAnalysisJob = {

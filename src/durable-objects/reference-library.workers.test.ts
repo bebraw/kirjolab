@@ -50,8 +50,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "x".repeat(501),
     );
 
-    const first = await library.getPdfArtifactPage(null, 1);
-    const second = await library.getPdfArtifactPage(first?.next ?? null, 1);
+    const legacy = await library.getPdfArtifactPage(null, 1);
+    const first = await library.getCorpusPdfArtifactPage(null, 1);
+    const second = await library.getCorpusPdfArtifactPage(first?.next ?? null, 1);
 
     expect(first).toMatchObject({
       items: [{ artifact: { id: newer.artifact.id }, reference: { id: newer.reference.id } }],
@@ -76,7 +77,13 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       items: [{ artifact: { id: older.artifact.id }, reference: { id: older.reference.id } }],
       next: null,
     });
-    expect(await library.getPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();
+    expect(legacy).toMatchObject({
+      items: [
+        { artifact: { id: newer.artifact.id, objectKey: newer.artifact.objectKey }, reference: { archivedAt: null, deletedAt: null } },
+      ],
+      next: newer.artifact.id,
+    });
+    expect(await library.getCorpusPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();
     expect(await library.getPdfArtifact(older.artifact.id)).toEqual({ artifact: older.artifact, reference: older.reference });
     expect(await library.getPdfArtifact(crypto.randomUUID())).toBeNull();
   });
@@ -388,14 +395,16 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     const firstRequest = "2026-07-29T10:00:01.000Z";
-    const queued = await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", firstRequest);
+    const queued = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", firstRequest);
     expect(queued).toMatchObject({
       analysis: { status: "queued", requestedAt: firstRequest, result: null },
       shouldPublish: true,
     });
+    const legacyQueued = await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", "ignored");
+    expect(legacyQueued).toMatchObject({ status: "queued", requestedAt: firstRequest, result: null });
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(true);
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
-    expect(await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", "ignored")).toMatchObject({
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", "ignored")).toMatchObject({
       analysis: { status: "running", requestedAt: firstRequest },
       shouldPublish: false,
     });
@@ -426,7 +435,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
 
     const retryRequest = "2026-07-29T10:01:00.000Z";
-    expect(await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", retryRequest, true)).toMatchObject({
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-highlights", retryRequest, true)).toMatchObject({
       analysis: { status: "queued" },
       shouldPublish: true,
     });
@@ -467,7 +476,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       referencesStartPage: 8,
       truncated: false,
     };
-    expect(await library.queueArtifactAnalysis(draft.artifact.id, "pdf-references", referenceRequest)).toMatchObject({
+    expect(await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-references", referenceRequest)).toMatchObject({
       analysis: { status: "queued" },
       shouldPublish: true,
     });
@@ -508,8 +517,8 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     );
 
     const reservations = await Promise.all([
-      library.queueArtifactAnalysis(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z"),
-      library.queueArtifactAnalysis(draft.artifact.id, "pdf-text", "2026-07-29T10:00:02.000Z"),
+      library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z"),
+      library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:02.000Z"),
     ]);
 
     expect(reservations.filter(({ shouldPublish }) => shouldPublish)).toHaveLength(1);

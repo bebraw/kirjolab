@@ -136,7 +136,7 @@ describe("reference library API", () => {
       expect.objectContaining({ referenceId: reference.id, rights: "unknown", fingerprint: expect.stringMatching(/^sha256:/u) }),
     );
     expect(bucket.size).toBe(1);
-    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledTimes(3);
+    expect(fixture.library.reserveArtifactAnalysisQueuePublication).toHaveBeenCalledTimes(3);
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(3);
     await expect(imported.json()).resolves.toMatchObject({
       provenance: { provider: "openalex", license: "cc-by", version: "acceptedVersion" },
@@ -1033,7 +1033,7 @@ describe("reference library API", () => {
 
     const retry = await handleReferenceLibraryApi(new Request(`https://example.test${route}`, { method: "POST" }), fixture.env, identity);
     expect(retry.status).toBe(202);
-    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(
+    expect(fixture.library.reserveArtifactAnalysisQueuePublication).toHaveBeenCalledWith(
       "22222222-2222-4222-8222-222222222222",
       "pdf-highlights",
       expect.any(String),
@@ -1059,7 +1059,7 @@ describe("reference library API", () => {
     const response = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
 
     expect(response.status).toBe(202);
-    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(
+    expect(fixture.library.reserveArtifactAnalysisQueuePublication).toHaveBeenCalledWith(
       "22222222-2222-4222-8222-222222222222",
       "pdf-references",
       expect.any(String),
@@ -1088,7 +1088,12 @@ describe("reference library API", () => {
       total: 1,
       truncated: false,
     });
-    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(artifact.id, "pdf-references", expect.any(String), false);
+    expect(fixture.library.reserveArtifactAnalysisQueuePublication).toHaveBeenCalledWith(
+      artifact.id,
+      "pdf-references",
+      expect.any(String),
+      false,
+    );
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
 
     fixture.library.getArtifactAnalysis.mockResolvedValueOnce({
@@ -1975,7 +1980,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     ),
     importHighlights: vi.fn(async () => []),
     getArtifactAnalysis,
-    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({
+    reserveArtifactAnalysisQueuePublication: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({
       analysis: { ...analysis, kind },
       shouldPublish: true,
     })),

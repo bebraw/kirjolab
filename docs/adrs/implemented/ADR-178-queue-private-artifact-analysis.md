@@ -29,12 +29,18 @@ results in the owner's Reference Library Durable Object. Every state transition
 checks the artifact fingerprint and request time, making duplicate or stale
 deliveries harmless.
 
-Reserve Queue publication atomically in that Durable Object. The queue-state
-RPC returns both the current analysis and whether this caller owns publication;
+Reserve Queue publication atomically in that Durable Object. The additive
+`reserveArtifactAnalysisQueuePublication` RPC returns both the current analysis
+and whether this caller owns publication;
 only the caller that created or explicitly forced the queued generation sends
 the message. Concurrent ordinary starts return the same persisted generation
 without publishing duplicates. Queue-send failure may mark only that same
 fingerprint- and request-qualified generation as failed.
+
+Retain `queueArtifactAnalysis` with its original plain `ArtifactAnalysis`
+response while an older Worker may call it. New consumers use the additive
+reservation RPC. This keeps the provider-first cross-script rollout compatible
+when old and new Worker versions overlap.
 
 Use Cloudflare Browser Run with its Puppeteer binding for PDF.js and canvas
 execution. The consumer loads the exact bounded R2 object, intercepts the

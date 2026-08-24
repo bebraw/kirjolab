@@ -125,6 +125,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   catalog projection and individual artifact/reference records beside the
   owner-scoped Library SQLite authority; never move a complete private Library
   snapshot across the service binding to paginate or look up one artifact.
+  Evolve these RPCs additively: deploy a new provider method before switching
+  consumers, and retain the old method and response shape through the
+  provider-first mixed-version rollout.
 - Use versioned HTTP/JSON for corpus application data and protected conditional
   or ranged artifact bytes. Accept PDF intake as an exact-length, owner-scoped,
   bounded HTTP stream through the same storage/draft/queue operation used by

@@ -28,7 +28,7 @@ describe("shared library PDF ingestion in the Workers runtime", () => {
     const createPdfDraft = vi.fn(async (artifact: LibraryPdfArtifact) => ({ reference, artifact, created: true }));
     const authority = {
       createPdfDraft,
-      queueArtifactAnalysis: vi.fn(async () => {
+      reserveArtifactAnalysisQueuePublication: vi.fn(async () => {
         throw new Error("Queue authority must not run without a Queue binding");
       }),
       failArtifactAnalysis: vi.fn(async () => false),
@@ -65,7 +65,7 @@ describe("shared library PDF ingestion in the Workers runtime", () => {
     };
     const authority = {
       createPdfDraft,
-      queueArtifactAnalysis: vi.fn(async (_artifactId: string, _kind: ArtifactAnalysisKind) => {
+      reserveArtifactAnalysisQueuePublication: vi.fn(async (_artifactId: string, _kind: ArtifactAnalysisKind) => {
         throw new Error("Analysis must not run for a length mismatch");
       }),
       failArtifactAnalysis: vi.fn(async () => false),

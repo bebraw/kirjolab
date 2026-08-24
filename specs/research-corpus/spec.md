@@ -68,6 +68,9 @@ recreated by each consumer.
   and `pdf-references` jobs. The owner-scoped storage authority atomically
   reserves Queue publication so concurrent ordinary requests publish one job
   generation. An explicit retry after failure creates a new generation.
+- Cross-script RPC evolution is additive across the provider-first deployment:
+  the primary Worker exposes a new method before corpus calls it, and keeps the
+  previous method and response shape valid while deployed versions may overlap.
 - Starting extraction returns a fingerprint-qualified asynchronous job. Ready
   extracted data is bounded by the existing validated result contracts.
 - Failed extraction status exposes a stable public failure message; persisted
@@ -143,6 +146,11 @@ returned without waiting for processing.
 Given concurrent clients starting the same extraction generation, exactly one
 authority response grants Queue publication and every caller observes the same
 persisted request identity.
+
+Given the primary Worker has been upgraded while the prior corpus Worker is
+still serving traffic, its legacy catalog-page and queue-state RPC calls retain
+their original response shapes. After corpus is upgraded, it calls the new
+bounded catalog and publication-reservation RPC names.
 
 ### Bounded semantic reading
 

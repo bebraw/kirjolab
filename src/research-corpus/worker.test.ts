@@ -101,7 +101,7 @@ describe("Research Corpus Worker", () => {
     async (failure) => {
       const { env, library } = fixture({ CORPUS_ALLOWED_ORIGINS: "https://writer.example" });
       const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-      vi.mocked(library.getPdfArtifactPage).mockRejectedValueOnce(failure);
+      vi.mocked(library.getCorpusPdfArtifactPage).mockRejectedValueOnce(failure);
 
       const response = await handleResearchCorpusRequest(
         new Request("http://localhost/v1/artifacts", { headers: { origin: "https://writer.example" } }),
@@ -124,10 +124,10 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     createPdfDraft: vi.fn(async () => {
       throw new Error("not used");
     }),
-    getPdfArtifactPage: vi.fn(async () => ({ items: [], next: null })),
+    getCorpusPdfArtifactPage: vi.fn(async () => ({ items: [], next: null })),
     getPdfArtifact: vi.fn(async () => null),
     getArtifactAnalysis: vi.fn(async () => null),
-    queueArtifactAnalysis: vi.fn(async () => {
+    reserveArtifactAnalysisQueuePublication: vi.fn(async () => {
       throw new Error("not used");
     }),
     failArtifactAnalysis: vi.fn(async () => false),

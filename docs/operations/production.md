@@ -77,8 +77,11 @@ Research Corpus is deployed as the separate `kirjolab-research-corpus` Worker.
 It reaches the existing `ReferenceLibrary` Durable Object namespace through a
 cross-script binding and uses the same private R2 bucket and analysis Queue.
 Deploy the primary `kirjolab` Worker first: it owns the Durable Object class and
-the sole Queue consumer. The corpus config contains no migrations and must not
-be changed to create another `ReferenceLibrary` namespace.
+the sole Queue consumer. Cross-script RPC changes are additive: the primary
+deployment must expose new method names while preserving the previous methods
+and response shapes, then the corpus deployment may begin using the new names.
+The corpus config contains no migrations and must not be changed to create
+another `ReferenceLibrary` namespace.
 
 Create a second Cloudflare Access self-hosted application for the corpus custom
 hostname. It may use the same policy and team as Kirjolab, but record its own

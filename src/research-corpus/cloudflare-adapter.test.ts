@@ -61,7 +61,7 @@ describe("Research Corpus Cloudflare adapter", () => {
     await service.listArtifacts({ after: artifactId, limit: 25 });
 
     expect(getByName).toHaveBeenCalledWith("owner-key");
-    expect(library.getPdfArtifactPage).toHaveBeenCalledWith(artifactId, 25);
+    expect(library.getCorpusPdfArtifactPage).toHaveBeenCalledWith(artifactId, 25);
     expect(library.getPdfArtifact).toHaveBeenCalledWith(artifactId);
     expect(queue.send).toHaveBeenCalledWith(
       expect.objectContaining({ ownerKey: "owner-key", artifactId, fingerprint: artifact.fingerprint, kind: "pdf-text" }),
@@ -72,7 +72,7 @@ describe("Research Corpus Cloudflare adapter", () => {
 
   it("rejects an invalid authority page before projecting private state", async () => {
     const { env, library } = fixture();
-    library.getPdfArtifactPage.mockResolvedValue({ items: [{ artifact }] });
+    library.getCorpusPdfArtifactPage.mockResolvedValue({ items: [{ artifact }] });
     const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
 
     await expect(service.listArtifacts()).rejects.toThrow("invalid artifact page");
@@ -80,7 +80,7 @@ describe("Research Corpus Cloudflare adapter", () => {
 
   it("rejects malformed artifact entries inside an otherwise valid authority page", async () => {
     const { env, library } = fixture();
-    library.getPdfArtifactPage.mockResolvedValue({
+    library.getCorpusPdfArtifactPage.mockResolvedValue({
       ...page(),
       items: [{ artifact: { ...artifact, size: "42" }, reference: null }],
     });
@@ -117,16 +117,16 @@ describe("Research Corpus Cloudflare adapter", () => {
 
 function fixture() {
   const library: CorpusLibraryAuthority & {
-    getPdfArtifactPage: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getPdfArtifactPage"]>>;
+    getCorpusPdfArtifactPage: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getCorpusPdfArtifactPage"]>>;
     getPdfArtifact: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getPdfArtifact"]>>;
     getArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getArtifactAnalysis"]>>;
-    queueArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["queueArtifactAnalysis"]>>;
+    reserveArtifactAnalysisQueuePublication: ReturnType<typeof vi.fn<CorpusLibraryAuthority["reserveArtifactAnalysisQueuePublication"]>>;
     failArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["failArtifactAnalysis"]>>;
   } = {
-    getPdfArtifactPage: vi.fn(async () => page()),
+    getCorpusPdfArtifactPage: vi.fn(async () => page()),
     getPdfArtifact: vi.fn(async () => ({ artifact, reference: null })),
     getArtifactAnalysis: vi.fn(async () => null),
-    queueArtifactAnalysis: vi.fn(async () => ({ analysis: queued, shouldPublish: true })),
+    reserveArtifactAnalysisQueuePublication: vi.fn(async () => ({ analysis: queued, shouldPublish: true })),
     failArtifactAnalysis: vi.fn(async () => true),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
   };

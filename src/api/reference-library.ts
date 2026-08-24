@@ -175,7 +175,7 @@ interface ReferenceLibraryApi {
     candidates: readonly LibraryHighlightImportCandidate[],
   ): Promise<LibraryHighlight[]>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
-  queueArtifactAnalysis(
+  reserveArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     requestedAt: string,

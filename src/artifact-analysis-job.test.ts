@@ -70,13 +70,13 @@ describe("artifact analysis job submission", () => {
     const result = await enqueueArtifactAnalysis("owner-key", artifactId, "pdf-text", undefined, library, false, () => requestedAt);
 
     expect(result).toEqual(expect.objectContaining({ status: "failed", error: "Artifact analysis queue is unavailable" }));
-    expect(library.queueArtifactAnalysis).not.toHaveBeenCalled();
+    expect(library.reserveArtifactAnalysisQueuePublication).not.toHaveBeenCalled();
   });
 });
 
 function libraryFixture(value: ArtifactAnalysis = analysis, shouldPublish = true) {
   return {
-    queueArtifactAnalysis: vi.fn(async () => ({ analysis: value, shouldPublish })),
+    reserveArtifactAnalysisQueuePublication: vi.fn(async () => ({ analysis: value, shouldPublish })),
     failArtifactAnalysis: vi.fn(async () => true),
   };
 }

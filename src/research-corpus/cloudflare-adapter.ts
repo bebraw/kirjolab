@@ -11,7 +11,7 @@ import { ingestLibraryPdf, type LibraryPdfIngestAuthority } from "../library-pdf
 import { ResearchCorpusService } from "./service";
 
 export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary, LibraryPdfIngestAuthority {
-  getPdfArtifactPage(after: string | null, limit: number): Promise<unknown>;
+  getCorpusPdfArtifactPage(after: string | null, limit: number): Promise<unknown>;
   getPdfArtifact(artifactId: string): Promise<unknown>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<unknown>;
 }
@@ -27,7 +27,7 @@ export function createCloudflareCorpusService(ownerKey: string, actor: string, e
   return new ResearchCorpusService({
     catalog: {
       page: async (after, limit) => {
-        const page = await library.getPdfArtifactPage(after, limit);
+        const page = await library.getCorpusPdfArtifactPage(after, limit);
         if (page !== null && (!isLibraryPdfArtifactPage(page) || page.items.length > limit)) {
           throw new Error("Research Corpus authority returned an invalid artifact page");
         }

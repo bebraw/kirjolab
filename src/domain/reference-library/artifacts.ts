@@ -74,6 +74,12 @@ export interface LibraryPdfArtifactItem {
   readonly reference: BibliographicRecord | null;
 }
 
+/** Compatibility page retained for consumers deployed before the corpus catalog RPC. */
+export interface LegacyLibraryPdfArtifactPage {
+  readonly items: readonly LibraryPdfArtifactItem[];
+  readonly next: string | null;
+}
+
 /** Byte-bounded artifact metadata safe to cross the corpus catalog RPC boundary. */
 export type LibraryPdfCatalogArtifact = Omit<LibraryPdfArtifact, "objectKey">;
 
@@ -85,7 +91,7 @@ export interface LibraryPdfCatalogItem {
   readonly reference: LibraryPdfCatalogReference | null;
 }
 
-/** A bounded page selected beside the owner-scoped Library storage authority. */
+/** A byte-bounded page selected beside the owner-scoped Library storage authority. */
 export interface LibraryPdfArtifactPage {
   readonly items: readonly LibraryPdfCatalogItem[];
   readonly next: string | null;

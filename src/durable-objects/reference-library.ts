@@ -44,6 +44,7 @@ import {
   type LibraryPdfArtifactItem,
   type LibraryPdfArtifactPage,
   type LibraryPdfCatalogItem,
+  type LegacyLibraryPdfArtifactPage,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
   type LibraryPdfNote,
@@ -377,41 +378,19 @@ export class ReferenceLibrary extends DurableObject<Env> {
     };
   }
 
-  getPdfArtifactPage(after: string | null, limit: number): LibraryPdfArtifactPage | null {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("PDF artifact page size must be between 1 and 100");
-    const eligible = "a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)";
-    const cursor = after
-      ? this.ctx.storage.sql
-          .exec<{ id: string; created_at: string }>(
-            `SELECT a.id, a.created_at FROM artifacts a
-             LEFT JOIN library_references r ON r.id = a.reference_id
-             WHERE a.id = ? AND (${eligible}) LIMIT 1`,
-            after,
-          )
-          .toArray()[0]
-      : undefined;
-    if (after && !cursor) return null;
-    const rows = cursor
-      ? this.ctx.storage.sql
-          .exec<ArtifactRow>(
-            `SELECT a.* FROM artifacts a
-             LEFT JOIN library_references r ON r.id = a.reference_id
-             WHERE (${eligible}) AND (a.created_at < ? OR (a.created_at = ? AND a.id > ?))
-             ORDER BY a.created_at DESC, a.id LIMIT ?`,
-            cursor.created_at,
-            cursor.created_at,
-            cursor.id,
-            limit + 1,
-          )
-          .toArray()
-      : this.ctx.storage.sql
-          .exec<ArtifactRow>(
-            `SELECT a.* FROM artifacts a
-             LEFT JOIN library_references r ON r.id = a.reference_id
-             WHERE ${eligible} ORDER BY a.created_at DESC, a.id LIMIT ?`,
-            limit + 1,
-          )
-          .toArray();
+  getPdfArtifactPage(after: string | null, limit: number): LegacyLibraryPdfArtifactPage | null {
+    const rows = this.#pdfArtifactPageRows(after, limit);
+    if (!rows) return null;
+    const items = rows.slice(0, limit).map((row) => {
+      const artifact = artifactFromRow(row);
+      return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
+    });
+    return { items, next: rows.length > limit ? (items.at(-1)?.artifact.id ?? null) : null };
+  }
+
+  getCorpusPdfArtifactPage(after: string | null, limit: number): LibraryPdfArtifactPage | null {
+    const rows = this.#pdfArtifactPageRows(after, limit);
+    if (!rows) return null;
     const page = this.#pdfArtifactItems(rows.slice(0, limit));
     return {
       items: page.items,
@@ -1159,7 +1138,12 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  queueArtifactAnalysis(
+  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
+    return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force).analysis;
+  }
+
+  // Versioned replacement for queueArtifactAnalysis across the Durable Object RPC boundary.
+  reserveArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     requestedAt: string,
@@ -2178,6 +2162,43 @@ export class ReferenceLibrary extends DurableObject<Env> {
       byteLength += itemByteLength;
     }
     return { items, truncated: false };
+  }
+
+  #pdfArtifactPageRows(after: string | null, limit: number): ArtifactRow[] | null {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("PDF artifact page size must be between 1 and 100");
+    const eligible = "a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)";
+    const cursor = after
+      ? this.ctx.storage.sql
+          .exec<{ id: string; created_at: string }>(
+            `SELECT a.id, a.created_at FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE a.id = ? AND (${eligible}) LIMIT 1`,
+            after,
+          )
+          .toArray()[0]
+      : undefined;
+    if (after && !cursor) return null;
+    return cursor
+      ? this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE (${eligible}) AND (a.created_at < ? OR (a.created_at = ? AND a.id > ?))
+             ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            cursor.created_at,
+            cursor.created_at,
+            cursor.id,
+            limit + 1,
+          )
+          .toArray()
+      : this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE ${eligible} ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            limit + 1,
+          )
+          .toArray();
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {
