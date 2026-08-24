@@ -242,8 +242,9 @@ copy or dual write.
   loss or duplication.
 - Workers-runtime tests reconstruct a pre-outbox queued generation and prove
   the append-only upgrade migration restores its owner-qualified publication
-  row and alarm. A fault-injection case stops initialization after the migration
-  commits and proves the guard alarm was already persisted.
+  row and alarm without republishing running, ready, or failed generations. A
+  fault-injection case stops initialization after the migration commits and
+  proves the guard alarm was already persisted.
 - Workers-runtime alarm tests use the platform alarm helper to prove a later
   reservation cannot postpone an earlier pending outbox wake-up and an injected
   Queue rejection preserves the outbox while scheduling another attempt.

@@ -709,7 +709,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(ranAlarm).toBe(true);
   });
 
-  it("reconciles a queued pre-outbox generation when the Library upgrades", async () => {
+  it("reconciles only queued pre-outbox generations when the Library upgrades", async () => {
     const ownerKey = `artifact-analysis-upgrade-${crypto.randomUUID()}`;
     const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
     const artifactId = crypto.randomUUID();
@@ -727,6 +727,21 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       },
       "owner@example.test",
     );
+    const readyArtifactId = crypto.randomUUID();
+    const readyDraft = await library.createPdfDraft(
+      {
+        id: readyArtifactId,
+        referenceId: null,
+        name: "ready-analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${readyArtifactId}.pdf`,
+        fingerprint: `etag:${readyArtifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
     const requestedAt = "2026-07-29T10:00:01.000Z";
     const reservation = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
 
@@ -735,6 +750,29 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     ).toBe(true);
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
       expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
+      state.storage.sql.exec(
+        `INSERT INTO artifact_analyses
+           (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
+         VALUES
+           (?, ?, 'pdf-highlights', 'running', '', '', ?, ?, NULL),
+           (?, ?, 'pdf-references', 'failed', '', 'Browser unavailable', ?, ?, ?),
+           (?, ?, 'pdf-text', 'ready', ?, '', ?, ?, ?)`,
+        draft.artifact.id,
+        draft.artifact.fingerprint,
+        requestedAt,
+        requestedAt,
+        draft.artifact.id,
+        draft.artifact.fingerprint,
+        requestedAt,
+        requestedAt,
+        requestedAt,
+        readyDraft.artifact.id,
+        readyDraft.artifact.fingerprint,
+        JSON.stringify({ pages: [], pagesScanned: 0, pagesTotal: 0, ocrPages: 0, truncated: false }),
+        requestedAt,
+        requestedAt,
+        requestedAt,
+      );
       state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
       await state.storage.deleteAlarm();
     });
