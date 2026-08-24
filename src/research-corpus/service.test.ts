@@ -112,6 +112,18 @@ describe("ResearchCorpusService", () => {
     expect(extractionResult).not.toHaveProperty("internalLocator");
   });
 
+  it("replaces persisted extraction failure details with a stable public error", async () => {
+    const currentAnalysis = {
+      ...analysis("failed"),
+      error: "libraries/owner/private-analysis.json",
+    };
+    const { service } = fixture({ currentAnalysis });
+
+    await expect(service.getExtraction(firstArtifact.id, "pdf-text")).resolves.toEqual(
+      expect.objectContaining({ status: "failed", error: "Artifact extraction failed" }),
+    );
+  });
+
   it("returns one explicitly projected ready text page", async () => {
     const ready = analysis("ready");
     const privatePage = {

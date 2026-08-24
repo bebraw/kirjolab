@@ -1,7 +1,13 @@
 import { createMcpHandler } from "agents/mcp/server";
 import { McpServer, ProtocolError, ProtocolErrorCode, ResourceTemplate } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { CorpusInvalidCursorError, CorpusNotFoundError, CorpusNotReadyError, type CorpusApplication } from "./service";
+import {
+  CorpusInvalidCursorError,
+  CorpusInvalidInputError,
+  CorpusNotFoundError,
+  CorpusNotReadyError,
+  type CorpusApplication,
+} from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
 import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 
@@ -152,7 +158,7 @@ async function toolResult<Result extends object>(operation: () => Promise<Result
       error instanceof CorpusNotFoundError ||
       error instanceof CorpusNotReadyError ||
       error instanceof CorpusInvalidCursorError ||
-      error instanceof RangeError;
+      error instanceof CorpusInvalidInputError;
     if (!expected) console.error("Research Corpus MCP operation failed", error);
     const message = expected && error instanceof Error ? error.message : "Corpus operation failed";
     return { isError: true, content: [{ type: "text" as const, text: message }] };
@@ -167,7 +173,7 @@ async function resourceResult<Result>(operation: () => Promise<Result>): Promise
       error instanceof CorpusNotFoundError ||
       error instanceof CorpusNotReadyError ||
       error instanceof CorpusInvalidCursorError ||
-      error instanceof RangeError;
+      error instanceof CorpusInvalidInputError;
     if (!expected) console.error("Research Corpus MCP resource operation failed", error);
     throw new ProtocolError(
       expected ? ProtocolErrorCode.InvalidParams : ProtocolErrorCode.InternalError,

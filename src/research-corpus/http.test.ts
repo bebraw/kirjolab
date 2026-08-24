@@ -87,11 +87,13 @@ describe("Research Corpus HTTP adapter", () => {
     const oversized = await request({ "content-length": String(25 * 1024 * 1024 + 1), "content-type": "application/pdf" });
     const unsupported = await request({ "content-length": "4", "content-type": "text/plain" });
     const missingBody = await request({ "content-length": "4", "content-type": "application/pdf" }, null);
+    const invalidFilename = await request({ "content-length": "4", "content-type": "application/pdf", "x-file-name": "%" });
 
     expect(missingLength.status).toBe(411);
     expect(oversized.status).toBe(413);
     expect(unsupported.status).toBe(415);
     expect(missingBody.status).toBe(400);
+    expect(invalidFilename.status).toBe(400);
     expect(service.ingestPdf).not.toHaveBeenCalled();
   });
 

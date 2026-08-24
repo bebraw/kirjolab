@@ -1,7 +1,13 @@
 import { readBoundedRequestBytes } from "../api/request-body";
 import type { ArtifactAnalysisKind } from "../domain/reference-library";
 import { normalizePdfFilename } from "../library-pdf-ingest";
-import { CorpusInvalidCursorError, CorpusNotFoundError, CorpusNotReadyError, type CorpusApplication } from "./service";
+import {
+  CorpusInvalidCursorError,
+  CorpusInvalidInputError,
+  CorpusNotFoundError,
+  CorpusNotReadyError,
+  type CorpusApplication,
+} from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
 import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 
@@ -106,9 +112,15 @@ function pdfUpload(request: Request): { readonly body: ReadableStream<Uint8Array
   const size = header === null ? Number.NaN : Number(header);
   if (!Number.isSafeInteger(size) || size <= 0) throw new CorpusInvalidRequestError("Content-Length is required", 411);
   if (size > maximumPdfBytes) throw new CorpusRequestTooLargeError("PDF exceeds the 25 MB limit");
+  let name: string;
+  try {
+    name = normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf");
+  } catch {
+    throw new CorpusInvalidRequestError("PDF file name is invalid", 400);
+  }
   return {
     body: request.body,
-    name: normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
+    name,
     size,
   };
 }
@@ -130,9 +142,9 @@ async function readRetryFailed(request: Request): Promise<boolean> {
   try {
     value = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
   } catch {
-    throw new SyntaxError("Extraction command is invalid");
+    throw new CorpusInvalidRequestError("Extraction command is invalid", 400);
   }
-  if (!isRetryCommand(value)) throw new SyntaxError("Extraction command is invalid");
+  if (!isRetryCommand(value)) throw new CorpusInvalidRequestError("Extraction command is invalid", 400);
   return value.retryFailed === true;
 }
 
@@ -156,7 +168,7 @@ function corpusErrorResponse(error: unknown): Response | null {
   if (error instanceof CorpusRequestTooLargeError) return jsonError(error.message, 413);
   if (error instanceof CorpusInvalidRequestError) return jsonError(error.message, error.status);
   if (error instanceof CorpusUnsupportedMediaTypeError) return jsonError(error.message, 415);
-  if (error instanceof CorpusInvalidCursorError || error instanceof RangeError || error instanceof SyntaxError) {
+  if (error instanceof CorpusInvalidCursorError || error instanceof CorpusInvalidInputError) {
     return jsonError(error.message, 400);
   }
   return null;
@@ -192,7 +204,7 @@ function methodNotAllowed(allow: string): Response {
   return response;
 }
 
-class CorpusRequestTooLargeError extends RangeError {}
+class CorpusRequestTooLargeError extends Error {}
 class CorpusUnsupportedMediaTypeError extends Error {}
 class CorpusInvalidRequestError extends Error {
   constructor(

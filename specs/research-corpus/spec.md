@@ -64,6 +64,8 @@ recreated by each consumer.
   made after failure.
 - Starting extraction returns a fingerprint-qualified asynchronous job. Ready
   extracted data is bounded by the existing validated result contracts.
+- Failed extraction status exposes a stable public failure message; persisted
+  infrastructure exceptions remain private operational detail.
 - The initial semantic reading surface exposes individual PDF text pages, not
   an unbounded whole-document concatenation.
 

@@ -98,7 +98,7 @@ describe("Research Corpus MCP adapter", () => {
     const service = serviceFixture();
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     service.getArtifact = vi.fn(async () => {
-      throw new Error("owners/private/paper.pdf");
+      throw new RangeError("owners/private/paper.pdf");
     });
 
     const response = await sendMcp(service, "tools/call", {

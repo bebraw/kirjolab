@@ -119,6 +119,7 @@ export interface CorpusApplication {
 export class CorpusNotFoundError extends Error {}
 export class CorpusNotReadyError extends Error {}
 export class CorpusInvalidCursorError extends Error {}
+export class CorpusInvalidInputError extends Error {}
 
 export class ResearchCorpusService implements CorpusApplication {
   readonly #ports: CorpusServicePorts;
@@ -130,7 +131,7 @@ export class ResearchCorpusService implements CorpusApplication {
   async listArtifacts(options: { readonly after?: string; readonly limit?: number } = {}): Promise<CorpusArtifactPage> {
     const limit = options.limit ?? defaultPageSize;
     if (!Number.isInteger(limit) || limit < 1 || limit > maximumPageSize) {
-      throw new RangeError(`Artifact page size must be between 1 and ${maximumPageSize}`);
+      throw new CorpusInvalidInputError(`Artifact page size must be between 1 and ${maximumPageSize}`);
     }
     const page = await this.#ports.catalog.page(options.after ?? null, limit);
     if (!page) throw new CorpusInvalidCursorError("Artifact cursor is invalid");
@@ -238,7 +239,7 @@ function projectExtraction(analysis: ArtifactAnalysis): CorpusExtraction {
     fingerprint: analysis.fingerprint,
     kind: analysis.kind,
     status: analysis.status,
-    error: analysis.error,
+    error: analysis.status === "failed" ? "Artifact extraction failed" : "",
     requestedAt: analysis.requestedAt,
     startedAt: analysis.startedAt,
     completedAt: analysis.completedAt,

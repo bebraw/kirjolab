@@ -95,6 +95,22 @@ describe("Research Corpus Worker", () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
+
+  it.each([new RangeError("libraries/owner/private-range"), new SyntaxError("libraries/owner/private-syntax")])(
+    "sanitizes unexpected %s failures",
+    async (failure) => {
+      const { env, library } = fixture();
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.mocked(library.getPdfArtifactPage).mockRejectedValueOnce(failure);
+
+      const response = await handleResearchCorpusRequest(new Request("http://localhost/v1/artifacts"), env);
+
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({ error: "Research Corpus request failed" });
+      expect(log).toHaveBeenCalledOnce();
+      log.mockRestore();
+    },
+  );
 });
 
 function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" | "CORPUS_ALLOWED_ORIGINS">> = {}) {
@@ -121,7 +137,7 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     PAPERS: { delete: vi.fn(async () => undefined), get: vi.fn(async () => null), put: vi.fn(async () => unusedR2Object()) },
     ...overrides,
   };
-  return { env, getByName };
+  return { env, getByName, library };
 }
 
 function unusedR2Object(): R2Object {
