@@ -191,8 +191,8 @@ copy or dual write.
   from that artifact, while the external Durable Object RPC surface is narrowed
   explicitly because Wrangler cannot generate another Worker's class methods.
 - Workers-runtime intake tests use Cloudflare's real `FixedLengthStream` and
-  reject bodies shorter or longer than the declared PDF length before creating
-  Library state.
+  prove an exact declared PDF length reaches storage and Library draft creation,
+  while rejecting shorter or longer bodies before creating Library state.
 - Authentication tests require the Access assertion's user email and subject;
   production operations verify Managed OAuth with a real compatible client.
 - Workers-runtime tests prove cursor pagination and individual lookup execute
