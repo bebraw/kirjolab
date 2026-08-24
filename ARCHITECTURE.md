@@ -133,6 +133,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   return private binary artifacts, R2 object keys, owner keys, Durable Object
   locators, Queue payloads, or credentials through MCP. Authenticate before
   owner selection and validate any browser origin against an exact allowlist.
+  For the private hosted MCP deployment, delegate the standard authorization
+  code flow to Access Managed OAuth and continue validating the resulting user
+  JWT at the Worker. Require a verified email and non-empty subject for owner
+  selection; do not map Access service tokens to user-owned corpora.
 - Treat the Docker Compose self-host profile as a loopback-only, single-replica
   evaluation surface until native identity, blob, job, scheduling, hosting, and
   collaboration adapters are implemented. Its workerd/Miniflare state is not a

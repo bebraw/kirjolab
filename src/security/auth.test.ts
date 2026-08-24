@@ -194,6 +194,14 @@ describe("authentication security boundary", () => {
 
     const future = await signToken(pair.privateKey, { alg: "RS256", kid: "access-key" }, { ...payload, nbf: now + 100 });
     await expect(verifyAccessJwt(future, keys, configuration, now)).rejects.toThrow();
+    const serviceIdentity = await signToken(
+      pair.privateKey,
+      { alg: "RS256", kid: "access-key" },
+      { aud: payload.aud, exp: payload.exp, iss: payload.iss, sub: "service-token-subject" },
+    );
+    await expect(verifyAccessJwt(serviceIdentity, keys, configuration, now)).rejects.toThrow();
+    const missingSubject = await signToken(pair.privateKey, { alg: "RS256", kid: "access-key" }, { ...payload, sub: "" });
+    await expect(verifyAccessJwt(missingSubject, keys, configuration, now)).rejects.toThrow();
     const wrongAlgorithm = await signToken(pair.privateKey, { alg: "HS256", kid: "access-key" }, payload);
     await expect(verifyAccessJwt(wrongAlgorithm, keys, configuration, now)).rejects.toThrow();
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");

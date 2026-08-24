@@ -90,6 +90,15 @@ Do not configure Access to answer preflight on the Worker's behalf because that
 would omit the corpus-specific conditional, range, and MCP headers. Disable the
 Worker's `workers.dev` route. Then set:
 
+In the same Access application's **Advanced settings**, enable **Managed
+OAuth**. Keep the Access policy user-based and do not add a Service Auth policy:
+the corpus owner is derived from the verified user email, and service tokens
+do not define an owner. Allow `localhost` or `127.0.0.1` dynamic-client redirect
+URIs only when the chosen MCP client needs them, and otherwise list the exact
+HTTPS redirect URIs used by approved clients. Keep the OAuth access-token
+lifetime short and let the longer Access grant session drive refresh and policy
+re-evaluation.
+
 ```bash
 export KIRJOLAB_CORPUS_PRODUCTION_URL=https://corpus.your-domain.example
 export KIRJOLAB_CORPUS_ACCESS_AUD=your_corpus_application_audience_tag
@@ -120,11 +129,31 @@ small disposable PDF through `POST /v1/artifacts`, verify the response contains
 no object or owner locator, open its protected original representation, request
 or inspect `pdf-text` extraction, and read one extracted page. Remove the smoke
 artifact through the existing Kirjolab Library UI after verification. Verify an
-unconfigured browser origin receives `403`. Connect private MCP clients to
-`/mcp` only through the Access-protected deployment and verify tool discovery;
-the current service does not advertise a public OAuth authorization server.
-Do not make the MCP endpoint public until delegated authorization is approved
-in a later ADR.
+unconfigured browser origin receives `403`.
+
+Connect an RFC 8707-compatible MCP client to the full
+`https://corpus.your-domain.example/mcp` URL. The first request should receive
+Access authorization metadata, open the user's browser login, and then complete
+tool discovery as that user. Confirm `list_corpus_artifacts` returns only that
+user's corpus. The Worker validates the Access JWT supplied after this flow; it
+does not accept the opaque OAuth token as an application credential itself.
+
+For a user-operated client that supports custom headers but not Managed OAuth,
+`cloudflared` is the fallback:
+
+```bash
+cloudflared access login https://corpus.your-domain.example
+export KIRJOLAB_CORPUS_USER_TOKEN="$(cloudflared access token -app=https://corpus.your-domain.example)"
+```
+
+Configure that client to send
+`cf-access-token: $KIRJOLAB_CORPUS_USER_TOKEN`, then clear the shell variable
+after the session. Never paste this token into repository configuration, logs,
+or chat. This is still an interactive user identity, not a service token.
+
+Managed OAuth is approved only for the private Access deployment. Do not make
+the MCP endpoint public or introduce service identities until an ADR defines
+multi-tenant authorization and explicit identity-to-owner mapping.
 
 Inspect or roll back this Worker with the explicit config so the operation does
 not target Kirjolab accidentally:

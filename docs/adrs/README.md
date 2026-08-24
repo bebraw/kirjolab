@@ -33,8 +33,9 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-230](./implemented/ADR-230-authenticate-private-corpus-mcp-with-access.md)           | Implemented          | Use Access Managed OAuth for private user-scoped MCP clients and reject unmapped service identities.            |
 | [ADR-229](./implemented/ADR-229-bound-corpus-library-rpc-queries.md)                      | Implemented          | Select bounded corpus artifact pages and records beside the Library storage authority.                          |
-| [ADR-228](./implemented/ADR-228-expose-corpus-through-http-and-mcp.md)                    | Implemented          | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.                        |
+| [ADR-228](./implemented/ADR-228-expose-corpus-through-http-and-mcp.md)                    | Partially superseded | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.                        |
 | [ADR-227](./implemented/ADR-227-extract-research-corpus-service.md)                       | Implemented          | Extract a reusable corpus service incrementally over the existing private storage authorities.                  |
 | [ADR-226](./implemented/ADR-226-publish-immutable-package-assets.md)                      | Implemented          | Pin exact package artifacts in checked manifests and immutable GitHub Release assets.                           |
 | [ADR-225](./implemented/ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)     | Implemented          | Keep required GitHub mutation CI as an instrumented compatibility smoke while scoring mutation locally.         |

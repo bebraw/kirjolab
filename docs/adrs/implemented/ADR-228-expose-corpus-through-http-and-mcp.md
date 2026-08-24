@@ -1,6 +1,7 @@
 # ADR-228: Expose the Corpus Through HTTP and MCP
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-230](./ADR-230-authenticate-private-corpus-mcp-with-access.md)
 
 **Date:** 2026-08-24
 
@@ -44,6 +45,10 @@ authenticated non-browser clients without an `Origin` header and validates any
 present origin against that same allowlist. A public or multi-tenant OAuth
 authorization server is outside this decision and requires a later ADR before
 the service can be offered beyond the current private deployment.
+
+ADR-230 supersedes the private MCP-client portion of this decision by adopting
+Cloudflare Access Managed OAuth. A corpus-owned public or multi-tenant
+authorization service remains outside the approved boundary.
 
 Treat extraction as an asynchronous operation. Starting extraction returns the
 current fingerprint-qualified job representation; clients poll status or read

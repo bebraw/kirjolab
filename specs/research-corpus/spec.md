@@ -36,6 +36,11 @@ recreated by each consumer.
 - Both transports resolve the authenticated identity before selecting the
   owner-scoped Library authority. Hosted requests use Cloudflare Access; local
   requests remain restricted to loopback hosts.
+- Private hosted MCP clients authenticate through Access Managed OAuth. Access
+  performs the authorization-code flow and supplies the same user assertion to
+  the Worker, which requires a verified email and non-empty subject before
+  deriving owner scope. Service tokens are unsupported because no service
+  identity-to-owner mapping is defined.
 - Browser mutations require either the service origin or an exact origin from
   `CORPUS_ALLOWED_ORIGINS`. An MCP request without `Origin` is treated as a
   non-browser client only after authentication; any present origin must pass
@@ -139,6 +144,14 @@ work. Given an unauthenticated preflight from a configured origin, the Worker
 answers it without selecting owner state; an unconfigured origin is rejected.
 An authenticated non-browser MCP client without `Origin` remains usable.
 
+### Private MCP authentication
+
+Given a compatible MCP client and a user allowed by the corpus Access policy,
+when the client connects to `/mcp`, then Access Managed OAuth opens the user
+login flow and the Worker derives the same email-scoped owner as a browser
+session. An Access service identity without a user email is rejected rather
+than selecting or inventing owner state.
+
 ### Compatibility migration
 
 Given an existing Kirjolab client, when the corpus service is deployed, then
@@ -157,6 +170,8 @@ copy or dual write.
   stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace.
+- Authentication tests require the Access assertion's user email and subject;
+  production operations verify Managed OAuth with a real compatible client.
 - Workers-runtime tests prove cursor pagination and individual lookup execute
   through the bounded Reference Library RPC contract.
 
