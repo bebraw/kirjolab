@@ -169,7 +169,8 @@ copy or dual write.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
-  Reference Library namespace rather than creating a second namespace.
+  Reference Library namespace rather than creating a second namespace and
+  rejects a corpus hostname that would replace an allowed frontend origin.
 - A corpus-specific generated binding artifact is checked by the fast quality
   gate and again before either dry-run-only or uploading production deploys.
 - Workers-runtime intake tests use Cloudflare's real `FixedLengthStream` and

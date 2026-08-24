@@ -25,6 +25,13 @@ describe("Research Corpus production deployment", () => {
     ["missing corpus audience", { KIRJOLAB_CORPUS_ACCESS_AUD: "" }],
     ["origin path", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://write.kirjolab.test/path" }],
     ["HTTP origin", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "http://write.kirjolab.test" }],
+    [
+      "corpus/frontend origin collision",
+      {
+        KIRJOLAB_CORPUS_PRODUCTION_URL: "https://write.kirjolab.test",
+        KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://write.kirjolab.test",
+      },
+    ],
   ])("rejects %s", (_label, override) => {
     expect(() => corpusProductionConfiguration({ ...validEnvironment, ...override })).toThrow();
   });

@@ -30,6 +30,9 @@ export function corpusProductionConfiguration(environment = process.env) {
   if (allowedOrigins.length === 0 || new Set(allowedOrigins).size !== allowedOrigins.length) {
     throw new Error("KIRJOLAB_CORPUS_ALLOWED_ORIGINS must contain unique HTTPS application origins");
   }
+  if (allowedOrigins.includes(new URL(corpusUrl).origin)) {
+    throw new Error("KIRJOLAB_CORPUS_PRODUCTION_URL must differ from every allowed application origin");
+  }
   return {
     hostname: base.hostname,
     teamDomain: base.teamDomain,
