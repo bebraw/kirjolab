@@ -166,6 +166,11 @@ Given ready PDF text, when an agent reads one page, then it receives only that
 validated page, source, page counts, and fingerprint. Original PDF bytes and
 unrequested pages are absent.
 
+Given an MCP text-page resource URI, its `{page}` variable contains only ASCII
+decimal digits and resolves to an integer from 1 through 200. Signed, exponent,
+hexadecimal, fractional, and otherwise non-decimal spellings fail with MCP
+InvalidParams without invoking the corpus application service.
+
 ### Origin enforcement
 
 Given an authenticated browser request from an unconfigured origin, when it
@@ -197,7 +202,8 @@ copy or dual write.
   bounded PDF upload, preflight authentication bypass, conditional and range
   headers, exposed representation metadata, and origin rejection.
 - MCP tests exercise protocol initialization and every exposed tool through the
-  stateless handler, including sanitized resource and tool failures.
+  stateless handler, including strict decimal resource-page variables and
+  sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace and
   rejects a corpus hostname that would replace either the canonical primary

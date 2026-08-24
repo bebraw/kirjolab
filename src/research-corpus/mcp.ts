@@ -14,6 +14,11 @@ import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 const artifactIdSchema = z.uuid();
 const extractionKindSchema = z.enum(["pdf-highlights", "pdf-references", "pdf-text"]);
 const pageSchema = z.number().int().min(1).max(200);
+const resourcePageSchema = z
+  .string()
+  .regex(/^[0-9]+$/u)
+  .transform((value) => Number(value))
+  .pipe(pageSchema);
 
 export async function handleCorpusMcp(
   request: Request,
@@ -78,7 +83,7 @@ export function createCorpusMcpServer(service: CorpusApplication, publicOrigin: 
     async (uri, variables) =>
       await resourceResult(async () => {
         const artifactId = artifactIdSchema.parse(variables.artifactId);
-        const page = pageSchema.parse(Number(variables.page));
+        const page = resourcePageSchema.parse(variables.page);
         const result = await service.readPdfTextPage(artifactId, page);
         return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result) }] };
       }),

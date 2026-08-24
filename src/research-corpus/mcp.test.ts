@@ -95,6 +95,19 @@ describe("Research Corpus MCP adapter", () => {
     expect(service.readPdfTextPage).not.toHaveBeenCalled();
   });
 
+  it.each(["0x2", "2e0", "+2"])("rejects non-decimal resource page variable %s", async (page) => {
+    const service = serviceFixture();
+
+    const response = await sendMcp(service, "resources/read", {
+      uri: `corpus://artifacts/${artifactId}/extractions/pdf-text/pages/${page}`,
+    });
+
+    expect(response).toMatchObject({
+      error: { code: -32_602, message: "Corpus resource parameters are invalid" },
+    });
+    expect(service.readPdfTextPage).not.toHaveBeenCalled();
+  });
+
   it("rejects an unconfigured browser origin before invoking MCP", async () => {
     const service = serviceFixture();
     const response = await handleCorpusMcp(
