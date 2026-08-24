@@ -325,6 +325,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
       runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), referenceLibraryMigrations);
       this.#backfillReferenceKeys();
+      await this.#recoverArtifactAnalysisPublications();
     });
   }
 
@@ -2259,6 +2260,17 @@ export class ReferenceLibrary extends DurableObject<Env> {
       }
       return reservation;
     });
+  }
+
+  async #recoverArtifactAnalysisPublications(): Promise<void> {
+    if (!this.#artifactAnalyses.hasPendingPublications()) return;
+    const hasUnownedPublications = this.#artifactAnalyses.hasUnownedPublications();
+    const migrationOwnerKey = hasUnownedPublications ? this.ctx.id.name : undefined;
+    if (hasUnownedPublications && !migrationOwnerKey) throw new Error("Reference Library requires an owner-scoped Durable Object name");
+    if ((await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
+    }
+    if (migrationOwnerKey) this.#artifactAnalyses.adoptUnownedPublications(migrationOwnerKey);
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {

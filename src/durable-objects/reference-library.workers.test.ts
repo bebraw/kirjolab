@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { runInDurableObject } from "cloudflare:test";
+import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import {
   maximumLibraryPdfArtifactPageBytes,
@@ -627,6 +627,56 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
       expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
       expect(await state.storage.getAlarm()).toBeNull();
+    });
+  });
+
+  it("reconciles a queued pre-outbox generation when the Library upgrades", async () => {
+    const ownerKey = `artifact-analysis-upgrade-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    const reservation = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    expect(
+      await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
+    ).toBe(true);
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      await state.storage.deleteAlarm();
+    });
+
+    await evictDurableObject(library);
+    expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-text")).toMatchObject({ status: "queued", requestedAt });
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations WHERE version = 17")
+          .toArray(),
+      ).toEqual([{ version: 17, name: "reconcile-queued-artifact-analysis-publications" }]);
+      expect(
+        state.storage.sql
+          .exec<{ owner_key: string; artifact_id: string; kind: string; requested_at: string }>(
+            "SELECT owner_key, artifact_id, kind, requested_at FROM artifact_analysis_publications",
+          )
+          .toArray(),
+      ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+      expect(await state.storage.getAlarm()).not.toBeNull();
     });
   });
 

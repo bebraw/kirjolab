@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-29
 
-**Amended:** 2026-08-24 — preserve rollout compatibility and recover Queue publication through a durable outbox
+**Amended:** 2026-08-24 — preserve rollout compatibility, recover Queue publication through a durable outbox, and reconcile pre-outbox jobs
 
 ## Context
 
@@ -48,6 +48,13 @@ Starting, completing, or failing that exact generation also clears its stale
 outbox row. Queue consumers remain idempotent because termination after Queue
 acceptance but before outbox deletion can produce a duplicate delivery.
 
+Apply an append-only migration that inserts a placeholder outbox row for every
+queued generation left by the pre-outbox workflow. During Durable Object
+initialization, arm recovery and replace each placeholder with the object name
+before serving events. This upgrade reconciliation runs once, so it recovers
+the old commit-before-send failure window without repeatedly republishing a
+queued generation whose current outbox row was already confirmed.
+
 Retain `queueArtifactAnalysis` with its original plain `ArtifactAnalysis`
 response while an older Worker may call it. New consumers use the additive
 reservation RPC. This keeps the provider-first cross-script rollout compatible
@@ -82,6 +89,8 @@ silently create library records or citation-graph assertions.
   idempotent.
 - Durable alarm recovery prevents a queued analysis from depending on the
   requesting Worker surviving through Queue acceptance.
+- Queued generations persisted before the outbox existed enter the same durable
+  recovery path on upgrade.
 - Concurrent start requests publish one Queue message for one persisted job
   generation.
 - Private PDFs are not exposed through a new HTTP capability.

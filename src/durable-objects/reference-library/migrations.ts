@@ -413,4 +413,18 @@ export const referenceLibraryMigrations = [
       return undefined;
     },
   },
+  {
+    version: 17,
+    name: "reconcile-queued-artifact-analysis-publications",
+    apply(sql): undefined {
+      sql.exec(`
+        INSERT OR IGNORE INTO artifact_analysis_publications
+          (artifact_id, fingerprint, kind, owner_key, requested_at)
+        SELECT artifact_id, fingerprint, kind, '', requested_at
+        FROM artifact_analyses
+        WHERE status = 'queued';
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];

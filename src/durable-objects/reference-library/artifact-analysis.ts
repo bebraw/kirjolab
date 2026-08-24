@@ -124,6 +124,17 @@ export class ArtifactAnalysisService {
     return this.sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analysis_publications LIMIT 1").toArray().length > 0;
   }
 
+  hasUnownedPublications(): boolean {
+    return (
+      this.sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analysis_publications WHERE owner_key = '' LIMIT 1").toArray()
+        .length > 0
+    );
+  }
+
+  adoptUnownedPublications(ownerKey: string): void {
+    this.sql.exec("UPDATE artifact_analysis_publications SET owner_key = ? WHERE owner_key = ''", ownerKey);
+  }
+
   start(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
     const row = this.#row(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
