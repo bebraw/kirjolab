@@ -48,3 +48,11 @@ test("pins the supported stateless MCP runtime as direct dependencies", async ()
   assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.0.0");
   assert.equal(packageJson.dependencies?.zod, "4.4.3");
 });
+
+test("keeps corpus binding types generated and gated", async () => {
+  const packageJson = await readJson("package.json");
+
+  assert.match(packageJson.scripts?.["worker:types:corpus"], /wrangler types research-corpus-configuration\.d\.ts/u);
+  assert.match(packageJson.scripts?.["worker:types:corpus:check"], /--check --config wrangler\.corpus\.jsonc/u);
+  assert.match(packageJson.scripts?.["quality:gate:fast"], /worker:types:corpus:check/u);
+});

@@ -40,14 +40,27 @@ describe("Research Corpus production deployment", () => {
   it("runs a strict dry run before upload and supports review-only execution", () => {
     const run = vi.fn();
     runCorpusProductionDeploy({ environment: validEnvironment, dryRunOnly: true, run });
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run.mock.calls[0]?.[0]).toContain("--dry-run");
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls[0]?.[0]).toEqual([
+      "types",
+      "research-corpus-configuration.d.ts",
+      "--check",
+      "--config",
+      "wrangler.corpus.jsonc",
+      "--env-interface",
+      "ResearchCorpusBindings",
+      "--include-runtime",
+      "false",
+      "--strict-vars",
+      "false",
+    ]);
+    expect(run.mock.calls[1]?.[0]).toContain("--dry-run");
 
     run.mockClear();
     runCorpusProductionDeploy({ environment: validEnvironment, run });
-    expect(run).toHaveBeenCalledTimes(3);
-    expect(run.mock.calls[0]?.[0]).toContain("--dry-run");
-    expect(run.mock.calls[1]?.[0]).not.toContain("--dry-run");
-    expect(run.mock.calls[2]?.[0]).toEqual(["versions", "list", "--config", "wrangler.corpus.jsonc"]);
+    expect(run).toHaveBeenCalledTimes(4);
+    expect(run.mock.calls[1]?.[0]).toContain("--dry-run");
+    expect(run.mock.calls[2]?.[0]).not.toContain("--dry-run");
+    expect(run.mock.calls[3]?.[0]).toEqual(["versions", "list", "--config", "wrangler.corpus.jsonc"]);
   });
 });

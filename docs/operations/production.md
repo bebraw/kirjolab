@@ -119,9 +119,10 @@ npm run deploy:corpus
 ```
 
 The release command validates the custom hostname, corpus audience, and exact
-origin list, performs a strict dry run against `wrangler.corpus.jsonc`, uploads,
-and lists corpus versions. The config defaults to local authentication, so a
-bare deploy is not a production shortcut.
+origin list, checks `research-corpus-configuration.d.ts` against
+`wrangler.corpus.jsonc`, performs a strict dry run, uploads, and lists corpus
+versions. The config defaults to local authentication, so a bare deploy is not
+a production shortcut.
 
 From a signed-in browser, verify `GET /v1/artifacts` returns only the expected
 owner's safe artifact metadata. With a designated smoke-test owner, upload a

@@ -121,7 +121,7 @@
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
-    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run worker:types:corpus:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",
@@ -135,7 +135,9 @@
     "typecheck:workers": "node ./scripts/run-typescript-7.mjs --noEmit -p tsconfig.workers-test.json",
     "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs",
     "worker:types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
-    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check"
+    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
+    "worker:types:corpus": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false",
+    "worker:types:corpus:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --check --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.19.1",

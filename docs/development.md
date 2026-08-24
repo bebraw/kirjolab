@@ -228,8 +228,13 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
   primary Kirjolab Worker and the corpus Access application exist.
 - Regenerate committed Worker bindings with `npm run worker:types`; this
   intentionally ignores `.env` and `.dev.vars` so output is reproducible.
+- Regenerate the standalone Research Corpus bindings with
+  `npm run worker:types:corpus`. Its generated file omits duplicate runtime
+  declarations but uses the primary generated Worker runtime types already in
+  the project.
 - Check committed Worker bindings without rewriting them with
-  `npm run worker:types:check`.
+  `npm run worker:types:check` and corpus bindings with
+  `npm run worker:types:corpus:check`.
 - Run Lighthouse with `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`.
 - Refresh the ignored Build Week submission images through a dedicated debug
   Chrome session with `npm run media:build-week`; check an existing set without

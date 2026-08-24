@@ -59,11 +59,29 @@ export function corpusDeployArguments(configuration, dryRun) {
   ];
 }
 
+export function corpusTypeCheckArguments() {
+  return [
+    "types",
+    "research-corpus-configuration.d.ts",
+    "--check",
+    "--config",
+    corpusConfigPath,
+    "--env-interface",
+    "ResearchCorpusBindings",
+    "--include-runtime",
+    "false",
+    "--strict-vars",
+    "false",
+  ];
+}
+
 export function runCorpusProductionDeploy({ environment = process.env, dryRunOnly = false, run = runWrangler } = {}) {
   const configuration = corpusProductionConfiguration(environment);
   const wranglerEnvironment = productionWranglerEnvironment(environment);
   console.log(`[corpus:deploy] Production hostname: ${configuration.hostname}`);
   console.log(`[corpus:deploy] Allowed frontend origins: ${configuration.allowedOrigins.join(", ")}`);
+  console.log("[corpus:deploy] Checking generated corpus binding types");
+  run(corpusTypeCheckArguments(), wranglerEnvironment);
   console.log("[corpus:deploy] Running strict production dry run");
   run(corpusDeployArguments(configuration, true), wranglerEnvironment);
   if (dryRunOnly) {

@@ -170,6 +170,11 @@ copy or dual write.
   stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace.
+- A corpus-specific generated binding artifact is checked by the fast quality
+  gate and again before either dry-run-only or uploading production deploys.
+- Workers-runtime intake tests use Cloudflare's real `FixedLengthStream` and
+  reject bodies shorter or longer than the declared PDF length before creating
+  Library state.
 - Authentication tests require the Access assertion's user email and subject;
   production operations verify Managed OAuth with a real compatible client.
 - Workers-runtime tests prove cursor pagination and individual lookup execute

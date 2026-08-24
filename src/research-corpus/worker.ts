@@ -1,11 +1,12 @@
-import { authenticateRequest, type AuthEnvironment } from "../security/auth";
+import { authenticateRequest } from "../security/auth";
 import { createCloudflareCorpusService, type CorpusCloudflareEnvironment } from "./cloudflare-adapter";
 import { handleCorpusHttp, handleCorpusHttpPreflight } from "./http";
 import { handleCorpusMcp, handleCorpusMcpPreflight } from "./mcp";
 
-export interface ResearchCorpusEnvironment extends AuthEnvironment, CorpusCloudflareEnvironment {
-  readonly CORPUS_ALLOWED_ORIGINS: string;
-}
+export interface ResearchCorpusEnvironment
+  extends
+    Pick<ResearchCorpusBindings, "ACCESS_AUD" | "ACCESS_TEAM_DOMAIN" | "AUTH_MODE" | "CORPUS_ALLOWED_ORIGINS">,
+    CorpusCloudflareEnvironment {}
 
 export default {
   async fetch(request: Request, env: ResearchCorpusEnvironment): Promise<Response> {
