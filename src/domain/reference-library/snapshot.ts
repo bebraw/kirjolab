@@ -25,27 +25,46 @@ export interface ReferenceLibrarySnapshot {
 }
 
 export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLibrarySnapshot {
+  return isRecord(value) && hasReferenceFields(value) && hasArtifactFields(value) && hasResearchFields(value);
+}
+
+function hasReferenceFields(value: Record<string, unknown>): boolean {
+  return isArrayOf(value.references, isBibliographicRecord) && isReferenceKeyStateRecord(value.referenceKeyStates);
+}
+
+function hasArtifactFields(value: Record<string, unknown>): boolean {
   return (
-    isRecord(value) &&
-    Array.isArray(value.references) &&
-    value.references.every(isBibliographicRecord) &&
-    isRecord(value.referenceKeyStates) &&
-    Object.values(value.referenceKeyStates).every((state) => state === "provisional" || state === "final") &&
-    Array.isArray(value.artifacts) &&
-    value.artifacts.every(isLibraryPdfArtifact) &&
-    Array.isArray(value.webSources) &&
-    value.webSources.every(isWebSource) &&
-    Array.isArray(value.webSnapshots) &&
-    value.webSnapshots.every(isWebSnapshot) &&
+    isArrayOf(value.artifacts, isLibraryPdfArtifact) &&
+    isArrayOf(value.webSources, isWebSource) &&
+    isArrayOf(value.webSnapshots, isWebSnapshot)
+  );
+}
+
+function hasResearchFields(value: Record<string, unknown>): boolean {
+  return (
     Array.isArray(value.notes) &&
-    Array.isArray(value.highlights) &&
-    value.highlights.every(isLibraryHighlight) &&
-    (value.pdfMarkups === undefined || (Array.isArray(value.pdfMarkups) && value.pdfMarkups.every(isLibraryPdfMarkup))) &&
+    isArrayOf(value.highlights, isLibraryHighlight) &&
+    isOptionalArrayOf(value.pdfMarkups, isLibraryPdfMarkup) &&
     isStringArrayRecord(value.tags) &&
     isStringArrayRecord(value.collections) &&
-    Array.isArray(value.reading) &&
-    value.reading.every(isReadingState)
+    isArrayOf(value.reading, isReadingState)
   );
+}
+
+function isArrayOf<Item>(value: unknown, predicate: (item: unknown) => item is Item): value is readonly Item[] {
+  return Array.isArray(value) && value.every(predicate);
+}
+
+function isOptionalArrayOf<Item>(value: unknown, predicate: (item: unknown) => item is Item): value is readonly Item[] | undefined {
+  return value === undefined || isArrayOf(value, predicate);
+}
+
+function isReferenceKeyStateRecord(value: unknown): value is Readonly<Record<string, ReferenceKeyState>> {
+  return isRecord(value) && Object.values(value).every(isReferenceKeyState);
+}
+
+function isReferenceKeyState(value: unknown): value is ReferenceKeyState {
+  return value === "provisional" || value === "final";
 }
 
 function isStringArrayRecord(value: unknown): value is Readonly<Record<string, readonly string[]>> {
