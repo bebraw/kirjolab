@@ -1,0 +1,216 @@
+import {
+  isPdfTextAnalysisResult,
+  type ArtifactAnalysis,
+  type ArtifactAnalysisKind,
+  type BibliographicRecord,
+  type LibraryPdfArtifact,
+  type ReferenceLibrarySnapshot,
+} from "../domain/reference-library";
+
+const defaultPageSize = 50;
+const maximumPageSize = 100;
+
+export interface CorpusSource {
+  readonly id: string;
+  readonly referenceKey: string;
+  readonly type: BibliographicRecord["type"];
+  readonly title: string;
+  readonly authors: readonly string[];
+  readonly year: string;
+  readonly venue: string;
+  readonly doi: string;
+  readonly url: string;
+  readonly abstract: string;
+  readonly provenance: BibliographicRecord["provenance"];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CorpusArtifact {
+  readonly id: string;
+  readonly referenceId: string | null;
+  readonly name: string;
+  readonly contentType: "application/pdf";
+  readonly size: number;
+  readonly fingerprint: string;
+  readonly rights: LibraryPdfArtifact["rights"];
+  readonly createdAt: string;
+  readonly source: CorpusSource | null;
+}
+
+export interface CorpusArtifactPage {
+  readonly artifacts: readonly CorpusArtifact[];
+  readonly next: string | null;
+}
+
+export type CorpusExtraction = Omit<ArtifactAnalysis, "result">;
+
+export interface CorpusPdfTextPage {
+  readonly artifactId: string;
+  readonly fingerprint: string;
+  readonly page: number;
+  readonly text: string;
+  readonly source: "native" | "ocr";
+  readonly pagesScanned: number;
+  readonly pagesTotal: number;
+  readonly truncated: boolean;
+}
+
+export interface CorpusCatalogPort {
+  snapshot(): Promise<ReferenceLibrarySnapshot>;
+}
+
+export interface CorpusExtractionPort {
+  get(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
+  start(artifact: LibraryPdfArtifact, kind: ArtifactAnalysisKind, force: boolean): Promise<ArtifactAnalysis>;
+}
+
+export interface CorpusOriginalPort {
+  open(request: Request, artifact: LibraryPdfArtifact): Promise<Response | null>;
+}
+
+export interface CorpusServicePorts {
+  readonly catalog: CorpusCatalogPort;
+  readonly extractions: CorpusExtractionPort;
+  readonly originals: CorpusOriginalPort;
+}
+
+export interface CorpusApplication {
+  listArtifacts(options?: { readonly after?: string; readonly limit?: number }): Promise<CorpusArtifactPage>;
+  getArtifact(artifactId: string): Promise<CorpusArtifact>;
+  getExtraction(artifactId: string, kind: ArtifactAnalysisKind): Promise<CorpusExtraction | null>;
+  startExtraction(artifactId: string, kind: ArtifactAnalysisKind, retryFailed?: boolean): Promise<CorpusExtraction>;
+  readPdfTextPage(artifactId: string, page: number): Promise<CorpusPdfTextPage>;
+  openOriginal(request: Request, artifactId: string): Promise<Response>;
+}
+
+export class CorpusNotFoundError extends Error {}
+export class CorpusNotReadyError extends Error {}
+export class CorpusInvalidCursorError extends Error {}
+
+export class ResearchCorpusService implements CorpusApplication {
+  readonly #ports: CorpusServicePorts;
+
+  constructor(ports: CorpusServicePorts) {
+    this.#ports = ports;
+  }
+
+  async listArtifacts(options: { readonly after?: string; readonly limit?: number } = {}): Promise<CorpusArtifactPage> {
+    const limit = options.limit ?? defaultPageSize;
+    if (!Number.isInteger(limit) || limit < 1 || limit > maximumPageSize) {
+      throw new RangeError(`Artifact page size must be between 1 and ${maximumPageSize}`);
+    }
+    const snapshot = await this.#ports.catalog.snapshot();
+    const offset = cursorOffset(snapshot.artifacts, options.after);
+    const artifacts = snapshot.artifacts.slice(offset, offset + limit);
+    const hasNext = offset + artifacts.length < snapshot.artifacts.length;
+    return {
+      artifacts: artifacts.map((artifact) => projectArtifact(artifact, snapshot.references)),
+      next: hasNext ? artifacts.at(-1)?.id ?? null : null,
+    };
+  }
+
+  async getArtifact(artifactId: string): Promise<CorpusArtifact> {
+    const { artifact, references } = await this.#findArtifact(artifactId);
+    return projectArtifact(artifact, references);
+  }
+
+  async getExtraction(artifactId: string, kind: ArtifactAnalysisKind): Promise<CorpusExtraction | null> {
+    const { artifact } = await this.#findArtifact(artifactId);
+    const analysis = await this.#ports.extractions.get(artifactId, kind);
+    return analysis && analysis.fingerprint === artifact.fingerprint ? projectExtraction(analysis) : null;
+  }
+
+  async startExtraction(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    retryFailed = false,
+  ): Promise<CorpusExtraction> {
+    const { artifact } = await this.#findArtifact(artifactId);
+    const current = await this.#ports.extractions.get(artifactId, kind);
+    const currentMatches = current?.fingerprint === artifact.fingerprint;
+    if (currentMatches && current.status !== "failed") return projectExtraction(current);
+    if (currentMatches && !retryFailed) return projectExtraction(current);
+    return projectExtraction(await this.#ports.extractions.start(artifact, kind, currentMatches && retryFailed));
+  }
+
+  async readPdfTextPage(artifactId: string, page: number): Promise<CorpusPdfTextPage> {
+    if (!Number.isInteger(page) || page < 1 || page > 200) throw new CorpusNotFoundError("PDF text page not found");
+    const { artifact } = await this.#findArtifact(artifactId);
+    const analysis = await this.#ports.extractions.get(artifactId, "pdf-text");
+    if (!analysis || analysis.fingerprint !== artifact.fingerprint) throw new CorpusNotFoundError("PDF text extraction not found");
+    if (analysis.status !== "ready") throw new CorpusNotReadyError("PDF text extraction is not ready");
+    if (!isPdfTextAnalysisResult(analysis.result)) throw new CorpusNotFoundError("PDF text extraction result not found");
+    const resultPage = analysis.result.pages.find((candidate) => candidate.page === page);
+    if (!resultPage) throw new CorpusNotFoundError("PDF text page not found");
+    return {
+      artifactId,
+      fingerprint: artifact.fingerprint,
+      ...resultPage,
+      pagesScanned: analysis.result.pagesScanned,
+      pagesTotal: analysis.result.pagesTotal,
+      truncated: analysis.result.truncated,
+    };
+  }
+
+  async openOriginal(request: Request, artifactId: string): Promise<Response> {
+    const { artifact } = await this.#findArtifact(artifactId);
+    const response = await this.#ports.originals.open(request, artifact);
+    if (!response) throw new CorpusNotFoundError("Original artifact representation not found");
+    return response;
+  }
+
+  async #findArtifact(
+    artifactId: string,
+  ): Promise<{ readonly artifact: LibraryPdfArtifact; readonly references: readonly BibliographicRecord[] }> {
+    const snapshot = await this.#ports.catalog.snapshot();
+    const artifact = snapshot.artifacts.find((candidate) => candidate.id === artifactId);
+    if (!artifact) throw new CorpusNotFoundError("Artifact not found");
+    return { artifact, references: snapshot.references };
+  }
+}
+
+function cursorOffset(artifacts: readonly LibraryPdfArtifact[], after: string | undefined): number {
+  if (!after) return 0;
+  const index = artifacts.findIndex(({ id }) => id === after);
+  if (index < 0) throw new CorpusInvalidCursorError("Artifact cursor is invalid");
+  return index + 1;
+}
+
+function projectArtifact(artifact: LibraryPdfArtifact, references: readonly BibliographicRecord[]): CorpusArtifact {
+  const reference = artifact.referenceId ? references.find(({ id }) => id === artifact.referenceId) : undefined;
+  return {
+    id: artifact.id,
+    referenceId: artifact.referenceId,
+    name: artifact.name,
+    contentType: artifact.contentType,
+    size: artifact.size,
+    fingerprint: artifact.fingerprint,
+    rights: artifact.rights,
+    createdAt: artifact.createdAt,
+    source: reference ? projectSource(reference) : null,
+  };
+}
+
+function projectSource(reference: BibliographicRecord): CorpusSource {
+  return {
+    id: reference.id,
+    referenceKey: reference.referenceKey,
+    type: reference.type,
+    title: reference.title,
+    authors: reference.authors,
+    year: reference.year,
+    venue: reference.venue,
+    doi: reference.doi,
+    url: reference.url,
+    abstract: reference.abstract,
+    provenance: reference.provenance,
+    createdAt: reference.createdAt,
+    updatedAt: reference.updatedAt,
+  };
+}
+
+function projectExtraction(analysis: ArtifactAnalysis): CorpusExtraction {
+  const { result: _result, ...extraction } = analysis;
+  return extraction;
+}

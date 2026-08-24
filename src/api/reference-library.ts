@@ -44,6 +44,7 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
+import { enqueueArtifactAnalysis } from "../artifact-analysis-job";
 import {
   isReferenceDiscoveryQuery,
   mergeReferenceDiscoveryCandidates,
@@ -495,7 +496,10 @@ async function handlePdfReferenceBackfill(context: ReferenceLibraryRouteContext)
       .filter((_artifact, index) => !analyses[index] || analyses[index]?.status === "failed")
       .slice(0, maximumBackfillQueueBatch);
     const queued = await Promise.all(
-      candidates.map(async ({ id }) => await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env, library)),
+      candidates.map(
+        async ({ id }) =>
+          await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
+      ),
     );
     queuedNow = queued.filter(({ status }) => status === "queued").length;
     for (const [index, artifact] of artifacts.entries()) {
@@ -766,9 +770,21 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
   }
   if (!result.created) await context.env.PAPERS.delete(objectKey);
   await Promise.all([
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-highlights", context.env, context.library),
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-references", context.env, context.library),
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-text", context.env, context.library),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-highlights",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-references",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
+    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-text", context.env.ARTIFACT_ANALYSIS_QUEUE, context.library),
   ]);
   return Response.json({ ...result, provenance }, { status: result.created ? 201 : 200, ...noStore() });
 }
@@ -813,13 +829,13 @@ async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteConte
   const kind: ArtifactAnalysisKind = match[2];
   if (request.method === "POST") {
     if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
-    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library, true);
+    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env.ARTIFACT_ANALYSIS_QUEUE, library, true);
     return Response.json(analysis, { status: 202, ...noStore() });
   }
   const analysis = await library.getArtifactAnalysis(match[1], kind);
   if (!analysis) {
     if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
-    return Response.json(await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library), {
+    return Response.json(await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env.ARTIFACT_ANALYSIS_QUEUE, library), {
       status: 202,
       ...noStore(),
     });
@@ -1833,53 +1849,11 @@ async function uploadLibraryPdf(
   }
   if (!draft.created) await env.PAPERS.delete(objectKey);
   await Promise.all([
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env, library),
-    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-text", env, library),
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env.ARTIFACT_ANALYSIS_QUEUE, library),
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-text", env.ARTIFACT_ANALYSIS_QUEUE, library),
   ]);
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
-}
-
-async function enqueueArtifactAnalysis(
-  ownerKey: string,
-  artifactId: string,
-  kind: ArtifactAnalysisKind,
-  env: ReferenceLibraryApiEnv,
-  library: ReferenceLibraryApi,
-  force = false,
-): Promise<ArtifactAnalysis> {
-  const requestedAt = new Date().toISOString();
-  if (!env.ARTIFACT_ANALYSIS_QUEUE) {
-    return {
-      artifactId,
-      fingerprint: "",
-      kind,
-      status: "failed",
-      result: null,
-      error: "Artifact analysis queue is unavailable",
-      requestedAt,
-      startedAt: null,
-      completedAt: requestedAt,
-    };
-  }
-  const analysis = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
-  if (analysis.status !== "queued") return analysis;
-  const job: ArtifactAnalysisJob = {
-    version: 1,
-    ownerKey,
-    artifactId,
-    fingerprint: analysis.fingerprint,
-    kind,
-    requestedAt: analysis.requestedAt,
-  };
-  try {
-    await env.ARTIFACT_ANALYSIS_QUEUE.send(job, { contentType: "json" });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Artifact analysis could not be queued";
-    await library.failArtifactAnalysis(artifactId, kind, analysis.fingerprint, analysis.requestedAt, message);
-    return { ...analysis, status: "failed", error: message.slice(0, 1_000), completedAt: new Date().toISOString() };
-  }
-  return analysis;
 }
 
 async function downloadLibraryPdf(

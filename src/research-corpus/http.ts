@@ -1,0 +1,193 @@
+import { readBoundedRequestBytes } from "../api/request-body";
+import type { ArtifactAnalysisKind } from "../domain/reference-library";
+import {
+  CorpusInvalidCursorError,
+  CorpusNotFoundError,
+  CorpusNotReadyError,
+  type CorpusApplication,
+  type CorpusArtifact,
+} from "./service";
+
+const extractionKinds = new Set<ArtifactAnalysisKind>(["pdf-highlights", "pdf-references", "pdf-text"]);
+const maximumCommandBytes = 1_024;
+
+export async function handleCorpusHttp(
+  request: Request,
+  service: CorpusApplication,
+  allowedOrigins: ReadonlySet<string>,
+): Promise<Response> {
+  const origin = request.headers.get("origin");
+  if (origin && !isAllowedOrigin(request, origin, allowedOrigins)) {
+    return jsonError("Cross-origin corpus request denied", 403);
+  }
+  if (request.method === "OPTIONS") return corsResponse(origin);
+
+  try {
+    const response = await routeCorpusRequest(request, service);
+    return origin ? withCors(response, origin) : response;
+  } catch (error) {
+    const response = corpusErrorResponse(error);
+    if (!response) throw error;
+    return origin ? withCors(response, origin) : response;
+  }
+}
+
+async function routeCorpusRequest(request: Request, service: CorpusApplication): Promise<Response> {
+  const url = new URL(request.url);
+  if (url.pathname === "/v1/artifacts") {
+    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
+    const limitValue = url.searchParams.get("limit");
+    const limit = limitValue === null ? undefined : Number(limitValue);
+    const after = url.searchParams.get("after");
+    const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
+    return json(
+      {
+        artifacts: page.artifacts.map((artifact) => artifactResponse(artifact, url.origin)),
+        next: page.next,
+      },
+      200,
+    );
+  }
+
+  const artifactMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})$/iu.exec(url.pathname);
+  if (artifactMatch?.[1]) {
+    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
+    return json(artifactResponse(await service.getArtifact(artifactMatch[1]), url.origin), 200);
+  }
+
+  const originalMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/representations\/original$/iu.exec(url.pathname);
+  if (originalMatch?.[1]) {
+    if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed("GET, HEAD, OPTIONS");
+    const response = await service.openOriginal(request, originalMatch[1]);
+    return request.method === "HEAD"
+      ? new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers })
+      : response;
+  }
+
+  const extractionMatch =
+    /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(url.pathname);
+  if (extractionMatch?.[1] && isExtractionKind(extractionMatch[2])) {
+    if (request.method === "GET") {
+      const extraction = await service.getExtraction(extractionMatch[1], extractionMatch[2]);
+      return extraction ? json(extraction, 200) : jsonError("Extraction not found", 404);
+    }
+    if (request.method === "POST") {
+      const retryFailed = await readRetryFailed(request);
+      const extraction = await service.startExtraction(extractionMatch[1], extractionMatch[2], retryFailed);
+      const status = extraction.status === "queued" || extraction.status === "running" ? 202 : 200;
+      return json(extraction, status);
+    }
+    return methodNotAllowed("GET, POST, OPTIONS");
+  }
+
+  const pageMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/pdf-text\/pages\/(\d{1,3})$/iu.exec(url.pathname);
+  if (pageMatch?.[1] && pageMatch[2]) {
+    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
+    return json(await service.readPdfTextPage(pageMatch[1], Number(pageMatch[2])), 200);
+  }
+
+  return jsonError("Corpus route not found", 404);
+}
+
+function artifactResponse(artifact: CorpusArtifact, origin: string) {
+  const base = `${origin}/v1/artifacts/${encodeURIComponent(artifact.id)}`;
+  return {
+    ...artifact,
+    links: {
+      self: base,
+      original: `${base}/representations/original`,
+      extractions: {
+        "pdf-highlights": `${base}/extractions/pdf-highlights`,
+        "pdf-references": `${base}/extractions/pdf-references`,
+        "pdf-text": `${base}/extractions/pdf-text`,
+      },
+    },
+  };
+}
+
+async function readRetryFailed(request: Request): Promise<boolean> {
+  if (!request.body) return false;
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    throw new CorpusUnsupportedMediaTypeError("Extraction command must use application/json");
+  }
+  const declaredBytes = Number(request.headers.get("content-length") ?? "0");
+  if (declaredBytes > maximumCommandBytes) throw new CorpusRequestTooLargeError("Extraction command is too large");
+  const bytes = await readBoundedRequestBytes(request.body, {
+    maximumBytes: maximumCommandBytes,
+    tooLarge: () => new CorpusRequestTooLargeError("Extraction command is too large"),
+    preserveLimitErrorOnCancelFailure: true,
+  });
+  if (bytes.byteLength === 0) return false;
+  const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
+  if (!isRetryCommand(value)) throw new SyntaxError("Extraction command is invalid");
+  return value.retryFailed === true;
+}
+
+function isRetryCommand(value: unknown): value is { readonly retryFailed?: boolean } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).every((key) => key === "retryFailed") &&
+    (!("retryFailed" in value) || typeof value.retryFailed === "boolean")
+  );
+}
+
+function isExtractionKind(value: string | undefined): value is ArtifactAnalysisKind {
+  return typeof value === "string" && extractionKinds.has(value as ArtifactAnalysisKind);
+}
+
+function isAllowedOrigin(request: Request, origin: string, allowedOrigins: ReadonlySet<string>): boolean {
+  return origin === new URL(request.url).origin || allowedOrigins.has(origin);
+}
+
+function corpusErrorResponse(error: unknown): Response | null {
+  if (error instanceof CorpusNotFoundError) return jsonError(error.message, 404);
+  if (error instanceof CorpusNotReadyError) return jsonError(error.message, 409);
+  if (error instanceof CorpusRequestTooLargeError) return jsonError(error.message, 413);
+  if (error instanceof CorpusUnsupportedMediaTypeError) return jsonError(error.message, 415);
+  if (error instanceof CorpusInvalidCursorError || error instanceof RangeError || error instanceof SyntaxError) {
+    return jsonError(error.message, 400);
+  }
+  return null;
+}
+
+function corsResponse(origin: string | null): Response {
+  const response = new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-headers": "Content-Type, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
+      "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
+      "access-control-max-age": "600",
+    },
+  });
+  return origin ? withCors(response, origin) : response;
+}
+
+function withCors(response: Response, origin: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", origin);
+  headers.set("access-control-allow-credentials", "true");
+  headers.append("vary", "Origin");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function json(value: unknown, status: number): Response {
+  return Response.json(value, {
+    status,
+    headers: { "cache-control": "private, no-store", "x-content-type-options": "nosniff" },
+  });
+}
+
+function jsonError(error: string, status: number): Response {
+  return json({ error }, status);
+}
+
+function methodNotAllowed(allow: string): Response {
+  const response = jsonError("Method not allowed", 405);
+  response.headers.set("allow", allow);
+  return response;
+}
+
+class CorpusRequestTooLargeError extends RangeError {}
+class CorpusUnsupportedMediaTypeError extends Error {}
