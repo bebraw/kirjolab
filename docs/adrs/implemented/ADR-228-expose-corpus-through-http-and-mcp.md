@@ -1,6 +1,6 @@
 # ADR-228: Expose the Corpus Through HTTP and MCP
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-08-24
 

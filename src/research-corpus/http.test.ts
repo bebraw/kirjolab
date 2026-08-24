@@ -35,11 +35,12 @@ describe("Research Corpus HTTP adapter", () => {
 
   it("preserves protected range metadata and strips the body for HEAD", async () => {
     const service = serviceFixture();
-    service.openOriginal = vi.fn(async () =>
-      new Response("partial", {
-        status: 206,
-        headers: { "content-range": "bytes 0-6/42", etag: '"fingerprint"', "content-type": "application/pdf" },
-      }),
+    service.openOriginal = vi.fn(
+      async () =>
+        new Response("partial", {
+          status: 206,
+          headers: { "content-range": "bytes 0-6/42", etag: '"fingerprint"', "content-type": "application/pdf" },
+        }),
     );
 
     const response = await handleCorpusHttp(
@@ -85,6 +86,36 @@ describe("Research Corpus HTTP adapter", () => {
     expect(service.startExtraction).toHaveBeenCalledWith(artifactId, "pdf-text", true);
   });
 
+  it("rejects malformed, oversized, and incorrectly typed extraction commands", async () => {
+    const service = serviceFixture();
+    const route = `https://corpus.example/v1/artifacts/${artifactId}/extractions/pdf-text`;
+
+    const malformed = await handleCorpusHttp(
+      new Request(route, { method: "POST", headers: { "content-type": "application/json" }, body: "{" }),
+      service,
+      new Set(),
+    );
+    const oversized = await handleCorpusHttp(
+      new Request(route, {
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": "1025" },
+        body: "{}",
+      }),
+      service,
+      new Set(),
+    );
+    const unsupported = await handleCorpusHttp(
+      new Request(route, { method: "POST", headers: { "content-type": "text/plain" }, body: "{}" }),
+      service,
+      new Set(),
+    );
+
+    expect(malformed.status).toBe(400);
+    expect(oversized.status).toBe(413);
+    expect(unsupported.status).toBe(415);
+    expect(service.startExtraction).not.toHaveBeenCalled();
+  });
+
   it("returns one extracted text page and maps incomplete extraction to conflict", async () => {
     const service = serviceFixture();
     const ready = await handleCorpusHttp(
@@ -125,16 +156,8 @@ describe("Research Corpus HTTP adapter", () => {
       throw new CorpusNotFoundError("Artifact not found");
     });
 
-    const absent = await handleCorpusHttp(
-      new Request(`https://corpus.example/v1/artifacts/${artifactId}`),
-      service,
-      new Set(),
-    );
-    const method = await handleCorpusHttp(
-      new Request("https://corpus.example/v1/artifacts", { method: "DELETE" }),
-      service,
-      new Set(),
-    );
+    const absent = await handleCorpusHttp(new Request(`https://corpus.example/v1/artifacts/${artifactId}`), service, new Set());
+    const method = await handleCorpusHttp(new Request("https://corpus.example/v1/artifacts", { method: "DELETE" }), service, new Set());
 
     expect(absent.status).toBe(404);
     expect(method.status).toBe(405);

@@ -1,12 +1,8 @@
 import { readBoundedRequestBytes } from "../api/request-body";
 import type { ArtifactAnalysisKind } from "../domain/reference-library";
-import {
-  CorpusInvalidCursorError,
-  CorpusNotFoundError,
-  CorpusNotReadyError,
-  type CorpusApplication,
-  type CorpusArtifact,
-} from "./service";
+import { CorpusInvalidCursorError, CorpusNotFoundError, CorpusNotReadyError, type CorpusApplication } from "./service";
+import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
+import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 
 const extractionKinds = new Set<ArtifactAnalysisKind>(["pdf-highlights", "pdf-references", "pdf-text"]);
 const maximumCommandBytes = 1_024;
@@ -17,18 +13,18 @@ export async function handleCorpusHttp(
   allowedOrigins: ReadonlySet<string>,
 ): Promise<Response> {
   const origin = request.headers.get("origin");
-  if (origin && !isAllowedOrigin(request, origin, allowedOrigins)) {
+  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
     return jsonError("Cross-origin corpus request denied", 403);
   }
   if (request.method === "OPTIONS") return corsResponse(origin);
 
   try {
     const response = await routeCorpusRequest(request, service);
-    return origin ? withCors(response, origin) : response;
+    return origin ? withCorpusCors(response, origin) : response;
   } catch (error) {
     const response = corpusErrorResponse(error);
     if (!response) throw error;
-    return origin ? withCors(response, origin) : response;
+    return origin ? withCorpusCors(response, origin) : response;
   }
 }
 
@@ -40,19 +36,13 @@ async function routeCorpusRequest(request: Request, service: CorpusApplication):
     const limit = limitValue === null ? undefined : Number(limitValue);
     const after = url.searchParams.get("after");
     const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
-    return json(
-      {
-        artifacts: page.artifacts.map((artifact) => artifactResponse(artifact, url.origin)),
-        next: page.next,
-      },
-      200,
-    );
+    return json(corpusArtifactPageDocument(page, url.origin), 200);
   }
 
   const artifactMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})$/iu.exec(url.pathname);
   if (artifactMatch?.[1]) {
     if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
-    return json(artifactResponse(await service.getArtifact(artifactMatch[1]), url.origin), 200);
+    return json(corpusArtifactDocument(await service.getArtifact(artifactMatch[1]), url.origin), 200);
   }
 
   const originalMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/representations\/original$/iu.exec(url.pathname);
@@ -64,8 +54,7 @@ async function routeCorpusRequest(request: Request, service: CorpusApplication):
       : response;
   }
 
-  const extractionMatch =
-    /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(url.pathname);
+  const extractionMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(url.pathname);
   if (extractionMatch?.[1] && isExtractionKind(extractionMatch[2])) {
     if (request.method === "GET") {
       const extraction = await service.getExtraction(extractionMatch[1], extractionMatch[2]);
@@ -89,22 +78,6 @@ async function routeCorpusRequest(request: Request, service: CorpusApplication):
   return jsonError("Corpus route not found", 404);
 }
 
-function artifactResponse(artifact: CorpusArtifact, origin: string) {
-  const base = `${origin}/v1/artifacts/${encodeURIComponent(artifact.id)}`;
-  return {
-    ...artifact,
-    links: {
-      self: base,
-      original: `${base}/representations/original`,
-      extractions: {
-        "pdf-highlights": `${base}/extractions/pdf-highlights`,
-        "pdf-references": `${base}/extractions/pdf-references`,
-        "pdf-text": `${base}/extractions/pdf-text`,
-      },
-    },
-  };
-}
-
 async function readRetryFailed(request: Request): Promise<boolean> {
   if (!request.body) return false;
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
@@ -118,7 +91,12 @@ async function readRetryFailed(request: Request): Promise<boolean> {
     preserveLimitErrorOnCancelFailure: true,
   });
   if (bytes.byteLength === 0) return false;
-  const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
+  } catch {
+    throw new SyntaxError("Extraction command is invalid");
+  }
   if (!isRetryCommand(value)) throw new SyntaxError("Extraction command is invalid");
   return value.retryFailed === true;
 }
@@ -135,10 +113,6 @@ function isRetryCommand(value: unknown): value is { readonly retryFailed?: boole
 
 function isExtractionKind(value: string | undefined): value is ArtifactAnalysisKind {
   return typeof value === "string" && extractionKinds.has(value as ArtifactAnalysisKind);
-}
-
-function isAllowedOrigin(request: Request, origin: string, allowedOrigins: ReadonlySet<string>): boolean {
-  return origin === new URL(request.url).origin || allowedOrigins.has(origin);
 }
 
 function corpusErrorResponse(error: unknown): Response | null {
@@ -161,15 +135,7 @@ function corsResponse(origin: string | null): Response {
       "access-control-max-age": "600",
     },
   });
-  return origin ? withCors(response, origin) : response;
-}
-
-function withCors(response: Response, origin: string): Response {
-  const headers = new Headers(response.headers);
-  headers.set("access-control-allow-origin", origin);
-  headers.set("access-control-allow-credentials", "true");
-  headers.append("vary", "Origin");
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  return origin ? withCorpusCors(response, origin) : response;
 }
 
 function json(value: unknown, status: number): Response {

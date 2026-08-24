@@ -27,15 +27,14 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                 | Status   | Summary                                                                                        |
-| ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| [ADR-228](./accepted/ADR-228-expose-corpus-through-http-and-mcp.md) | Accepted | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.       |
-| [ADR-227](./accepted/ADR-227-extract-research-corpus-service.md)    | Accepted | Extract a reusable corpus service incrementally over the existing private storage authorities. |
+No ADRs are currently accepted and awaiting implementation.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-228](./implemented/ADR-228-expose-corpus-through-http-and-mcp.md)                    | Implemented          | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.                        |
+| [ADR-227](./implemented/ADR-227-extract-research-corpus-service.md)                       | Implemented          | Extract a reusable corpus service incrementally over the existing private storage authorities.                  |
 | [ADR-226](./implemented/ADR-226-publish-immutable-package-assets.md)                      | Implemented          | Pin exact package artifacts in checked manifests and immutable GitHub Release assets.                           |
 | [ADR-225](./implemented/ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)     | Implemented          | Keep required GitHub mutation CI as an instrumented compatibility smoke while scoring mutation locally.         |
 | [ADR-224](./implemented/ADR-224-override-unused-puppeteer-browser-installer.md)           | Implemented          | Replace Puppeteer's unused vulnerable browser installer while retaining the tested Browser Run adapter.         |

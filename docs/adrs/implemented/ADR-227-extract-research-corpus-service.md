@@ -1,6 +1,6 @@
 # ADR-227: Extract a Research Corpus Service
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-08-24
 

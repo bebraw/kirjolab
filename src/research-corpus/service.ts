@@ -106,7 +106,7 @@ export class ResearchCorpusService implements CorpusApplication {
     const hasNext = offset + artifacts.length < snapshot.artifacts.length;
     return {
       artifacts: artifacts.map((artifact) => projectArtifact(artifact, snapshot.references)),
-      next: hasNext ? artifacts.at(-1)?.id ?? null : null,
+      next: hasNext ? (artifacts.at(-1)?.id ?? null) : null,
     };
   }
 
@@ -121,11 +121,7 @@ export class ResearchCorpusService implements CorpusApplication {
     return analysis && analysis.fingerprint === artifact.fingerprint ? projectExtraction(analysis) : null;
   }
 
-  async startExtraction(
-    artifactId: string,
-    kind: ArtifactAnalysisKind,
-    retryFailed = false,
-  ): Promise<CorpusExtraction> {
+  async startExtraction(artifactId: string, kind: ArtifactAnalysisKind, retryFailed = false): Promise<CorpusExtraction> {
     const { artifact } = await this.#findArtifact(artifactId);
     const current = await this.#ports.extractions.get(artifactId, kind);
     const currentMatches = current?.fingerprint === artifact.fingerprint;

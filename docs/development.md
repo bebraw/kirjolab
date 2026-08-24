@@ -186,6 +186,16 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
   not require a Cloudflare Access assertion or a `.dev.vars` file.
+- Start Research Corpus on `http://127.0.0.1:8788` with
+  `npm run dev:corpus`. Wrangler runs `wrangler.corpus.jsonc` as the exposed
+  primary Worker and `wrangler.jsonc` as its auxiliary Durable Object and Queue
+  authority, so both surfaces see one local Library namespace. Do not run this
+  command beside E2E, which also reserves port 8788.
+- Inspect the local corpus through `GET /v1/artifacts`; connect an MCP client to
+  `/mcp`. Local authentication remains loopback-only. MCP exposes bounded tools
+  and resources for safe artifact metadata, extraction status and requests,
+  and individual PDF text pages. Original PDF bytes remain on the protected
+  HTTP representation route and never enter MCP results.
 - Copy `.env.example` to the ignored `.env` to enable the companion; use
   `npm run model:companion` only for standalone troubleshooting.
 - Install the Playwright browser with `npm run playwright:install`.
@@ -209,6 +219,9 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Explicitly rebuild the full incremental mutation report with
   `npm run mutation:incremental:refresh`.
 - Run TypeScript checks with `npm run typecheck`.
+- Validate a hosted corpus release without uploading it with
+  `npm run deploy:corpus:dry-run`; use `npm run deploy:corpus` only after the
+  primary Kirjolab Worker and the corpus Access application exist.
 - Regenerate committed Worker bindings with `npm run worker:types`; this
   intentionally ignores `.env` and `.dev.vars` so output is reproducible.
 - Check committed Worker bindings without rewriting them with

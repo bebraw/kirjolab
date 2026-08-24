@@ -150,6 +150,13 @@ For Cloudflare Git builds, set the production deploy command to
 `KIRJOLAB_ACCESS_TEAM_DOMAIN`, and `KIRJOLAB_ACCESS_AUD` build variables.
 `KIRJOLAB_CROSSREF_MAILTO` is optional.
 
+Research Corpus is a separate Worker over the existing private Library, R2,
+and analysis Queue authorities. Deploy Kirjolab first, then follow the
+[production runbook](./docs/operations/production.md#research-corpus-service)
+to validate and release its versioned HTTP API and private stateless MCP
+endpoint. Bare corpus deploys also default to loopback authentication and fail
+closed on a public hostname.
+
 ## Development and Tests
 
 Use the smallest useful check while working, then run the baseline gate before
@@ -166,6 +173,7 @@ considering a change ready.
 | `npm run e2e`                  | Run browser tests                          |
 | `npm run mutation`             | Run mutation tests                         |
 | `npm run diagnostics:codebase` | Report advisory readability diagnostics    |
+| `npm run dev:corpus`           | Run Corpus plus its local authority Worker |
 
 Install the pinned Playwright browser with `npm run playwright:install`. The
 container parity path can pause after a failure; resume it with

@@ -497,8 +497,7 @@ async function handlePdfReferenceBackfill(context: ReferenceLibraryRouteContext)
       .slice(0, maximumBackfillQueueBatch);
     const queued = await Promise.all(
       candidates.map(
-        async ({ id }) =>
-          await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
+        async ({ id }) => await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env.ARTIFACT_ANALYSIS_QUEUE, library),
       ),
     );
     queuedNow = queued.filter(({ status }) => status === "queued").length;
@@ -784,7 +783,13 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
       context.env.ARTIFACT_ANALYSIS_QUEUE,
       context.library,
     ),
-    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-text", context.env.ARTIFACT_ANALYSIS_QUEUE, context.library),
+    enqueueArtifactAnalysis(
+      context.identity.ownerKey,
+      result.artifact.id,
+      "pdf-text",
+      context.env.ARTIFACT_ANALYSIS_QUEUE,
+      context.library,
+    ),
   ]);
   return Response.json({ ...result, provenance }, { status: result.created ? 201 : 200, ...noStore() });
 }

@@ -125,7 +125,7 @@ copy or dual write.
 
 ## Current Milestone
 
-- Accepted: independently deployable corpus boundary, versioned HTTP contract,
+- Implemented: independently deployable corpus boundary, versioned HTTP contract,
   and stateless MCP projection over the existing storage and extraction
   authorities.
 - Deferred: source intake, web-document representations, semantic search,

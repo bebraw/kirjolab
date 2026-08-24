@@ -71,6 +71,60 @@ repository-controlled preflight passes. Keep production bindings and routes in
 the repository deployment configuration instead of editing them independently
 in the Dashboard. Record the release commit and deployed version ID.
 
+## Research Corpus Service
+
+Research Corpus is deployed as the separate `kirjolab-research-corpus` Worker.
+It reaches the existing `ReferenceLibrary` Durable Object namespace through a
+cross-script binding and uses the same private R2 bucket and analysis Queue.
+Deploy the primary `kirjolab` Worker first: it owns the Durable Object class and
+the sole Queue consumer. The corpus config contains no migrations and must not
+be changed to create another `ReferenceLibrary` namespace.
+
+Create a second Cloudflare Access self-hosted application for the corpus custom
+hostname. It may use the same policy and team as Kirjolab, but record its own
+application audience. Disable its `workers.dev` route. Then set:
+
+```bash
+export KIRJOLAB_CORPUS_PRODUCTION_URL=https://corpus.your-domain.example
+export KIRJOLAB_CORPUS_ACCESS_AUD=your_corpus_application_audience_tag
+export KIRJOLAB_CORPUS_ALLOWED_ORIGINS=https://write.your-domain.example
+```
+
+`KIRJOLAB_ACCESS_TEAM_DOMAIN` remains the shared Access team domain. Separate
+multiple allowed frontend origins with commas. Every entry must be a canonical
+HTTPS origin without a path, query, fragment, credentials, or trailing slash.
+Do not use `*`; the deploy preflight rejects non-origin values and the Worker
+reflects CORS only after an exact match.
+
+Validate and deploy only after the primary Worker is available:
+
+```bash
+npm run deploy:corpus:dry-run
+npm run deploy:corpus
+```
+
+The release command validates the custom hostname, corpus audience, and exact
+origin list, performs a strict dry run against `wrangler.corpus.jsonc`, uploads,
+and lists corpus versions. The config defaults to local authentication, so a
+bare deploy is not a production shortcut.
+
+From a signed-in browser, verify `GET /v1/artifacts` returns only the expected
+owner's safe artifact metadata, open one protected original representation,
+request or inspect `pdf-text` extraction, and read one extracted page. Verify
+an unconfigured browser origin receives `403`. Connect private MCP clients to
+`/mcp` only through the Access-protected deployment and verify tool discovery;
+the current service does not advertise a public OAuth authorization server.
+Do not make the MCP endpoint public until delegated authorization is approved
+in a later ADR.
+
+Inspect or roll back this Worker with the explicit config so the operation does
+not target Kirjolab accidentally:
+
+```bash
+npx wrangler versions list --config wrangler.corpus.jsonc
+npx wrangler rollback VERSION_ID --config wrangler.corpus.jsonc
+```
+
 ## Smoke Checks
 
 From a signed-out browser, opening the production URL must be blocked by

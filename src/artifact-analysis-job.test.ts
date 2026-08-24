@@ -53,7 +53,13 @@ describe("artifact analysis job submission", () => {
 
     const result = await enqueueArtifactAnalysis("owner-key", artifactId, "pdf-text", queue, library);
 
-    expect(library.failArtifactAnalysis).toHaveBeenCalledWith(artifactId, "pdf-text", "sha256:paper", expect.any(String), expect.any(String));
+    expect(library.failArtifactAnalysis).toHaveBeenCalledWith(
+      artifactId,
+      "pdf-text",
+      "sha256:paper",
+      expect.any(String),
+      expect.any(String),
+    );
     expect(result.status).toBe("failed");
     expect(result.error).toHaveLength(1_000);
   });

@@ -1,12 +1,7 @@
 import type { ArtifactAnalysis, ArtifactAnalysisJob, ArtifactAnalysisKind } from "./domain/reference-library";
 
 export interface ArtifactAnalysisJobLibrary {
-  queueArtifactAnalysis(
-    artifactId: string,
-    kind: ArtifactAnalysisKind,
-    requestedAt: string,
-    force?: boolean,
-  ): Promise<ArtifactAnalysis>;
+  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force?: boolean): Promise<ArtifactAnalysis>;
   failArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,
