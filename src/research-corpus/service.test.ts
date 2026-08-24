@@ -15,7 +15,7 @@ const secondArtifact = artifact("33333333-3333-4333-8333-333333333333", "paper-b
 
 describe("ResearchCorpusService", () => {
   it("projects bounded artifact pages without private storage locators", async () => {
-    const { service } = fixture();
+    const { service, ports } = fixture();
 
     const firstPage = await service.listArtifacts({ limit: 1 });
     if (!firstPage.next) throw new Error("Expected another artifact page");
@@ -32,6 +32,8 @@ describe("ResearchCorpusService", () => {
       next: firstArtifact.id,
     });
     expect(secondPage.artifacts).toHaveLength(1);
+    expect(ports.catalog.page).toHaveBeenNthCalledWith(1, null, 1);
+    expect(ports.catalog.page).toHaveBeenNthCalledWith(2, firstArtifact.id, 1);
     expect(JSON.stringify(firstPage)).not.toContain("r2/private");
     expect(JSON.stringify(firstPage)).not.toContain("owner-key");
   });
@@ -43,12 +45,13 @@ describe("ResearchCorpusService", () => {
   });
 
   it("looks up an owner-scoped artifact and never returns its object key", async () => {
-    const { service } = fixture();
+    const { service, ports } = fixture();
 
     const result = await service.getArtifact(firstArtifact.id);
 
     expect(result).toEqual(expect.objectContaining({ id: firstArtifact.id, fingerprint: firstArtifact.fingerprint }));
     expect(result).not.toHaveProperty("objectKey");
+    expect(ports.catalog.find).toHaveBeenCalledWith(firstArtifact.id);
     await expect(service.getArtifact(crypto.randomUUID())).rejects.toBeInstanceOf(CorpusNotFoundError);
   });
 
@@ -151,7 +154,14 @@ function fixture(
   const currentAnalysis = options.currentAnalysis === undefined ? analysis("queued") : options.currentAnalysis;
   const ports: CorpusServicePorts = {
     catalog: {
-      snapshot: vi.fn(async () => options.catalogSnapshot ?? snapshot()),
+      page: vi.fn(async (after, limit) => artifactPage(options.catalogSnapshot ?? snapshot(), after, limit)),
+      find: vi.fn(async (artifactId) => {
+        const catalog = options.catalogSnapshot ?? snapshot();
+        const artifact = catalog.artifacts.find(({ id }) => id === artifactId);
+        if (!artifact) return null;
+        const reference = artifact.referenceId ? (catalog.references.find(({ id }) => id === artifact.referenceId) ?? null) : null;
+        return { artifact, reference };
+      }),
     },
     intake: {
       ingest: vi.fn(async () => ({ reference: snapshot().references[0]!, artifact: firstArtifact, created: true })),
@@ -165,6 +175,19 @@ function fixture(
     },
   };
   return { service: new ResearchCorpusService(ports), ports };
+}
+
+function artifactPage(snapshot: ReferenceLibrarySnapshot, after: string | null, limit: number) {
+  const offset = after ? snapshot.artifacts.findIndex(({ id }) => id === after) + 1 : 0;
+  if (after && offset === 0) return null;
+  const artifacts = snapshot.artifacts.slice(offset, offset + limit);
+  return {
+    items: artifacts.map((artifact) => ({
+      artifact,
+      reference: artifact.referenceId ? (snapshot.references.find(({ id }) => id === artifact.referenceId) ?? null) : null,
+    })),
+    next: offset + artifacts.length < snapshot.artifacts.length ? (artifacts.at(-1)?.id ?? null) : null,
+  };
 }
 
 function snapshot(): ReferenceLibrarySnapshot {

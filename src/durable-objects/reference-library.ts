@@ -40,6 +40,8 @@ import {
   type LibraryHighlightImportCandidate,
   type LibraryNote,
   type LibraryPdfArtifact,
+  type LibraryPdfArtifactItem,
+  type LibraryPdfArtifactPage,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
   type LibraryPdfNote,
@@ -368,6 +370,62 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .filter((row) => referenceIds.has(row.reference_id))
         .map(readingFromRow),
     };
+  }
+
+  getPdfArtifactPage(after: string | null, limit: number): LibraryPdfArtifactPage | null {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("PDF artifact page size must be between 1 and 100");
+    const eligible = "a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)";
+    const cursor = after
+      ? this.ctx.storage.sql
+          .exec<{ id: string; created_at: string }>(
+            `SELECT a.id, a.created_at FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE a.id = ? AND (${eligible}) LIMIT 1`,
+            after,
+          )
+          .toArray()[0]
+      : undefined;
+    if (after && !cursor) return null;
+    const rows = cursor
+      ? this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE (${eligible}) AND (a.created_at < ? OR (a.created_at = ? AND a.id > ?))
+             ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            cursor.created_at,
+            cursor.created_at,
+            cursor.id,
+            limit + 1,
+          )
+          .toArray()
+      : this.ctx.storage.sql
+          .exec<ArtifactRow>(
+            `SELECT a.* FROM artifacts a
+             LEFT JOIN library_references r ON r.id = a.reference_id
+             WHERE ${eligible} ORDER BY a.created_at DESC, a.id LIMIT ?`,
+            limit + 1,
+          )
+          .toArray();
+    const pageRows = rows.slice(0, limit);
+    return {
+      items: this.#pdfArtifactItems(pageRows),
+      next: rows.length > limit ? (pageRows.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  getPdfArtifact(artifactId: string): LibraryPdfArtifactItem | null {
+    const row = this.ctx.storage.sql
+      .exec<ArtifactRow>(
+        `SELECT a.* FROM artifacts a
+         LEFT JOIN library_references r ON r.id = a.reference_id
+         WHERE a.id = ? AND (a.reference_id IS NULL OR (r.id IS NOT NULL AND r.deleted_at IS NULL)) LIMIT 1`,
+        artifactId,
+      )
+      .toArray()[0];
+    if (!row) return null;
+    const artifact = artifactFromRow(row);
+    return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
   }
 
   async getBackupSnapshot(): Promise<{ snapshot: ReferenceLibrarySnapshot; bookmark: string | null }> {
@@ -2090,6 +2148,25 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<ArtifactRow>("SELECT * FROM artifacts WHERE id = ?", artifactId).toArray()[0];
     if (!row) throw new Error("PDF artifact not found");
     return artifactFromRow(row);
+  }
+
+  #pdfArtifactItems(rows: readonly ArtifactRow[]): LibraryPdfArtifactItem[] {
+    const artifacts = rows.map(artifactFromRow);
+    const referenceIds = [...new Set(artifacts.flatMap(({ referenceId }) => (referenceId ? [referenceId] : [])))];
+    const references = referenceIds.length
+      ? this.ctx.storage.sql
+          .exec<ReferenceRow>(
+            `SELECT * FROM library_references WHERE deleted_at IS NULL AND id IN (${referenceIds.map(() => "?").join(", ")})`,
+            ...referenceIds,
+          )
+          .toArray()
+          .map(referenceFromRow)
+      : [];
+    const referencesById = new Map(references.map((reference) => [reference.id, reference]));
+    return artifacts.map((artifact) => ({
+      artifact,
+      reference: artifact.referenceId ? (referencesById.get(artifact.referenceId) ?? null) : null,
+    }));
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {

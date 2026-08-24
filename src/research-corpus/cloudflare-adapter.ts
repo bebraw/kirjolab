@@ -2,7 +2,8 @@ import { enqueueArtifactAnalysis, type ArtifactAnalysisJobLibrary, type Artifact
 import { downloadR2Object } from "../api/r2-download";
 import {
   isArtifactAnalysis,
-  isReferenceLibrarySnapshot,
+  isLibraryPdfArtifactItem,
+  isLibraryPdfArtifactPage,
   type ArtifactAnalysis,
   type ArtifactAnalysisKind,
 } from "../domain/reference-library";
@@ -10,7 +11,8 @@ import { ingestLibraryPdf, type LibraryPdfIngestAuthority } from "../library-pdf
 import { ResearchCorpusService } from "./service";
 
 export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary, LibraryPdfIngestAuthority {
-  getSnapshot(includeArchived?: boolean): Promise<unknown>;
+  getPdfArtifactPage(after: string | null, limit: number): Promise<unknown>;
+  getPdfArtifact(artifactId: string): Promise<unknown>;
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<unknown>;
 }
 
@@ -24,10 +26,19 @@ export function createCloudflareCorpusService(ownerKey: string, actor: string, e
   const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
   return new ResearchCorpusService({
     catalog: {
-      snapshot: async () => {
-        const snapshot = await library.getSnapshot(true);
-        if (!isReferenceLibrarySnapshot(snapshot)) throw new Error("Research Corpus authority returned an invalid snapshot");
-        return snapshot;
+      page: async (after, limit) => {
+        const page = await library.getPdfArtifactPage(after, limit);
+        if (page !== null && (!isLibraryPdfArtifactPage(page) || page.items.length > limit)) {
+          throw new Error("Research Corpus authority returned an invalid artifact page");
+        }
+        return page;
+      },
+      find: async (artifactId) => {
+        const item = await library.getPdfArtifact(artifactId);
+        if (item !== null && !isLibraryPdfArtifactItem(item)) {
+          throw new Error("Research Corpus authority returned an invalid artifact record");
+        }
+        return item;
       },
     },
     intake: {

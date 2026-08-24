@@ -28,6 +28,18 @@ export interface PdfDraftResult {
   readonly created: boolean;
 }
 
+/** Narrow authority record used by consumers that need PDF catalog metadata. */
+export interface LibraryPdfArtifactItem {
+  readonly artifact: LibraryPdfArtifact;
+  readonly reference: BibliographicRecord | null;
+}
+
+/** A bounded page selected beside the owner-scoped Library storage authority. */
+export interface LibraryPdfArtifactPage {
+  readonly items: readonly LibraryPdfArtifactItem[];
+  readonly next: string | null;
+}
+
 export function isProjectReferencePdfs(value: unknown): value is ProjectReferencePdf[] {
   return (
     Array.isArray(value) &&
@@ -50,6 +62,22 @@ export function isProjectReferencePdfs(value: unknown): value is ProjectReferenc
 export function isPdfDraftResult(value: unknown): value is PdfDraftResult {
   return (
     isRecord(value) && isBibliographicRecord(value.reference) && isLibraryPdfArtifact(value.artifact) && typeof value.created === "boolean"
+  );
+}
+
+export function isLibraryPdfArtifactItem(value: unknown): value is LibraryPdfArtifactItem {
+  if (!isRecord(value) || !isLibraryPdfArtifact(value.artifact)) return false;
+  if (value.reference === null) return value.artifact.referenceId === null;
+  return isBibliographicRecord(value.reference) && value.artifact.referenceId === value.reference.id;
+}
+
+export function isLibraryPdfArtifactPage(value: unknown): value is LibraryPdfArtifactPage {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.items) &&
+    value.items.length <= 100 &&
+    value.items.every(isLibraryPdfArtifactItem) &&
+    (value.next === null || typeof value.next === "string")
   );
 }
 

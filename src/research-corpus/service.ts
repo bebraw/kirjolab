@@ -4,11 +4,12 @@ import {
   type ArtifactAnalysisKind,
   type BibliographicRecord,
   type LibraryPdfArtifact,
+  type LibraryPdfArtifactItem,
+  type LibraryPdfArtifactPage,
   type MetadataFieldProvenance,
   type MetadataProvenanceMethod,
   type PdfDraftResult,
   type ReferenceMetadataField,
-  type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 
 const defaultPageSize = 50;
@@ -81,7 +82,8 @@ export interface CorpusPdfTextPage {
 }
 
 export interface CorpusCatalogPort {
-  snapshot(): Promise<ReferenceLibrarySnapshot>;
+  page(after: string | null, limit: number): Promise<LibraryPdfArtifactPage | null>;
+  find(artifactId: string): Promise<LibraryPdfArtifactItem | null>;
 }
 
 export interface CorpusIntakePort {
@@ -130,24 +132,22 @@ export class ResearchCorpusService implements CorpusApplication {
     if (!Number.isInteger(limit) || limit < 1 || limit > maximumPageSize) {
       throw new RangeError(`Artifact page size must be between 1 and ${maximumPageSize}`);
     }
-    const snapshot = await this.#ports.catalog.snapshot();
-    const offset = cursorOffset(snapshot.artifacts, options.after);
-    const artifacts = snapshot.artifacts.slice(offset, offset + limit);
-    const hasNext = offset + artifacts.length < snapshot.artifacts.length;
+    const page = await this.#ports.catalog.page(options.after ?? null, limit);
+    if (!page) throw new CorpusInvalidCursorError("Artifact cursor is invalid");
     return {
-      artifacts: artifacts.map((artifact) => projectArtifact(artifact, snapshot.references)),
-      next: hasNext ? (artifacts.at(-1)?.id ?? null) : null,
+      artifacts: page.items.map(({ artifact, reference }) => projectArtifact(artifact, reference)),
+      next: page.next,
     };
   }
 
   async getArtifact(artifactId: string): Promise<CorpusArtifact> {
-    const { artifact, references } = await this.#findArtifact(artifactId);
-    return projectArtifact(artifact, references);
+    const { artifact, reference } = await this.#findArtifact(artifactId);
+    return projectArtifact(artifact, reference);
   }
 
   async ingestPdf(input: CorpusPdfUpload): Promise<CorpusPdfIngestion> {
     const result = await this.#ports.intake.ingest(input);
-    return { artifact: projectArtifact(result.artifact, [result.reference]), created: result.created };
+    return { artifact: projectArtifact(result.artifact, result.reference), created: result.created };
   }
 
   async getExtraction(artifactId: string, kind: ArtifactAnalysisKind): Promise<CorpusExtraction | null> {
@@ -191,25 +191,14 @@ export class ResearchCorpusService implements CorpusApplication {
     return response;
   }
 
-  async #findArtifact(
-    artifactId: string,
-  ): Promise<{ readonly artifact: LibraryPdfArtifact; readonly references: readonly BibliographicRecord[] }> {
-    const snapshot = await this.#ports.catalog.snapshot();
-    const artifact = snapshot.artifacts.find((candidate) => candidate.id === artifactId);
-    if (!artifact) throw new CorpusNotFoundError("Artifact not found");
-    return { artifact, references: snapshot.references };
+  async #findArtifact(artifactId: string): Promise<LibraryPdfArtifactItem> {
+    const item = await this.#ports.catalog.find(artifactId);
+    if (!item) throw new CorpusNotFoundError("Artifact not found");
+    return item;
   }
 }
 
-function cursorOffset(artifacts: readonly LibraryPdfArtifact[], after: string | undefined): number {
-  if (!after) return 0;
-  const index = artifacts.findIndex(({ id }) => id === after);
-  if (index < 0) throw new CorpusInvalidCursorError("Artifact cursor is invalid");
-  return index + 1;
-}
-
-function projectArtifact(artifact: LibraryPdfArtifact, references: readonly BibliographicRecord[]): CorpusArtifact {
-  const reference = artifact.referenceId ? references.find(({ id }) => id === artifact.referenceId) : undefined;
+function projectArtifact(artifact: LibraryPdfArtifact, reference: BibliographicRecord | null): CorpusArtifact {
   return {
     id: artifact.id,
     referenceId: artifact.referenceId,

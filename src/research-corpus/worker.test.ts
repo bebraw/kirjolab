@@ -102,18 +102,8 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     createPdfDraft: vi.fn(async () => {
       throw new Error("not used");
     }),
-    getSnapshot: vi.fn(async () => ({
-      references: [],
-      referenceKeyStates: {},
-      artifacts: [],
-      webSources: [],
-      webSnapshots: [],
-      notes: [],
-      highlights: [],
-      tags: {},
-      collections: {},
-      reading: [],
-    })),
+    getPdfArtifactPage: vi.fn(async () => ({ items: [], next: null })),
+    getPdfArtifact: vi.fn(async () => null),
     getArtifactAnalysis: vi.fn(async () => null),
     queueArtifactAnalysis: vi.fn(async () => {
       throw new Error("not used");

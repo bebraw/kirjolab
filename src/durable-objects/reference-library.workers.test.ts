@@ -5,6 +5,53 @@ import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/refer
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
+  it("pages reusable PDF catalog records beside SQLite", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`corpus-page-${crypto.randomUUID()}`);
+    const older = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "older.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: "libraries/owner/older.pdf",
+        fingerprint: `sha256:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-08-23T08:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const newer = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "newer.pdf",
+        contentType: "application/pdf",
+        size: 200,
+        objectKey: "libraries/owner/newer.pdf",
+        fingerprint: `sha256:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-08-24T08:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+
+    const first = await library.getPdfArtifactPage(null, 1);
+    const second = await library.getPdfArtifactPage(first?.next ?? null, 1);
+
+    expect(first).toEqual({
+      items: [{ artifact: newer.artifact, reference: newer.reference }],
+      next: newer.artifact.id,
+    });
+    expect(second).toEqual({
+      items: [{ artifact: older.artifact, reference: older.reference }],
+      next: null,
+    });
+    expect(await library.getPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();
+    expect(await library.getPdfArtifact(older.artifact.id)).toEqual({ artifact: older.artifact, reference: older.reference });
+    expect(await library.getPdfArtifact(crypto.randomUUID())).toBeNull();
+  });
+
   it("atomically attaches a fingerprinted PDF to an existing reference", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`oa-pdf-${crypto.randomUUID()}`);
     const [imported] = await library.importBibTeX("@article{open2026, title={Open paper}, doi={10.1000/open}}", "owner@example.test");

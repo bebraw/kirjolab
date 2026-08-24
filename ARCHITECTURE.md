@@ -120,6 +120,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   claims, reviews, and UI workflow ownership. During migration, adapt the
   existing owner-scoped Reference Library Durable Object, R2 objects, and Queue
   jobs behind that service with one write path and no copied authority.
+- Keep Corpus-to-Library cross-script RPC payloads purpose-specific and
+  bounded. Select artifact pages and individual artifact/reference records
+  beside the owner-scoped Library SQLite authority; never move a complete
+  private Library snapshot across the service binding to paginate or look up
+  one artifact.
 - Use versioned HTTP/JSON for corpus application data and protected conditional
   or ranged artifact bytes. Accept PDF intake as an exact-length, owner-scoped,
   bounded HTTP stream through the same storage/draft/queue operation used by

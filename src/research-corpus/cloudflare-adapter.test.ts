@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ArtifactAnalysis, BibliographicRecord, LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type { ArtifactAnalysis, BibliographicRecord, LibraryPdfArtifact, LibraryPdfArtifactPage } from "../domain/reference-library";
 import { createCloudflareCorpusService, type CorpusCloudflareEnvironment, type CorpusLibraryAuthority } from "./cloudflare-adapter";
 
 const artifactId = "22222222-2222-4222-8222-222222222222";
@@ -48,12 +48,15 @@ describe("Research Corpus Cloudflare adapter", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("selects exactly the authenticated owner's authority and submits the shared job contract", async () => {
-    const { env, getByName, queue } = fixture();
+    const { env, getByName, library, queue } = fixture();
     const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
 
     await service.startExtraction(artifactId, "pdf-text");
+    await service.listArtifacts({ after: artifactId, limit: 25 });
 
     expect(getByName).toHaveBeenCalledWith("owner-key");
+    expect(library.getPdfArtifactPage).toHaveBeenCalledWith(artifactId, 25);
+    expect(library.getPdfArtifact).toHaveBeenCalledWith(artifactId);
     expect(queue.send).toHaveBeenCalledWith(
       expect.objectContaining({ ownerKey: "owner-key", artifactId, fingerprint: artifact.fingerprint, kind: "pdf-text" }),
       { contentType: "json" },
@@ -61,20 +64,23 @@ describe("Research Corpus Cloudflare adapter", () => {
     expect(JSON.stringify(queue.send.mock.calls)).not.toContain(artifact.objectKey);
   });
 
-  it("rejects an invalid authority snapshot before projecting private state", async () => {
+  it("rejects an invalid authority page before projecting private state", async () => {
     const { env, library } = fixture();
-    library.getSnapshot.mockResolvedValue({ artifacts: [artifact] });
+    library.getPdfArtifactPage.mockResolvedValue({ items: [{ artifact }] });
     const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
 
-    await expect(service.listArtifacts()).rejects.toThrow("invalid snapshot");
+    await expect(service.listArtifacts()).rejects.toThrow("invalid artifact page");
   });
 
-  it("rejects malformed artifact entries inside an otherwise valid authority snapshot", async () => {
+  it("rejects malformed artifact entries inside an otherwise valid authority page", async () => {
     const { env, library } = fixture();
-    library.getSnapshot.mockResolvedValue({ ...snapshot(), artifacts: [{ ...artifact, size: "42" }] });
+    library.getPdfArtifactPage.mockResolvedValue({
+      ...page(),
+      items: [{ artifact: { ...artifact, size: "42" }, reference: null }],
+    });
     const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
 
-    await expect(service.listArtifacts()).rejects.toThrow("invalid snapshot");
+    await expect(service.listArtifacts()).rejects.toThrow("invalid artifact page");
   });
 
   it("treats invalid persisted extraction state as an authority failure", async () => {
@@ -105,12 +111,14 @@ describe("Research Corpus Cloudflare adapter", () => {
 
 function fixture() {
   const library: CorpusLibraryAuthority & {
-    getSnapshot: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getSnapshot"]>>;
+    getPdfArtifactPage: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getPdfArtifactPage"]>>;
+    getPdfArtifact: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getPdfArtifact"]>>;
     getArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getArtifactAnalysis"]>>;
     queueArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["queueArtifactAnalysis"]>>;
     failArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["failArtifactAnalysis"]>>;
   } = {
-    getSnapshot: vi.fn(async () => snapshot()),
+    getPdfArtifactPage: vi.fn(async () => page()),
+    getPdfArtifact: vi.fn(async () => ({ artifact, reference: null })),
     getArtifactAnalysis: vi.fn(async () => null),
     queueArtifactAnalysis: vi.fn(async () => queued),
     failArtifactAnalysis: vi.fn(async () => true),
@@ -162,17 +170,9 @@ class TestFixedLengthStream extends TransformStream<Uint8Array, Uint8Array> {
   }
 }
 
-function snapshot(): ReferenceLibrarySnapshot {
+function page(): LibraryPdfArtifactPage {
   return {
-    references: [reference],
-    referenceKeyStates: {},
-    artifacts: [artifact],
-    webSources: [],
-    webSnapshots: [],
-    notes: [],
-    highlights: [],
-    tags: {},
-    collections: {},
-    reading: [],
+    items: [{ artifact, reference: null }],
+    next: null,
   };
 }

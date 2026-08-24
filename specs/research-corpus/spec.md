@@ -16,11 +16,15 @@ recreated by each consumer.
 - The first increment uses the existing owner-scoped Reference Library Durable
   Object, R2 bucket, and artifact-analysis Queue. Those adapters remain the
   only storage and job authorities during migration.
+- Corpus catalog adapters use bounded page and single-record Durable Object
+  RPCs. Pagination and artifact lookup execute beside owner-scoped SQLite; a
+  complete private Library snapshot never crosses the service binding.
 - Corpus responses expose stable artifact and reference ids, safe display
   metadata, immutable fingerprints, rights, timestamps, representation links,
   and extraction state. They never expose an owner key, R2 object key, Durable
   Object locator, Queue payload, or credential.
-- Authority snapshots are runtime-validated down to each artifact entry.
+- Authority page and item results are runtime-validated down to each artifact
+  entry and reference relationship.
   Public source provenance and extraction status are rebuilt through explicit
   field allowlists so later internal fields cannot become API fields by
   structural assignment or object spread.
@@ -153,6 +157,8 @@ copy or dual write.
   stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace.
+- Workers-runtime tests prove cursor pagination and individual lookup execute
+  through the bounded Reference Library RPC contract.
 
 ## Current Milestone
 

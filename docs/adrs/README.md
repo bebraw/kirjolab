@@ -33,6 +33,7 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-229](./implemented/ADR-229-bound-corpus-library-rpc-queries.md)                      | Implemented          | Select bounded corpus artifact pages and records beside the Library storage authority.                          |
 | [ADR-228](./implemented/ADR-228-expose-corpus-through-http-and-mcp.md)                    | Implemented          | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.                        |
 | [ADR-227](./implemented/ADR-227-extract-research-corpus-service.md)                       | Implemented          | Extract a reusable corpus service incrementally over the existing private storage authorities.                  |
 | [ADR-226](./implemented/ADR-226-publish-immutable-package-assets.md)                      | Implemented          | Pin exact package artifacts in checked manifests and immutable GitHub Release assets.                           |
