@@ -237,8 +237,9 @@ copy or dual write.
 - Workers-runtime tests reconstruct a pre-outbox queued generation and prove
   the append-only upgrade migration restores its owner-qualified publication
   row and alarm.
-- Workers-runtime alarm tests prove a later reservation cannot postpone an
-  earlier pending outbox wake-up.
+- Workers-runtime alarm tests use the platform alarm helper to prove a later
+  reservation cannot postpone an earlier pending outbox wake-up and an injected
+  Queue rejection preserves the outbox while scheduling another attempt.
 
 ## Current Milestone
 

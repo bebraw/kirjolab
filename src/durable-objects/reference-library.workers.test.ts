@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { describe, expect, it, vi } from "vitest";
 import {
   maximumLibraryPdfArtifactPageBytes,
   type LibraryPdfArtifact,
@@ -659,6 +659,54 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       expect(state.storage.sql.exec("SELECT * FROM artifact_analysis_publications").toArray()).toEqual([]);
       expect(await state.storage.getAlarm()).toBeNull();
     });
+  });
+
+  it("keeps the outbox and reschedules after the Queue rejects an alarm publication", async () => {
+    const ownerKey = `artifact-analysis-alarm-failure-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      const bindings = (instance as ReferenceLibrary & { readonly env: Env }).env;
+      vi.spyOn(bindings.ARTIFACT_ANALYSIS_QUEUE, "sendBatch").mockRejectedValueOnce(new Error("Queue unavailable"));
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+    let ranAlarm = false;
+    try {
+      ranAlarm = await runDurableObjectAlarm(library);
+      await runInDurableObject(library, async (instance: ReferenceLibrary, state) => {
+        const bindings = (instance as ReferenceLibrary & { readonly env: Env }).env;
+        expect(bindings.ARTIFACT_ANALYSIS_QUEUE.sendBatch).toHaveBeenCalledOnce();
+        expect(
+          state.storage.sql
+            .exec<{ owner_key: string; artifact_id: string; kind: string; requested_at: string }>(
+              "SELECT owner_key, artifact_id, kind, requested_at FROM artifact_analysis_publications",
+            )
+            .toArray(),
+        ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+        expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
+      });
+    } finally {
+      await runInDurableObject(library, () => vi.restoreAllMocks());
+    }
+
+    expect(ranAlarm).toBe(true);
   });
 
   it("reconciles a queued pre-outbox generation when the Library upgrades", async () => {
