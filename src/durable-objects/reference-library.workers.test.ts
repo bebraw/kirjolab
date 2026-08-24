@@ -616,6 +616,37 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
+  it("brings a later artifact publication alarm forward", async () => {
+    const ownerKey = `artifact-analysis-alarm-forward-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const laterAlarm = Date.now() + 120_000;
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      await state.storage.setAlarm(laterAlarm);
+      expect(await state.storage.getAlarm()).toBe(laterAlarm);
+    });
+    await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", "2026-07-29T10:00:01.000Z");
+
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      expect(await state.storage.getAlarm()).toBeLessThan(laterAlarm);
+    });
+  });
+
   it("recovers an unconfirmed Queue publication through a durable alarm", async () => {
     const ownerKey = `artifact-analysis-outbox-${crypto.randomUUID()}`;
     const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);

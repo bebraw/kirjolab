@@ -172,6 +172,10 @@ wake the owner Durable Object without another request.
 Given an earlier alarm already covers an outbox publication, when another
 generation is reserved, then the existing earlier deadline remains unchanged.
 
+Given only a later alarm exists, when a generation is reserved for earlier
+publication, then the Durable Object replaces that alarm with the earlier
+deadline.
+
 Given the primary Worker has been upgraded while the prior corpus Worker is
 still serving traffic, its legacy catalog-page and queue-state RPC calls retain
 their original response shapes. After corpus is upgraded, it calls the new
@@ -246,8 +250,9 @@ copy or dual write.
   fault-injection case stops initialization after the migration commits and
   proves the guard alarm was already persisted.
 - Workers-runtime alarm tests use the platform alarm helper to prove a later
-  reservation cannot postpone an earlier pending outbox wake-up and an injected
-  Queue rejection preserves the outbox while scheduling another attempt.
+  reservation cannot postpone an earlier pending outbox wake-up, a new earlier
+  publication pulls a later alarm forward, and an injected Queue rejection
+  preserves the outbox while scheduling another attempt.
 
 ## Current Milestone
 
