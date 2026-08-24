@@ -200,7 +200,8 @@ copy or dual write.
   stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace and
-  rejects a corpus hostname that would replace an allowed frontend origin.
+  rejects a corpus hostname that would replace either the canonical primary
+  application hostname or an allowed frontend origin.
 - A corpus-specific generated binding artifact is checked by the fast quality
   gate and again before either dry-run-only or uploading production deploys.
   The Worker composition and its R2 and Queue adapter ports derive their types

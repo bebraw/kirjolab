@@ -5,6 +5,8 @@
 
 **Date:** 2026-08-24
 
+**Amended:** 2026-08-24 — protect primary and frontend hostnames during corpus deployment
+
 ## Context
 
 Browser applications need predictable JSON operations, conditional or ranged
@@ -45,6 +47,12 @@ authenticated non-browser clients without an `Origin` header and validates any
 present origin against that same allowlist. A public or multi-tenant OAuth
 authorization server is outside this decision and requires a later ADR before
 the service can be offered beyond the current private deployment.
+
+Deploy the corpus on a distinct protected custom hostname. Production
+preflight validates the canonical primary application URL independently from
+the corpus URL and exact browser-origin allowlist. Reject the deployment when
+the corpus hostname equals either the primary hostname or any allowed frontend
+origin, so a partial allowlist cannot hide replacement of the primary route.
 
 ADR-230 supersedes the private MCP-client portion of this decision by adopting
 Cloudflare Access Managed OAuth. A corpus-owned public or multi-tenant

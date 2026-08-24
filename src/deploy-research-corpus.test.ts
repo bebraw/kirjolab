@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { corpusDeployArguments, corpusProductionConfiguration, runCorpusProductionDeploy } from "../scripts/deploy-research-corpus.mjs";
 
 const validEnvironment = {
+  KIRJOLAB_PRODUCTION_URL: "https://write.kirjolab.test",
   KIRJOLAB_CORPUS_PRODUCTION_URL: "https://corpus.kirjolab.test",
   KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://write.kirjolab.test,https://lab.kirjolab.test",
   KIRJOLAB_ACCESS_TEAM_DOMAIN: "https://research.cloudflareaccess.com",
@@ -20,11 +21,19 @@ describe("Research Corpus production deployment", () => {
 
   it.each([
     ["missing URL", { KIRJOLAB_CORPUS_PRODUCTION_URL: "" }],
+    ["missing primary URL", { KIRJOLAB_PRODUCTION_URL: "" }],
     ["HTTP URL", { KIRJOLAB_CORPUS_PRODUCTION_URL: "http://corpus.kirjolab.test" }],
     ["missing origins", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "" }],
     ["missing corpus audience", { KIRJOLAB_CORPUS_ACCESS_AUD: "" }],
     ["origin path", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://write.kirjolab.test/path" }],
     ["HTTP origin", { KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "http://write.kirjolab.test" }],
+    [
+      "primary/corpus hostname collision outside the origin allowlist",
+      {
+        KIRJOLAB_CORPUS_PRODUCTION_URL: "https://write.kirjolab.test",
+        KIRJOLAB_CORPUS_ALLOWED_ORIGINS: "https://lab.kirjolab.test",
+      },
+    ],
     [
       "corpus/frontend origin collision",
       {

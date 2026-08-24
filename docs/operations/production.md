@@ -103,6 +103,7 @@ lifetime short and let the longer Access grant session drive refresh and policy
 re-evaluation.
 
 ```bash
+export KIRJOLAB_PRODUCTION_URL=https://write.your-domain.example
 export KIRJOLAB_CORPUS_PRODUCTION_URL=https://corpus.your-domain.example
 export KIRJOLAB_CORPUS_ACCESS_AUD=your_corpus_application_audience_tag
 export KIRJOLAB_CORPUS_ALLOWED_ORIGINS=https://write.your-domain.example
@@ -113,6 +114,9 @@ multiple allowed frontend origins with commas. Every entry must be a canonical
 HTTPS origin without a path, query, fragment, credentials, or trailing slash.
 Do not use `*`; the deploy preflight rejects non-origin values and the Worker
 reflects CORS only after an exact match.
+`KIRJOLAB_PRODUCTION_URL` must remain the canonical primary application URL;
+the preflight validates it independently and rejects a corpus hostname that
+would replace it even when it is absent from the allowed-origin list.
 
 Validate and deploy only after the primary Worker is available:
 

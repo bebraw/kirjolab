@@ -8,6 +8,11 @@ const corpusConfigPath = "wrangler.corpus.jsonc";
 export function corpusProductionConfiguration(environment = process.env) {
   const corpusUrl = required(environment, "KIRJOLAB_CORPUS_PRODUCTION_URL");
   const corpusAccessAudience = required(environment, "KIRJOLAB_CORPUS_ACCESS_AUD");
+  const primary = productionConfiguration({
+    ...environment,
+    KIRJOLAB_ACCESS_AUD: corpusAccessAudience,
+    KIRJOLAB_CROSSREF_MAILTO: "",
+  });
   const base = productionConfiguration({
     ...environment,
     KIRJOLAB_PRODUCTION_URL: corpusUrl,
@@ -32,6 +37,9 @@ export function corpusProductionConfiguration(environment = process.env) {
   }
   if (allowedOrigins.includes(new URL(corpusUrl).origin)) {
     throw new Error("KIRJOLAB_CORPUS_PRODUCTION_URL must differ from every allowed application origin");
+  }
+  if (base.hostname === primary.hostname) {
+    throw new Error("KIRJOLAB_CORPUS_PRODUCTION_URL must differ from KIRJOLAB_PRODUCTION_URL");
   }
   return {
     hostname: base.hostname,

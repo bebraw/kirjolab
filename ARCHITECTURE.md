@@ -2049,7 +2049,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep committed Wrangler authentication variables fail-closed for hosted use:
   `AUTH_MODE=local` with blank Access values. The repository-owned production
   deploy command alone supplies `AUTH_MODE=access`, the exact team domain, and
-  audience after validating the protected custom hostname.
+  audience after validating the protected custom hostname. Validate the corpus
+  hostname separately from the canonical primary application hostname and
+  every allowed frontend origin; never let a corpus deploy replace one of
+  those routes.
 
 ## Capability Kits
 
