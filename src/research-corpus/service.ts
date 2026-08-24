@@ -6,6 +6,8 @@ import {
   type LibraryPdfArtifact,
   type LibraryPdfArtifactItem,
   type LibraryPdfArtifactPage,
+  type LibraryPdfCatalogArtifact,
+  type LibraryPdfCatalogReference,
   type MetadataFieldProvenance,
   type MetadataProvenanceMethod,
   type PdfDraftResult,
@@ -201,7 +203,10 @@ export class ResearchCorpusService implements CorpusApplication {
   }
 }
 
-function projectArtifact(artifact: LibraryPdfArtifact, reference: BibliographicRecord | null): CorpusArtifact {
+function projectArtifact(
+  artifact: LibraryPdfArtifact | LibraryPdfCatalogArtifact,
+  reference: BibliographicRecord | LibraryPdfCatalogReference | null,
+): CorpusArtifact {
   return {
     id: artifact.id,
     referenceId: artifact.referenceId,
@@ -215,7 +220,7 @@ function projectArtifact(artifact: LibraryPdfArtifact, reference: BibliographicR
   };
 }
 
-function projectSource(reference: BibliographicRecord): CorpusSource {
+function projectSource(reference: BibliographicRecord | LibraryPdfCatalogReference): CorpusSource {
   return {
     id: reference.id,
     referenceKey: reference.referenceKey,

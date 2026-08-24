@@ -42,6 +42,7 @@ import {
   type LibraryPdfArtifact,
   type LibraryPdfArtifactItem,
   type LibraryPdfArtifactPage,
+  type LibraryPdfCatalogItem,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
   type LibraryPdfNote,
@@ -69,6 +70,9 @@ import {
   type WebSnapshot,
   type WebSource,
   suggestPdfReferenceMatch,
+  libraryPdfCatalogItemByteLength,
+  maximumLibraryPdfArtifactPageBytes,
+  projectLibraryPdfCatalogItem,
   referenceReconciliationReason,
 } from "../domain/reference-library";
 import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
@@ -407,10 +411,10 @@ export class ReferenceLibrary extends DurableObject<Env> {
             limit + 1,
           )
           .toArray();
-    const pageRows = rows.slice(0, limit);
+    const page = this.#pdfArtifactItems(rows.slice(0, limit));
     return {
-      items: this.#pdfArtifactItems(pageRows),
-      next: rows.length > limit ? (pageRows.at(-1)?.id ?? null) : null,
+      items: page.items,
+      next: rows.length > limit || page.truncated ? (page.items.at(-1)?.artifact.id ?? null) : null,
     };
   }
 
@@ -2150,23 +2154,24 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifactFromRow(row);
   }
 
-  #pdfArtifactItems(rows: readonly ArtifactRow[]): LibraryPdfArtifactItem[] {
-    const artifacts = rows.map(artifactFromRow);
-    const referenceIds = [...new Set(artifacts.flatMap(({ referenceId }) => (referenceId ? [referenceId] : [])))];
-    const references = referenceIds.length
-      ? this.ctx.storage.sql
-          .exec<ReferenceRow>(
-            `SELECT * FROM library_references WHERE deleted_at IS NULL AND id IN (${referenceIds.map(() => "?").join(", ")})`,
-            ...referenceIds,
-          )
-          .toArray()
-          .map(referenceFromRow)
-      : [];
-    const referencesById = new Map(references.map((reference) => [reference.id, reference]));
-    return artifacts.map((artifact) => ({
-      artifact,
-      reference: artifact.referenceId ? (referencesById.get(artifact.referenceId) ?? null) : null,
-    }));
+  #pdfArtifactItems(rows: readonly ArtifactRow[]): { readonly items: LibraryPdfCatalogItem[]; readonly truncated: boolean } {
+    const items: LibraryPdfCatalogItem[] = [];
+    let byteLength = 1_024;
+    for (const row of rows) {
+      const artifact = artifactFromRow(row);
+      const item = projectLibraryPdfCatalogItem({
+        artifact,
+        reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null,
+      });
+      const itemByteLength = libraryPdfCatalogItemByteLength(item);
+      if (byteLength + itemByteLength > maximumLibraryPdfArtifactPageBytes) {
+        if (items.length === 0) throw new Error("PDF artifact catalog item exceeds its RPC byte budget");
+        return { items, truncated: true };
+      }
+      items.push(item);
+      byteLength += itemByteLength;
+    }
+    return { items, truncated: false };
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {

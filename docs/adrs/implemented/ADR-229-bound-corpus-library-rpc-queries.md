@@ -23,8 +23,17 @@ queries in another database.
 Expose two purpose-specific Reference Library RPC queries for Research Corpus:
 
 - a PDF artifact page selected by the existing stable artifact order, bounded
-  to 100 items, with a cursor resolved beside SQLite; and
+  to 100 items and a 16 MiB serialized payload budget, with a cursor resolved
+  beside SQLite; and
 - one PDF artifact plus its optional non-deleted bibliographic record.
+
+The page uses a dedicated catalog projection. It omits storage locators and
+reference lifecycle fields, bounds every display field and array, and loads and
+projects references one at a time so oversized persisted metadata cannot build
+an unbounded in-memory batch. If the byte budget is reached before the item
+limit, return the last emitted artifact as the next cursor. The single-artifact
+query retains the complete internal authority record because original-byte and
+write adapters require its object key.
 
 Return `null` for an invalid page cursor or absent artifact. Keep archived
 references visible to match the prior migration behavior, but exclude deleted
@@ -45,7 +54,8 @@ Cloudflare's RPC message-size limit.
 
 **Positive:**
 
-- Corpus list memory and RPC payload size are bounded by the requested page.
+- Corpus list memory and RPC payload size are bounded independently of the
+  requested item count and stored display-metadata size.
 - Notes, annotations, web captures, and other unrelated private data do not
   cross the corpus service boundary.
 - Cursor validation and ordering use the storage authority's current data.
@@ -53,7 +63,9 @@ Cloudflare's RPC message-size limit.
 **Negative:**
 
 - The Reference Library exposes two more RPC methods during the migration.
-- The page query and its application projection require paired contract tests.
+- Catalog consumers use a narrower DTO than single-artifact authority lookups,
+  and the page query and its application projection require paired contract
+  tests.
 
 **Neutral:**
 
@@ -72,6 +84,12 @@ private Library state and can fail before pagination executes.
 
 This would make reads local to the new Worker but introduces synchronization or
 dual-write behavior that ADR-227 explicitly defers.
+
+### Rely on the 100-item limit alone
+
+This keeps the first pagination fix, but one bibliographic record can contain
+large strings and arrays. A count limit does not prove that the cross-script
+message fits Cloudflare's RPC limit.
 
 ### Return artifacts without bibliographic records
 

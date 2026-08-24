@@ -17,14 +17,16 @@ recreated by each consumer.
   Object, R2 bucket, and artifact-analysis Queue. Those adapters remain the
   only storage and job authorities during migration.
 - Corpus catalog adapters use bounded page and single-record Durable Object
-  RPCs. Pagination and artifact lookup execute beside owner-scoped SQLite; a
-  complete private Library snapshot never crosses the service binding.
+  RPCs. Catalog pages use a field-bounded display DTO and a 16 MiB serialized
+  payload budget in addition to the 100-item limit. Pagination and artifact
+  lookup execute beside owner-scoped SQLite; a complete private Library
+  snapshot never crosses the service binding.
 - Corpus responses expose stable artifact and reference ids, safe display
   metadata, immutable fingerprints, rights, timestamps, representation links,
   and extraction state. They never expose an owner key, R2 object key, Durable
   Object locator, Queue payload, or credential.
-- Authority page and item results are runtime-validated down to each artifact
-  entry and reference relationship.
+- Authority page and item results are runtime-validated down to each bounded
+  artifact entry, reference relationship, and aggregate serialized size.
   Public source provenance and extraction status are rebuilt through explicit
   field allowlists so later internal fields cannot become API fields by
   structural assignment or object spread.

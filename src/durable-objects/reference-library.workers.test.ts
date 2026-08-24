@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/reference-library";
+import { maximumLibraryPdfArtifactPageBytes, type LibraryPdfArtifact, type WebCaptureRegistration } from "../domain/reference-library";
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
@@ -35,16 +35,45 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       },
       "owner@example.test",
     );
+    await library.updateReferenceMetadata(
+      newer.reference.id,
+      {
+        type: "x".repeat(101),
+        title: "x".repeat(2_001),
+        authors: Array.from({ length: 101 }, () => "x".repeat(501)),
+        year: "x".repeat(101),
+        venue: "x".repeat(2_001),
+        doi: "x".repeat(501),
+        url: "x".repeat(2_001),
+        abstract: "x".repeat(20_001),
+      },
+      "x".repeat(501),
+    );
 
     const first = await library.getPdfArtifactPage(null, 1);
     const second = await library.getPdfArtifactPage(first?.next ?? null, 1);
 
-    expect(first).toEqual({
-      items: [{ artifact: newer.artifact, reference: newer.reference }],
+    expect(first).toMatchObject({
+      items: [{ artifact: { id: newer.artifact.id }, reference: { id: newer.reference.id } }],
       next: newer.artifact.id,
     });
-    expect(second).toEqual({
-      items: [{ artifact: older.artifact, reference: older.reference }],
+    expect(first?.items[0]?.artifact).not.toHaveProperty("objectKey");
+    expect(first?.items[0]?.reference).not.toHaveProperty("archivedAt");
+    expect(first?.items[0]?.reference).not.toHaveProperty("deletedAt");
+    expect(first?.items[0]?.reference).toMatchObject({
+      type: "x".repeat(100),
+      title: "x".repeat(2_000),
+      authors: Array.from({ length: 100 }, () => "x".repeat(500)),
+      year: "x".repeat(100),
+      venue: "x".repeat(2_000),
+      doi: "x".repeat(500),
+      url: "x".repeat(2_000),
+      abstract: "x".repeat(20_000),
+      provenance: { title: { actor: "x".repeat(500) } },
+    });
+    expect(new TextEncoder().encode(JSON.stringify(first)).byteLength).toBeLessThanOrEqual(maximumLibraryPdfArtifactPageBytes);
+    expect(second).toMatchObject({
+      items: [{ artifact: { id: older.artifact.id }, reference: { id: older.reference.id } }],
       next: null,
     });
     expect(await library.getPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ArtifactAnalysis, BibliographicRecord, LibraryPdfArtifact, LibraryPdfArtifactPage } from "../domain/reference-library";
+import {
+  projectLibraryPdfCatalogItem,
+  type ArtifactAnalysis,
+  type BibliographicRecord,
+  type LibraryPdfArtifact,
+  type LibraryPdfArtifactPage,
+} from "../domain/reference-library";
 import { createCloudflareCorpusService, type CorpusCloudflareEnvironment, type CorpusLibraryAuthority } from "./cloudflare-adapter";
 
 const artifactId = "22222222-2222-4222-8222-222222222222";
@@ -172,7 +178,7 @@ class TestFixedLengthStream extends TransformStream<Uint8Array, Uint8Array> {
 
 function page(): LibraryPdfArtifactPage {
   return {
-    items: [{ artifact, reference: null }],
+    items: [projectLibraryPdfCatalogItem({ artifact, reference: null })],
     next: null,
   };
 }

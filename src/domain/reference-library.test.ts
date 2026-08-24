@@ -8,6 +8,7 @@ import {
   isArtifactAnalysisJob,
   isCrossrefMetadata,
   isLibraryHighlightImportCandidate,
+  isLibraryPdfArtifactPage,
   isLibraryPdfMarkup,
   isMetadataRefinementPreview,
   isPdfDraftResult,
@@ -297,6 +298,65 @@ describe("shared reference library", () => {
     ]) {
       expect(isPdfDraftResult(candidate)).toBe(false);
     }
+  });
+
+  it("accepts only bounded public PDF catalog pages", () => {
+    const reference = referenceFromBibTeX(
+      { type: "misc", citationKey: "guide", fields: { title: "Private Guide" } },
+      "reference-1",
+      provenance,
+    );
+    const artifact = {
+      id: "artifact-1",
+      referenceId: reference.id,
+      name: "guide.pdf",
+      contentType: "application/pdf",
+      size: 100,
+      fingerprint: "r2-etag:guide",
+      rights: "private",
+      createdAt: "2026-07-13T10:00:00.000Z",
+    } as const;
+    const catalogReference = {
+      id: reference.id,
+      referenceKey: reference.referenceKey,
+      type: reference.type,
+      title: reference.title,
+      authors: reference.authors,
+      year: reference.year,
+      venue: reference.venue,
+      doi: reference.doi,
+      url: reference.url,
+      abstract: reference.abstract,
+      provenance: reference.provenance,
+      createdAt: reference.createdAt,
+      updatedAt: reference.updatedAt,
+    };
+    const page = { items: [{ artifact, reference: catalogReference }], next: null };
+
+    expect(isLibraryPdfArtifactPage(page)).toBe(true);
+    expect(isLibraryPdfArtifactPage({ ...page, items: [{ ...page.items[0], artifact: { ...artifact, objectKey: "private" } }] })).toBe(
+      false,
+    );
+    expect(
+      isLibraryPdfArtifactPage({
+        ...page,
+        items: [{ ...page.items[0], reference: { ...catalogReference, abstract: "x".repeat(20_001) } }],
+      }),
+    ).toBe(false);
+    expect(
+      isLibraryPdfArtifactPage({
+        items: Array.from({ length: 100 }, (_, index) => ({
+          artifact: { ...artifact, id: `artifact-${index}`, referenceId: `reference-${index}` },
+          reference: {
+            ...catalogReference,
+            id: `reference-${index}`,
+            authors: Array.from({ length: 100 }, () => "😀".repeat(500)),
+            abstract: "😀".repeat(20_000),
+          },
+        })),
+        next: null,
+      }),
+    ).toBe(false);
   });
 
   it("accepts only bounded Crossref metadata", () => {
