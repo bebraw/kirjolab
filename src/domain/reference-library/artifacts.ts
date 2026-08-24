@@ -53,7 +53,7 @@ export function isPdfDraftResult(value: unknown): value is PdfDraftResult {
   );
 }
 
-function isLibraryPdfArtifact(value: unknown): value is LibraryPdfArtifact {
+export function isLibraryPdfArtifact(value: unknown): value is LibraryPdfArtifact {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&

@@ -112,6 +112,30 @@ describe("Research Corpus MCP adapter", () => {
     log.mockRestore();
   });
 
+  it("sanitizes unexpected failures from both MCP resource callbacks", async () => {
+    const service = serviceFixture();
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    service.listArtifacts = vi.fn(async () => {
+      throw new Error("libraries/owner-key/private-catalog");
+    });
+    service.readPdfTextPage = vi.fn(async () => {
+      throw new Error("libraries/owner-key/private-page");
+    });
+
+    const catalog = await sendMcp(service, "resources/read", { uri: "corpus://artifacts" });
+    const page = await sendMcp(service, "resources/read", {
+      uri: `corpus://artifacts/${artifactId}/extractions/pdf-text/pages/2`,
+    });
+    const payload = JSON.stringify([catalog, page]);
+
+    expect(payload).toContain("Corpus resource operation failed");
+    expect(payload).not.toContain("owner-key");
+    expect(payload).not.toContain("private-catalog");
+    expect(payload).not.toContain("private-page");
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
+
   it("returns stable owner-safe domain errors to an MCP client", async () => {
     const service = serviceFixture();
     service.getArtifact = vi.fn(async () => {

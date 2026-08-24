@@ -82,6 +82,33 @@ describe("ResearchCorpusService", () => {
     expect(ports.extractions.start).toHaveBeenCalledWith(firstArtifact, "pdf-text", true);
   });
 
+  it("projects extraction state and source provenance through explicit allowlists", async () => {
+    const currentAnalysis = { ...analysis("queued"), internalLocator: "owners/private/extraction.json" };
+    const provenance = {
+      title: {
+        method: "manual" as const,
+        capturedAt: createdAt,
+        actor: "writer@example.test",
+        internalLocator: "owners/private/provenance.json",
+      },
+      internalField: { method: "manual" as const, capturedAt: createdAt, actor: "system" },
+    };
+    const catalogSnapshot: ReferenceLibrarySnapshot = {
+      ...snapshot(),
+      references: [{ ...snapshot().references[0]!, provenance }],
+    };
+    const { service } = fixture({ currentAnalysis, catalogSnapshot });
+
+    const artifactResult = await service.getArtifact(firstArtifact.id);
+    const extractionResult = await service.getExtraction(firstArtifact.id, "pdf-text");
+
+    expect(artifactResult.source?.provenance).toEqual({
+      title: { method: "manual", capturedAt: createdAt, actor: "writer@example.test" },
+    });
+    expect(JSON.stringify([artifactResult, extractionResult])).not.toContain("internalLocator");
+    expect(extractionResult).not.toHaveProperty("internalLocator");
+  });
+
   it("returns one ready text page with extraction provenance", async () => {
     const { service } = fixture({ currentAnalysis: analysis("ready") });
 
@@ -118,11 +145,13 @@ describe("ResearchCorpusService", () => {
   });
 });
 
-function fixture(options: { readonly currentAnalysis?: ArtifactAnalysis | null } = {}) {
+function fixture(
+  options: { readonly currentAnalysis?: ArtifactAnalysis | null; readonly catalogSnapshot?: ReferenceLibrarySnapshot } = {},
+) {
   const currentAnalysis = options.currentAnalysis === undefined ? analysis("queued") : options.currentAnalysis;
   const ports: CorpusServicePorts = {
     catalog: {
-      snapshot: vi.fn(async () => snapshot()),
+      snapshot: vi.fn(async () => options.catalogSnapshot ?? snapshot()),
     },
     intake: {
       ingest: vi.fn(async () => ({ reference: snapshot().references[0]!, artifact: firstArtifact, created: true })),

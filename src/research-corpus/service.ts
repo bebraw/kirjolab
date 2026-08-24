@@ -4,7 +4,10 @@ import {
   type ArtifactAnalysisKind,
   type BibliographicRecord,
   type LibraryPdfArtifact,
+  type MetadataFieldProvenance,
+  type MetadataProvenanceMethod,
   type PdfDraftResult,
+  type ReferenceMetadataField,
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 
@@ -55,7 +58,16 @@ export interface CorpusPdfIngestion {
   readonly created: boolean;
 }
 
-export type CorpusExtraction = Omit<ArtifactAnalysis, "result">;
+export interface CorpusExtraction {
+  readonly artifactId: string;
+  readonly fingerprint: string;
+  readonly kind: ArtifactAnalysisKind;
+  readonly status: ArtifactAnalysis["status"];
+  readonly error: string;
+  readonly requestedAt: string;
+  readonly startedAt: string | null;
+  readonly completedAt: string | null;
+}
 
 export interface CorpusPdfTextPage {
   readonly artifactId: string;
@@ -217,19 +229,71 @@ function projectSource(reference: BibliographicRecord): CorpusSource {
     referenceKey: reference.referenceKey,
     type: reference.type,
     title: reference.title,
-    authors: reference.authors,
+    authors: [...reference.authors],
     year: reference.year,
     venue: reference.venue,
     doi: reference.doi,
     url: reference.url,
     abstract: reference.abstract,
-    provenance: reference.provenance,
+    provenance: projectProvenance(reference.provenance),
     createdAt: reference.createdAt,
     updatedAt: reference.updatedAt,
   };
 }
 
 function projectExtraction(analysis: ArtifactAnalysis): CorpusExtraction {
-  const { result: _result, ...extraction } = analysis;
-  return extraction;
+  return {
+    artifactId: analysis.artifactId,
+    fingerprint: analysis.fingerprint,
+    kind: analysis.kind,
+    status: analysis.status,
+    error: analysis.error,
+    requestedAt: analysis.requestedAt,
+    startedAt: analysis.startedAt,
+    completedAt: analysis.completedAt,
+  };
+}
+
+const referenceMetadataFields: readonly ReferenceMetadataField[] = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"];
+const metadataProvenanceMethods = new Set<string>([
+  "bibtex",
+  "openalex",
+  "crossref",
+  "datacite",
+  "semantic-scholar",
+  "filename",
+  "manual",
+  "pdf-metadata",
+  "pdf-reference",
+  "web",
+  "migration",
+]);
+
+function projectProvenance(
+  provenance: BibliographicRecord["provenance"],
+): Partial<Record<ReferenceMetadataField, MetadataFieldProvenance>> {
+  const projected: Partial<Record<ReferenceMetadataField, MetadataFieldProvenance>> = {};
+  for (const field of referenceMetadataFields) {
+    const value = provenance[field];
+    if (!isMetadataFieldProvenance(value)) continue;
+    projected[field] = { method: value.method, capturedAt: value.capturedAt, actor: value.actor };
+  }
+  return projected;
+}
+
+function isMetadataFieldProvenance(value: unknown): value is MetadataFieldProvenance {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "method" in value &&
+    isMetadataProvenanceMethod(value.method) &&
+    "capturedAt" in value &&
+    typeof value.capturedAt === "string" &&
+    "actor" in value &&
+    typeof value.actor === "string"
+  );
+}
+
+function isMetadataProvenanceMethod(value: unknown): value is MetadataProvenanceMethod {
+  return typeof value === "string" && metadataProvenanceMethods.has(value);
 }

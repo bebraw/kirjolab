@@ -594,6 +594,21 @@ describe("shared reference library", () => {
       { referenceKeyStates: null },
       { referenceKeyStates: { [record.id]: "mutable" } },
       { artifacts: null },
+      {
+        artifacts: [
+          {
+            id: "artifact-1",
+            referenceId: record.id,
+            name: "paper.pdf",
+            contentType: "application/pdf",
+            size: "42",
+            objectKey: "libraries/owner/paper.pdf",
+            fingerprint: "sha256:paper",
+            rights: "private",
+            createdAt: "2026-08-24T08:00:00.000Z",
+          },
+        ],
+      },
       { webSources: null },
       { webSnapshots: null },
       { notes: null },

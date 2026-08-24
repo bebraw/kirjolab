@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { isRecord } from "../unknown-value";
-import type { LibraryPdfArtifact } from "./artifacts";
+import { isLibraryPdfArtifact, type LibraryPdfArtifact } from "./artifacts";
 import { isBibliographicRecord, type BibliographicRecord } from "./metadata";
 import { isLibraryHighlight, isLibraryPdfMarkup, type LibraryHighlight, type LibraryPdfMarkup } from "./pdf-annotations";
 import type { LibraryNote, ReadingState } from "./research";
@@ -32,6 +32,7 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     isRecord(value.referenceKeyStates) &&
     Object.values(value.referenceKeyStates).every((state) => state === "provisional" || state === "final") &&
     Array.isArray(value.artifacts) &&
+    value.artifacts.every(isLibraryPdfArtifact) &&
     Array.isArray(value.webSources) &&
     value.webSources.every(isWebSource) &&
     Array.isArray(value.webSnapshots) &&

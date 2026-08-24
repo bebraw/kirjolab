@@ -69,6 +69,14 @@ describe("Research Corpus Cloudflare adapter", () => {
     await expect(service.listArtifacts()).rejects.toThrow("invalid snapshot");
   });
 
+  it("rejects malformed artifact entries inside an otherwise valid authority snapshot", async () => {
+    const { env, library } = fixture();
+    library.getSnapshot.mockResolvedValue({ ...snapshot(), artifacts: [{ ...artifact, size: "42" }] });
+    const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
+
+    await expect(service.listArtifacts()).rejects.toThrow("invalid snapshot");
+  });
+
   it("treats invalid persisted extraction state as an authority failure", async () => {
     const { env, library } = fixture();
     library.getArtifactAnalysis.mockResolvedValue({ ...queued, status: "mystery" });

@@ -20,6 +20,10 @@ recreated by each consumer.
   metadata, immutable fingerprints, rights, timestamps, representation links,
   and extraction state. They never expose an owner key, R2 object key, Durable
   Object locator, Queue payload, or credential.
+- Authority snapshots are runtime-validated down to each artifact entry.
+  Public source provenance and extraction status are rebuilt through explicit
+  field allowlists so later internal fields cannot become API fields by
+  structural assignment or object spread.
 - Kirjolab retains manuscript, collaboration, project, citation-alias, claim,
   review, and UI workflow ownership. Its existing `/api/library` routes remain
   compatible during the migration.
@@ -85,6 +89,9 @@ recreated by each consumer.
   fingerprint; it never concatenates the document.
 - Tool names and input schemas are stable compatibility surfaces. MCP content
   mirrors the structured result and remains JSON-serializable.
+- Expected resource and tool failures use stable owner-safe messages.
+  Unexpected failures are logged server-side and reduced to generic MCP error
+  messages before crossing either callback boundary.
 
 ## Acceptance Scenarios
 
@@ -137,12 +144,13 @@ copy or dual write.
 ## Quality Guardrails
 
 - Pure service tests cover safe projection, owner lookup, PDF intake,
-  pagination, extraction lifecycle, missing artifacts, and page bounds.
+  pagination, extraction lifecycle, explicit projection allowlists, missing
+  artifacts, and page bounds.
 - HTTP tests cover methods, status codes, no-store policies, range delegation,
   bounded PDF upload, preflight authentication bypass, conditional and range
   headers, exposed representation metadata, and origin rejection.
 - MCP tests exercise protocol initialization and every exposed tool through the
-  stateless handler.
+  stateless handler, including sanitized resource and tool failures.
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace.
 

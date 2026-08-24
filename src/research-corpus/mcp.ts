@@ -1,5 +1,5 @@
 import { createMcpHandler } from "agents/mcp/server";
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
+import { McpServer, ProtocolError, ProtocolErrorCode, ResourceTemplate } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { CorpusInvalidCursorError, CorpusNotFoundError, CorpusNotReadyError, type CorpusApplication } from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
@@ -56,24 +56,26 @@ export function createCorpusMcpServer(service: CorpusApplication, publicOrigin: 
     "corpus-artifacts",
     "corpus://artifacts",
     { title: "Research Corpus artifacts", description: "A bounded first page of safe artifact metadata", mimeType: "application/json" },
-    async (uri) => {
-      const page = await service.listArtifacts({ limit: 50 });
-      return {
-        contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(corpusArtifactPageDocument(page, publicOrigin)) }],
-      };
-    },
+    async (uri) =>
+      await resourceResult(async () => {
+        const page = await service.listArtifacts({ limit: 50 });
+        return {
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(corpusArtifactPageDocument(page, publicOrigin)) }],
+        };
+      }),
   );
 
   server.registerResource(
     "pdf-text-page",
     new ResourceTemplate("corpus://artifacts/{artifactId}/extractions/pdf-text/pages/{page}", { list: undefined }),
     { title: "Extracted PDF text page", description: "One bounded page of extracted PDF text", mimeType: "application/json" },
-    async (uri, variables) => {
-      const artifactId = artifactIdSchema.parse(variables.artifactId);
-      const page = pageSchema.parse(Number(variables.page));
-      const result = await service.readPdfTextPage(artifactId, page);
-      return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result) }] };
-    },
+    async (uri, variables) =>
+      await resourceResult(async () => {
+        const artifactId = artifactIdSchema.parse(variables.artifactId);
+        const page = pageSchema.parse(Number(variables.page));
+        const result = await service.readPdfTextPage(artifactId, page);
+        return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result) }] };
+      }),
   );
 
   server.registerTool(
@@ -154,6 +156,23 @@ async function toolResult<Result extends object>(operation: () => Promise<Result
     if (!expected) console.error("Research Corpus MCP operation failed", error);
     const message = expected && error instanceof Error ? error.message : "Corpus operation failed";
     return { isError: true, content: [{ type: "text" as const, text: message }] };
+  }
+}
+
+async function resourceResult<Result>(operation: () => Promise<Result>): Promise<Result> {
+  try {
+    return await operation();
+  } catch (error) {
+    const expected =
+      error instanceof CorpusNotFoundError ||
+      error instanceof CorpusNotReadyError ||
+      error instanceof CorpusInvalidCursorError ||
+      error instanceof RangeError;
+    if (!expected) console.error("Research Corpus MCP resource operation failed", error);
+    throw new ProtocolError(
+      expected ? ProtocolErrorCode.InvalidParams : ProtocolErrorCode.InternalError,
+      expected && error instanceof Error ? error.message : "Corpus resource operation failed",
+    );
   }
 }
 
