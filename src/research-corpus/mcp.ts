@@ -9,7 +9,7 @@ import {
   type CorpusApplication,
 } from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
-import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
+import { isCorpusOriginRejected, withCorpusCors } from "./origin";
 
 const artifactIdSchema = z.uuid();
 const extractionKindSchema = z.enum(["pdf-highlights", "pdf-references", "pdf-text"]);
@@ -29,12 +29,7 @@ export async function handleCorpusMcp(
   if (preflight) return preflight;
 
   const origin = request.headers.get("origin");
-  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
-    return Response.json(
-      { error: "Cross-origin corpus request denied" },
-      { status: 403, headers: { "cache-control": "private, no-store" } },
-    );
-  }
+  if (isCorpusOriginRejected(request, allowedOrigins)) return mcpOriginRejection();
   const requestUrl = new URL(request.url);
   const handler = createMcpHandler(() => createCorpusMcpServer(service, requestUrl.origin), {
     route: "/mcp",
@@ -51,16 +46,11 @@ export async function handleCorpusMcp(
 export function handleCorpusMcpPreflight(request: Request, allowedOrigins: ReadonlySet<string>): Response | null {
   if (request.method !== "OPTIONS") return null;
   const origin = request.headers.get("origin");
-  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
-    return Response.json(
-      { error: "Cross-origin corpus request denied" },
-      { status: 403, headers: { "cache-control": "private, no-store" } },
-    );
-  }
+  if (isCorpusOriginRejected(request, allowedOrigins)) return mcpOriginRejection();
   return mcpPreflight(origin);
 }
 
-export function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string): McpServer {
+function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string): McpServer {
   const server = new McpServer({ name: "kirjolab-research-corpus", version: "0.1.0" });
 
   server.registerResource(
@@ -206,4 +196,8 @@ function mcpPreflight(origin: string | null): Response {
     },
   });
   return origin ? withCorpusCors(response, origin) : response;
+}
+
+function mcpOriginRejection(): Response {
+  return Response.json({ error: "Cross-origin corpus request denied" }, { status: 403, headers: { "cache-control": "private, no-store" } });
 }

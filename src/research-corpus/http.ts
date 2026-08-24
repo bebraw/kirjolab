@@ -9,7 +9,7 @@ import {
   type CorpusApplication,
 } from "./service";
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
-import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
+import { isCorpusOriginRejected, withCorpusCors } from "./origin";
 
 const extractionKinds = new Set<ArtifactAnalysisKind>(["pdf-highlights", "pdf-references", "pdf-text"]);
 const maximumCommandBytes = 1_024;
@@ -24,9 +24,7 @@ export async function handleCorpusHttp(
   if (preflight) return preflight;
 
   const origin = request.headers.get("origin");
-  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
-    return jsonError("Cross-origin corpus request denied", 403);
-  }
+  if (isCorpusOriginRejected(request, allowedOrigins)) return jsonError("Cross-origin corpus request denied", 403);
   try {
     const response = await routeCorpusRequest(request, service);
     return origin ? withCorpusCors(response, origin) : response;
@@ -40,67 +38,94 @@ export async function handleCorpusHttp(
 export function handleCorpusHttpPreflight(request: Request, allowedOrigins: ReadonlySet<string>): Response | null {
   if (request.method !== "OPTIONS") return null;
   const origin = request.headers.get("origin");
-  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
-    return jsonError("Cross-origin corpus request denied", 403);
-  }
+  if (isCorpusOriginRejected(request, allowedOrigins)) return jsonError("Cross-origin corpus request denied", 403);
   return corsResponse(origin);
 }
 
 async function routeCorpusRequest(request: Request, service: CorpusApplication): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/v1/artifacts") {
-    if (request.method === "GET") {
-      const limitValue = url.searchParams.get("limit");
-      const limit = limitValue === null ? undefined : Number(limitValue);
-      const after = url.searchParams.get("after");
-      const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
-      return json(corpusArtifactPageDocument(page, url.origin), 200);
-    }
-    if (request.method === "POST") {
-      const input = pdfUpload(request);
-      const result = await service.ingestPdf(input);
-      return json({ artifact: corpusArtifactDocument(result.artifact, url.origin), created: result.created }, result.created ? 201 : 200);
-    }
-    return methodNotAllowed("GET, POST, OPTIONS");
-  }
+  if (url.pathname === "/v1/artifacts") return await handleArtifactCollection(request, url, service);
 
-  const artifactMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})$/iu.exec(url.pathname);
-  if (artifactMatch?.[1]) {
-    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
-    return json(corpusArtifactDocument(await service.getArtifact(artifactMatch[1]), url.origin), 200);
-  }
+  const artifactId = artifactPathId(url.pathname);
+  if (artifactId) return await handleArtifact(request, url, service, artifactId);
 
-  const originalMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/representations\/original$/iu.exec(url.pathname);
-  if (originalMatch?.[1]) {
-    if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed("GET, HEAD, OPTIONS");
-    const response = await service.openOriginal(request, originalMatch[1]);
-    return request.method === "HEAD"
-      ? new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers })
-      : response;
-  }
+  const originalArtifactId = originalPathId(url.pathname);
+  if (originalArtifactId) return await handleOriginal(request, service, originalArtifactId);
 
-  const extractionMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(url.pathname);
-  if (extractionMatch?.[1] && isExtractionKind(extractionMatch[2])) {
-    if (request.method === "GET") {
-      const extraction = await service.getExtraction(extractionMatch[1], extractionMatch[2]);
-      return extraction ? json(extraction, 200) : jsonError("Extraction not found", 404);
-    }
-    if (request.method === "POST") {
-      const retryFailed = await readRetryFailed(request);
-      const extraction = await service.startExtraction(extractionMatch[1], extractionMatch[2], retryFailed);
-      const status = extraction.status === "queued" || extraction.status === "running" ? 202 : 200;
-      return json(extraction, status);
-    }
-    return methodNotAllowed("GET, POST, OPTIONS");
-  }
+  const extraction = extractionPath(url.pathname);
+  if (extraction) return await handleExtraction(request, service, extraction.artifactId, extraction.kind);
 
-  const pageMatch = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/pdf-text\/pages\/(\d{1,3})$/iu.exec(url.pathname);
-  if (pageMatch?.[1] && pageMatch[2]) {
-    if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
-    return json(await service.readPdfTextPage(pageMatch[1], Number(pageMatch[2])), 200);
-  }
+  const page = pdfTextPagePath(url.pathname);
+  if (page) return await handlePdfTextPage(request, service, page.artifactId, page.number);
 
   return jsonError("Corpus route not found", 404);
+}
+
+function artifactPathId(pathname: string): string | null {
+  return /^\/v1\/artifacts\/([0-9a-f-]{36})$/iu.exec(pathname)?.[1] ?? null;
+}
+
+function originalPathId(pathname: string): string | null {
+  return /^\/v1\/artifacts\/([0-9a-f-]{36})\/representations\/original$/iu.exec(pathname)?.[1] ?? null;
+}
+
+function extractionPath(pathname: string): { readonly artifactId: string; readonly kind: ArtifactAnalysisKind } | null {
+  const match = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(pathname);
+  return match?.[1] && isExtractionKind(match[2]) ? { artifactId: match[1], kind: match[2] } : null;
+}
+
+function pdfTextPagePath(pathname: string): { readonly artifactId: string; readonly number: number } | null {
+  const match = /^\/v1\/artifacts\/([0-9a-f-]{36})\/extractions\/pdf-text\/pages\/(\d{1,3})$/iu.exec(pathname);
+  return match?.[1] && match[2] ? { artifactId: match[1], number: Number(match[2]) } : null;
+}
+
+async function handleArtifactCollection(request: Request, url: URL, service: CorpusApplication): Promise<Response> {
+  if (request.method === "GET") {
+    const limitValue = url.searchParams.get("limit");
+    const limit = limitValue === null ? undefined : Number(limitValue);
+    const after = url.searchParams.get("after");
+    const page = await service.listArtifacts({ ...(after === null ? {} : { after }), ...(limit === undefined ? {} : { limit }) });
+    return json(corpusArtifactPageDocument(page, url.origin), 200);
+  }
+  if (request.method !== "POST") return methodNotAllowed("GET, POST, OPTIONS");
+  const input = pdfUpload(request);
+  const result = await service.ingestPdf(input);
+  return json({ artifact: corpusArtifactDocument(result.artifact, url.origin), created: result.created }, result.created ? 201 : 200);
+}
+
+async function handleArtifact(request: Request, url: URL, service: CorpusApplication, artifactId: string): Promise<Response> {
+  if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
+  return json(corpusArtifactDocument(await service.getArtifact(artifactId), url.origin), 200);
+}
+
+async function handleOriginal(request: Request, service: CorpusApplication, artifactId: string): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed("GET, HEAD, OPTIONS");
+  const response = await service.openOriginal(request, artifactId);
+  return request.method === "HEAD"
+    ? new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers })
+    : response;
+}
+
+async function handleExtraction(
+  request: Request,
+  service: CorpusApplication,
+  artifactId: string,
+  kind: ArtifactAnalysisKind,
+): Promise<Response> {
+  if (request.method === "GET") {
+    const extraction = await service.getExtraction(artifactId, kind);
+    return extraction ? json(extraction, 200) : jsonError("Extraction not found", 404);
+  }
+  if (request.method !== "POST") return methodNotAllowed("GET, POST, OPTIONS");
+  const retryFailed = await readRetryFailed(request);
+  const extraction = await service.startExtraction(artifactId, kind, retryFailed);
+  const status = extraction.status === "queued" || extraction.status === "running" ? 202 : 200;
+  return json(extraction, status);
+}
+
+async function handlePdfTextPage(request: Request, service: CorpusApplication, artifactId: string, page: number): Promise<Response> {
+  if (request.method !== "GET") return methodNotAllowed("GET, OPTIONS");
+  return json(await service.readPdfTextPage(artifactId, page), 200);
 }
 
 function pdfUpload(request: Request): { readonly body: ReadableStream<Uint8Array>; readonly name: string; readonly size: number } {
