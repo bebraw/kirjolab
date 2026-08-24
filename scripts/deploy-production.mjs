@@ -1,6 +1,5 @@
-import { spawnSync } from "node:child_process";
 import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { requiredEnvironmentValue, runDeployEntrypoint, runWrangler } from "./deploy-cli.mjs";
 
 const placeholder = /(?:<|>|example|change[-_ ]?me|replace|todo)/iu;
 const loopbackHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/iu;
@@ -8,9 +7,9 @@ const audience = /^[a-z0-9_-]{20,200}$/iu;
 const accessTeamDomain = /^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/iu;
 
 export function productionConfiguration(environment = process.env) {
-  const productionUrl = required(environment, "KIRJOLAB_PRODUCTION_URL");
-  const teamDomain = required(environment, "KIRJOLAB_ACCESS_TEAM_DOMAIN").replace(/\/$/u, "");
-  const accessAudience = required(environment, "KIRJOLAB_ACCESS_AUD");
+  const productionUrl = requiredEnvironmentValue(environment, "KIRJOLAB_PRODUCTION_URL", " for production deployment");
+  const teamDomain = requiredEnvironmentValue(environment, "KIRJOLAB_ACCESS_TEAM_DOMAIN", " for production deployment").replace(/\/$/u, "");
+  const accessAudience = requiredEnvironmentValue(environment, "KIRJOLAB_ACCESS_AUD", " for production deployment");
   const crossrefMailto = environment.KIRJOLAB_CROSSREF_MAILTO?.trim() ?? "";
 
   let url;
@@ -19,20 +18,7 @@ export function productionConfiguration(environment = process.env) {
   } catch {
     throw new Error("KIRJOLAB_PRODUCTION_URL must be an absolute HTTPS URL");
   }
-  if (
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    url.port ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash ||
-    url.hostname.endsWith(".") ||
-    loopbackHost.test(url.hostname) ||
-    url.hostname.endsWith(".workers.dev") ||
-    url.hostname.endsWith(".pages.dev") ||
-    placeholder.test(url.hostname)
-  ) {
+  if (isInvalidProductionUrl(url)) {
     throw new Error("KIRJOLAB_PRODUCTION_URL must be the root of a non-placeholder HTTPS custom hostname");
   }
   if (!accessTeamDomain.test(teamDomain) || placeholder.test(teamDomain)) {
@@ -98,29 +84,25 @@ export function productionWranglerEnvironment(environment = process.env) {
   };
 }
 
-function required(environment, name) {
-  const value = environment[name]?.trim() ?? "";
-  if (!value) throw new Error(`${name} is required for production deployment`);
-  return value;
+function isInvalidProductionUrl(url) {
+  return [
+    url.protocol !== "https:",
+    Boolean(url.username),
+    Boolean(url.password),
+    Boolean(url.port),
+    url.pathname !== "/",
+    Boolean(url.search),
+    Boolean(url.hash),
+    url.hostname.endsWith("."),
+    loopbackHost.test(url.hostname),
+    url.hostname.endsWith(".workers.dev"),
+    url.hostname.endsWith(".pages.dev"),
+    placeholder.test(url.hostname),
+  ].includes(true);
 }
 
-function runWrangler(arguments_, environment) {
-  const executable = fileURLToPath(new URL("../node_modules/.bin/wrangler", import.meta.url));
-  const result = spawnSync(executable, arguments_, {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
-    env: environment,
-    stdio: "inherit",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`Wrangler exited with status ${result.status ?? "unknown"}`);
+function productionDeploymentError(error) {
+  return `[deploy] ${error instanceof Error ? error.message : "Production deployment failed"}`;
 }
 
-const entry = process.argv[1];
-if (entry && import.meta.url === pathToFileURL(entry).href) {
-  try {
-    runProductionDeploy({ dryRunOnly: process.argv.slice(2).includes("--dry-run-only") });
-  } catch (error) {
-    console.error(`[deploy] ${error instanceof Error ? error.message : "Production deployment failed"}`);
-    process.exitCode = 1;
-  }
-}
+runDeployEntrypoint(import.meta.url, runProductionDeploy, productionDeploymentError);

@@ -1,13 +1,12 @@
-import { spawnSync } from "node:child_process";
 import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { requiredEnvironmentValue, runDeployEntrypoint, runWrangler } from "./deploy-cli.mjs";
 import { productionConfiguration, productionWranglerEnvironment } from "./deploy-production.mjs";
 
 const corpusConfigPath = "wrangler.corpus.jsonc";
 
 export function corpusProductionConfiguration(environment = process.env) {
-  const corpusUrl = required(environment, "KIRJOLAB_CORPUS_PRODUCTION_URL");
-  const corpusAccessAudience = required(environment, "KIRJOLAB_CORPUS_ACCESS_AUD");
+  const corpusUrl = requiredEnvironmentValue(environment, "KIRJOLAB_CORPUS_PRODUCTION_URL");
+  const corpusAccessAudience = requiredEnvironmentValue(environment, "KIRJOLAB_CORPUS_ACCESS_AUD");
   const primary = productionConfiguration({
     ...environment,
     KIRJOLAB_ACCESS_AUD: corpusAccessAudience,
@@ -19,7 +18,7 @@ export function corpusProductionConfiguration(environment = process.env) {
     KIRJOLAB_ACCESS_AUD: corpusAccessAudience,
     KIRJOLAB_CROSSREF_MAILTO: "",
   });
-  const allowedOrigins = required(environment, "KIRJOLAB_CORPUS_ALLOWED_ORIGINS")
+  const allowedOrigins = requiredEnvironmentValue(environment, "KIRJOLAB_CORPUS_ALLOWED_ORIGINS")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean)
@@ -105,29 +104,8 @@ export function runCorpusProductionDeploy({ environment = process.env, dryRunOnl
   run(["versions", "list", "--config", corpusConfigPath], wranglerEnvironment);
 }
 
-function required(environment, name) {
-  const value = environment[name]?.trim() ?? "";
-  if (!value) throw new Error(`${name} is required`);
-  return value;
+function corpusDeploymentError(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
-function runWrangler(arguments_, environment) {
-  const executable = fileURLToPath(new URL("../node_modules/.bin/wrangler", import.meta.url));
-  const result = spawnSync(executable, arguments_, {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
-    env: environment,
-    stdio: "inherit",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`Wrangler exited with status ${result.status ?? "unknown"}`);
-}
-
-const entry = process.argv[1];
-if (entry && import.meta.url === pathToFileURL(entry).href) {
-  try {
-    runCorpusProductionDeploy({ dryRunOnly: process.argv.slice(2).includes("--dry-run-only") });
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  }
-}
+runDeployEntrypoint(import.meta.url, runCorpusProductionDeploy, corpusDeploymentError);
