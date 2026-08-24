@@ -1,7 +1,7 @@
 import { authenticateRequest, type AuthEnvironment } from "../security/auth";
 import { createCloudflareCorpusService, type CorpusCloudflareEnvironment } from "./cloudflare-adapter";
-import { handleCorpusHttp } from "./http";
-import { handleCorpusMcp } from "./mcp";
+import { handleCorpusHttp, handleCorpusHttpPreflight } from "./http";
+import { handleCorpusMcp, handleCorpusMcpPreflight } from "./mcp";
 
 export interface ResearchCorpusEnvironment extends AuthEnvironment, CorpusCloudflareEnvironment {
   readonly CORPUS_ALLOWED_ORIGINS: string;
@@ -14,6 +14,21 @@ export default {
 } satisfies ExportedHandler<ResearchCorpusEnvironment>;
 
 export async function handleResearchCorpusRequest(request: Request, env: ResearchCorpusEnvironment): Promise<Response> {
+  const pathname = new URL(request.url).pathname;
+  const isHttpRoute = pathname.startsWith("/v1/");
+  const isMcpRoute = pathname === "/mcp";
+
+  if (request.method === "OPTIONS" && (isHttpRoute || isMcpRoute)) {
+    let allowedOrigins: ReadonlySet<string>;
+    try {
+      allowedOrigins = parseCorpusAllowedOrigins(env.CORPUS_ALLOWED_ORIGINS);
+    } catch {
+      return corpusJsonError("Research Corpus origin configuration is invalid", 503);
+    }
+    const preflight = isMcpRoute ? handleCorpusMcpPreflight(request, allowedOrigins) : handleCorpusHttpPreflight(request, allowedOrigins);
+    if (preflight) return preflight;
+  }
+
   const authentication = await authenticateRequest(request, env);
   if (!authentication.ok) return authentication.response;
 
@@ -24,8 +39,7 @@ export async function handleResearchCorpusRequest(request: Request, env: Researc
     return corpusJsonError("Research Corpus origin configuration is invalid", 503);
   }
 
-  const pathname = new URL(request.url).pathname;
-  if (!pathname.startsWith("/v1/") && pathname !== "/mcp") return corpusJsonError("Corpus route not found", 404);
+  if (!isHttpRoute && !isMcpRoute) return corpusJsonError("Corpus route not found", 404);
 
   const service = createCloudflareCorpusService(authentication.identity.ownerKey, authentication.identity.email, env);
   try {

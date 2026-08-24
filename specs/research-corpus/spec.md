@@ -32,6 +32,11 @@ recreated by each consumer.
   `CORPUS_ALLOWED_ORIGINS`. An MCP request without `Origin` is treated as a
   non-browser client only after authentication; any present origin must pass
   the same validation.
+- Access bypasses `OPTIONS` requests to the Worker so it can validate the route
+  and exact origin and answer preflight without selecting owner state. Every
+  non-preflight request remains Access-authenticated. Conditional and range
+  request headers are allowed, and protected representation metadata is
+  explicitly exposed to configured browser origins.
 - Original PDF bytes are available only through the protected HTTP
   representation route. The route preserves ETag, conditional, `HEAD`, and
   single-range behavior and uses a private non-cacheable response policy.
@@ -119,7 +124,9 @@ unrequested pages are absent.
 
 Given an authenticated browser request from an unconfigured origin, when it
 mutates HTTP state or calls MCP, then the service rejects it before performing
-work. An authenticated non-browser MCP client without `Origin` remains usable.
+work. Given an unauthenticated preflight from a configured origin, the Worker
+answers it without selecting owner state; an unconfigured origin is rejected.
+An authenticated non-browser MCP client without `Origin` remains usable.
 
 ### Compatibility migration
 
@@ -132,7 +139,8 @@ copy or dual write.
 - Pure service tests cover safe projection, owner lookup, PDF intake,
   pagination, extraction lifecycle, missing artifacts, and page bounds.
 - HTTP tests cover methods, status codes, no-store policies, range delegation,
-  bounded PDF upload, preflight headers, and origin rejection.
+  bounded PDF upload, preflight authentication bypass, conditional and range
+  headers, exposed representation metadata, and origin rejection.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler.
 - Configuration validation proves the corpus Worker binds to the existing

@@ -82,7 +82,13 @@ be changed to create another `ReferenceLibrary` namespace.
 
 Create a second Cloudflare Access self-hosted application for the corpus custom
 hostname. It may use the same policy and team as Kirjolab, but record its own
-application audience. Disable its `workers.dev` route. Then set:
+application audience. In the Access application's CORS settings, enable
+**Bypass OPTIONS requests to origin**. The corpus Worker then validates the
+requested route and exact `Origin` itself and answers preflight without reading
+owner state; Access must continue to authenticate every non-`OPTIONS` request.
+Do not configure Access to answer preflight on the Worker's behalf because that
+would omit the corpus-specific conditional, range, and MCP headers. Disable the
+Worker's `workers.dev` route. Then set:
 
 ```bash
 export KIRJOLAB_CORPUS_PRODUCTION_URL=https://corpus.your-domain.example

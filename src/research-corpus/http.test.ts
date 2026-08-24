@@ -52,6 +52,8 @@ describe("Research Corpus HTTP adapter", () => {
 
     expect(response.status).toBe(201);
     expect(response.headers.get("access-control-allow-origin")).toBe("https://writer.example");
+    expect(response.headers.get("access-control-expose-headers")).toContain("Content-Range");
+    expect(response.headers.get("access-control-expose-headers")).toContain("ETag");
     expect(service.ingestPdf).toHaveBeenCalledWith(expect.objectContaining({ name: "draft.pdf", size: 4 }));
     await expect(response.json()).resolves.toEqual({
       artifact: expect.objectContaining({
@@ -71,6 +73,8 @@ describe("Research Corpus HTTP adapter", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-headers")).toContain("X-File-Name");
+    expect(response.headers.get("access-control-allow-headers")).toContain("If-None-Match");
+    expect(response.headers.get("access-control-allow-headers")).toContain("Range");
     expect(response.headers.get("access-control-allow-methods")).toContain("POST");
   });
 

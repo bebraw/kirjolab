@@ -14,12 +14,13 @@ export async function handleCorpusHttp(
   service: CorpusApplication,
   allowedOrigins: ReadonlySet<string>,
 ): Promise<Response> {
+  const preflight = handleCorpusHttpPreflight(request, allowedOrigins);
+  if (preflight) return preflight;
+
   const origin = request.headers.get("origin");
   if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
     return jsonError("Cross-origin corpus request denied", 403);
   }
-  if (request.method === "OPTIONS") return corsResponse(origin);
-
   try {
     const response = await routeCorpusRequest(request, service);
     return origin ? withCorpusCors(response, origin) : response;
@@ -28,6 +29,15 @@ export async function handleCorpusHttp(
     if (!response) throw error;
     return origin ? withCorpusCors(response, origin) : response;
   }
+}
+
+export function handleCorpusHttpPreflight(request: Request, allowedOrigins: ReadonlySet<string>): Response | null {
+  if (request.method !== "OPTIONS") return null;
+  const origin = request.headers.get("origin");
+  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
+    return jsonError("Cross-origin corpus request denied", 403);
+  }
+  return corsResponse(origin);
 }
 
 async function routeCorpusRequest(request: Request, service: CorpusApplication): Promise<Response> {
@@ -156,7 +166,8 @@ function corsResponse(origin: string | null): Response {
   const response = new Response(null, {
     status: 204,
     headers: {
-      "access-control-allow-headers": "Content-Type, X-File-Name, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
+      "access-control-allow-headers":
+        "Content-Type, X-File-Name, Authorization, If-Match, If-None-Match, If-Modified-Since, If-Unmodified-Since, Range, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
       "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
       "access-control-max-age": "600",
     },

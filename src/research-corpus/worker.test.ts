@@ -13,6 +13,43 @@ describe("Research Corpus Worker", () => {
     expect(getByName).not.toHaveBeenCalled();
   });
 
+  it("answers an allowed browser preflight before Access authentication", async () => {
+    const { env, getByName } = fixture({
+      AUTH_MODE: "access",
+      CORPUS_ALLOWED_ORIGINS: "https://writer.example",
+    });
+
+    const response = await handleResearchCorpusRequest(
+      new Request("https://corpus.example/v1/artifacts", {
+        method: "OPTIONS",
+        headers: { origin: "https://writer.example" },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://writer.example");
+    expect(getByName).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unconfigured browser preflight before Access authentication", async () => {
+    const { env, getByName } = fixture({
+      AUTH_MODE: "access",
+      CORPUS_ALLOWED_ORIGINS: "https://writer.example",
+    });
+
+    const response = await handleResearchCorpusRequest(
+      new Request("https://corpus.example/mcp", {
+        method: "OPTIONS",
+        headers: { origin: "https://evil.example" },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(getByName).not.toHaveBeenCalled();
+  });
+
   it("serves the loopback owner's corpus through the independent entry point", async () => {
     const { env, getByName } = fixture();
 

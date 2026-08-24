@@ -14,6 +14,9 @@ export async function handleCorpusMcp(
   service: CorpusApplication,
   allowedOrigins: ReadonlySet<string>,
 ): Promise<Response> {
+  const preflight = handleCorpusMcpPreflight(request, allowedOrigins);
+  if (preflight) return preflight;
+
   const origin = request.headers.get("origin");
   if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
     return Response.json(
@@ -21,8 +24,6 @@ export async function handleCorpusMcp(
       { status: 403, headers: { "cache-control": "private, no-store" } },
     );
   }
-  if (request.method === "OPTIONS") return mcpPreflight(origin);
-
   const requestUrl = new URL(request.url);
   const handler = createMcpHandler(() => createCorpusMcpServer(service, requestUrl.origin), {
     route: "/mcp",
@@ -34,6 +35,18 @@ export async function handleCorpusMcp(
   });
   const response = await handler.fetch(request);
   return origin ? withCorpusCors(response, origin) : response;
+}
+
+export function handleCorpusMcpPreflight(request: Request, allowedOrigins: ReadonlySet<string>): Response | null {
+  if (request.method !== "OPTIONS") return null;
+  const origin = request.headers.get("origin");
+  if (origin && !isCorpusOriginAllowed(request, origin, allowedOrigins)) {
+    return Response.json(
+      { error: "Cross-origin corpus request denied" },
+      { status: 403, headers: { "cache-control": "private, no-store" } },
+    );
+  }
+  return mcpPreflight(origin);
 }
 
 export function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string): McpServer {
