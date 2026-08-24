@@ -99,13 +99,19 @@ describe("Research Corpus Worker", () => {
   it.each([new RangeError("libraries/owner/private-range"), new SyntaxError("libraries/owner/private-syntax")])(
     "sanitizes unexpected %s failures",
     async (failure) => {
-      const { env, library } = fixture();
+      const { env, library } = fixture({ CORPUS_ALLOWED_ORIGINS: "https://writer.example" });
       const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
       vi.mocked(library.getPdfArtifactPage).mockRejectedValueOnce(failure);
 
-      const response = await handleResearchCorpusRequest(new Request("http://localhost/v1/artifacts"), env);
+      const response = await handleResearchCorpusRequest(
+        new Request("http://localhost/v1/artifacts", { headers: { origin: "https://writer.example" } }),
+        env,
+      );
 
       expect(response.status).toBe(500);
+      expect(response.headers.get("access-control-allow-origin")).toBe("https://writer.example");
+      expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+      expect(response.headers.get("vary")).toContain("Origin");
       await expect(response.json()).resolves.toEqual({ error: "Research Corpus request failed" });
       expect(log).toHaveBeenCalledOnce();
       log.mockRestore();

@@ -2,6 +2,7 @@ import { authenticateRequest } from "../security/auth";
 import { createCloudflareCorpusService, type CorpusCloudflareEnvironment } from "./cloudflare-adapter";
 import { handleCorpusHttp, handleCorpusHttpPreflight } from "./http";
 import { handleCorpusMcp, handleCorpusMcpPreflight } from "./mcp";
+import { isCorpusOriginAllowed, withCorpusCors } from "./origin";
 
 export interface ResearchCorpusEnvironment
   extends
@@ -48,7 +49,9 @@ export async function handleResearchCorpusRequest(request: Request, env: Researc
     return await handleCorpusHttp(request, service, allowedOrigins);
   } catch (error) {
     console.error("Research Corpus request failed", error);
-    return corpusJsonError("Research Corpus request failed", 500);
+    const response = corpusJsonError("Research Corpus request failed", 500);
+    const origin = request.headers.get("origin");
+    return origin && isCorpusOriginAllowed(request, origin, allowedOrigins) ? withCorpusCors(response, origin) : response;
   }
 }
 

@@ -47,6 +47,9 @@ recreated by each consumer.
   `CORPUS_ALLOWED_ORIGINS`. An MCP request without `Origin` is treated as a
   non-browser client only after authentication; any present origin must pass
   the same validation.
+- Responses to validated browser origins retain CORS credentials and origin
+  headers even when an unexpected failure is reduced to the generic Worker 500
+  response.
 - Access bypasses `OPTIONS` requests to the Worker so it can validate the route
   and exact origin and answer preflight without selecting owner state. Every
   non-preflight request remains Access-authenticated. Conditional and range
