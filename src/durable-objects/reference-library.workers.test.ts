@@ -1,7 +1,12 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { maximumLibraryPdfArtifactPageBytes, type LibraryPdfArtifact, type WebCaptureRegistration } from "../domain/reference-library";
+import {
+  maximumLibraryPdfArtifactPageBytes,
+  type LibraryPdfArtifact,
+  type LibraryPdfArtifactPage,
+  type WebCaptureRegistration,
+} from "../domain/reference-library";
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
@@ -86,6 +91,61 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(await library.getCorpusPdfArtifactPage(crypto.randomUUID(), 1)).toBeNull();
     expect(await library.getPdfArtifact(older.artifact.id)).toEqual({ artifact: older.artifact, reference: older.reference });
     expect(await library.getPdfArtifact(crypto.randomUUID())).toBeNull();
+  });
+
+  it("continues byte-bounded multibyte catalog pages without loss", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`corpus-byte-page-${crypto.randomUUID()}`);
+    const artifacts: LibraryPdfArtifact[] = [];
+    const metadata = {
+      type: "€".repeat(100),
+      authors: Array.from({ length: 100 }, () => "€".repeat(500)),
+      year: "€".repeat(100),
+      venue: "€".repeat(2_000),
+      doi: "€".repeat(500),
+      url: "€".repeat(2_000),
+      abstract: "€".repeat(20_000),
+    };
+    for (let index = 0; index < 100; index += 1) {
+      const draft = await library.createPdfDraft(
+        {
+          id: crypto.randomUUID(),
+          referenceId: null,
+          name: "€".repeat(512),
+          contentType: "application/pdf",
+          size: 100,
+          objectKey: `libraries/owner/${index}.pdf`,
+          fingerprint: `${String(index).padStart(3, "0")}${"€".repeat(497)}`,
+          rights: "private",
+          createdAt: "2026-08-24T08:00:00.000Z",
+        },
+        "owner@example.test",
+      );
+      artifacts.push(draft.artifact);
+      const identity = String(index).padStart(3, "0");
+      await library.updateReferenceMetadata(
+        draft.reference.id,
+        { ...metadata, title: `${identity}${"€".repeat(1_997)}`, doi: `10.5555/${identity}${"€".repeat(489)}` },
+        "€".repeat(500),
+      );
+    }
+
+    const pages: LibraryPdfArtifactPage[] = [];
+    let cursor: string | null = null;
+    for (let index = 0; index < 100; index += 1) {
+      const page = await library.getCorpusPdfArtifactPage(cursor, 100);
+      if (!page) throw new Error("Expected a valid corpus catalog page");
+      pages.push(page);
+      expect(new TextEncoder().encode(JSON.stringify(page)).byteLength).toBeLessThanOrEqual(maximumLibraryPdfArtifactPageBytes);
+      if (!page.next) break;
+      cursor = page.next;
+    }
+
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.at(-1)?.next).toBeNull();
+    const actualIds = pages.flatMap((page) => page.items.map((item) => item.artifact.id));
+    const expectedIds = artifacts.map((artifact) => artifact.id).sort();
+    expect(actualIds).toEqual(expectedIds);
+    expect(new Set(actualIds).size).toBe(100);
   });
 
   it("atomically attaches a fingerprinted PDF to an existing reference", async () => {

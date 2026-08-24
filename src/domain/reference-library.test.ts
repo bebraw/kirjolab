@@ -343,20 +343,27 @@ describe("shared reference library", () => {
         items: [{ ...page.items[0], reference: { ...catalogReference, abstract: "x".repeat(20_001) } }],
       }),
     ).toBe(false);
+    const aggregateByteOverflow = {
+      items: Array.from({ length: 100 }, (_, index) => ({
+        artifact: { ...artifact, id: `artifact-${index}`, referenceId: `reference-${index}` },
+        reference: {
+          ...catalogReference,
+          id: `reference-${index}`,
+          authors: Array.from({ length: 100 }, () => "€".repeat(500)),
+          abstract: "€".repeat(20_000),
+        },
+      })),
+      next: null,
+    };
     expect(
-      isLibraryPdfArtifactPage({
-        items: Array.from({ length: 100 }, (_, index) => ({
-          artifact: { ...artifact, id: `artifact-${index}`, referenceId: `reference-${index}` },
-          reference: {
-            ...catalogReference,
-            id: `reference-${index}`,
-            authors: Array.from({ length: 100 }, () => "😀".repeat(500)),
-            abstract: "😀".repeat(20_000),
-          },
-        })),
-        next: null,
-      }),
-    ).toBe(false);
+      aggregateByteOverflow.items.every((item) =>
+        isLibraryPdfArtifactPage({
+          items: [item],
+          next: null,
+        }),
+      ),
+    ).toBe(true);
+    expect(isLibraryPdfArtifactPage(aggregateByteOverflow)).toBe(false);
   });
 
   it("accepts only bounded Crossref metadata", () => {

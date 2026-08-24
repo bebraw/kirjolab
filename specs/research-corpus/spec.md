@@ -218,8 +218,10 @@ copy or dual write.
   while rejecting shorter or longer bodies before creating Library state.
 - Authentication tests require the Access assertion's user email and subject;
   production operations verify Managed OAuth with a real compatible client.
-- Workers-runtime tests prove cursor pagination and individual lookup execute
-  through the bounded Reference Library RPC contract.
+- Workers-runtime tests prove individual lookup and cursor pagination execute
+  through the bounded Reference Library RPC contract, including valid
+  multibyte records that cross the aggregate byte budget and continue without
+  loss or duplication.
 
 ## Current Milestone
 
