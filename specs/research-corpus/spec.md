@@ -70,9 +70,11 @@ recreated by each consumer.
   requests publish one job generation. An immediate Queue-send failure leaves
   the generation queued for alarm recovery. Upgrade reconciliation adds any
   queued generation created before the outbox existed to that recovery path
-  exactly once. A new reservation may bring the alarm forward but never pushes
-  an earlier pending publication deadline later. An explicit retry after
-  analysis failure creates a new generation.
+  exactly once. Initialization arms or preserves recovery before committing
+  that reconciliation so a later initialization failure cannot strand the
+  migrated publication. A new reservation may bring the alarm forward but
+  never pushes an earlier pending publication deadline later. An explicit
+  retry after analysis failure creates a new generation.
 - Cross-script RPC evolution is additive across the provider-first deployment:
   the primary Worker exposes a new method before corpus calls it, and keeps the
   previous method and response shape valid while deployed versions may overlap.
@@ -163,6 +165,10 @@ when the Reference Library first applies the reconciliation migration, then it
 creates one matching owner-scoped outbox job and arms the Durable Object alarm
 without requiring another extraction request.
 
+Given reconciliation has legacy queued work, when initialization stops after
+the migration commits, then the previously armed alarm remains available to
+wake the owner Durable Object without another request.
+
 Given an earlier alarm already covers an outbox publication, when another
 generation is reserved, then the existing earlier deadline remains unchanged.
 
@@ -236,7 +242,8 @@ copy or dual write.
   loss or duplication.
 - Workers-runtime tests reconstruct a pre-outbox queued generation and prove
   the append-only upgrade migration restores its owner-qualified publication
-  row and alarm.
+  row and alarm. A fault-injection case stops initialization after the migration
+  commits and proves the guard alarm was already persisted.
 - Workers-runtime alarm tests use the platform alarm helper to prove a later
   reservation cannot postpone an earlier pending outbox wake-up and an injected
   Queue rejection preserves the outbox while scheduling another attempt.

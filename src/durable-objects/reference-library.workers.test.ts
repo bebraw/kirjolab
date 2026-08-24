@@ -7,7 +7,7 @@ import {
   type LibraryPdfArtifactPage,
   type WebCaptureRegistration,
 } from "../domain/reference-library";
-import { ReferenceLibrary } from "./reference-library";
+import { initializeReferenceLibraryStorage, ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
   it("pages reusable PDF catalog records beside SQLite", async () => {
@@ -755,6 +755,45 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           )
           .toArray(),
       ).toEqual([{ owner_key: ownerKey, artifact_id: artifactId, kind: "pdf-text", requested_at: requestedAt }]);
+      expect(await state.storage.getAlarm()).not.toBeNull();
+    });
+  });
+
+  it("keeps a recovery alarm when initialization fails after publication reconciliation", async () => {
+    const ownerKey = `artifact-analysis-upgrade-failure-${crypto.randomUUID()}`;
+    const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/${ownerKey}/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:00:01.000Z";
+    const reservation = await library.reserveArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", requestedAt);
+
+    expect(
+      await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
+    ).toBe(true);
+    await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      await state.storage.deleteAlarm();
+      await expect(
+        initializeReferenceLibraryStorage(state, () => {
+          throw new Error("Injected post-migration initialization failure");
+        }),
+      ).rejects.toThrow("Injected post-migration initialization failure");
+      expect(state.storage.sql.exec<{ version: number }>("SELECT version FROM _kirjolab_migrations WHERE version = 17").toArray()).toEqual([
+        { version: 17 },
+      ]);
       expect(await state.storage.getAlarm()).not.toBeNull();
     });
   });

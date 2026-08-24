@@ -1466,13 +1466,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   results in the owner Library Durable Object. Atomically reserve Queue
   publication there so concurrent ordinary starts emit one message for one
   persisted generation. Persist a matching publication outbox row and recover
-  it with the Durable Object alarm; reconcile queued generations created before
-  the outbox migration into that recovery path exactly once during upgrade;
-  clear an outbox row only after Queue acceptance or a qualified lifecycle
-  transition. Consumers must be idempotent because alarm recovery may redeliver
-  a job accepted before outbox acknowledgement. Always reschedule the alarm
-  after a Queue failure while outbox rows remain, and never move an already
-  scheduled earlier outbox deadline later when another reservation arrives,
+  it with the Durable Object alarm; arm or preserve recovery before committing
+  the migration that reconciles pre-outbox queued generations into that path
+  exactly once during upgrade; clear an outbox row only after Queue acceptance
+  or a qualified lifecycle transition. Consumers must be idempotent because
+  alarm recovery may redeliver a job accepted before outbox acknowledgement.
+  Always reschedule the alarm after a Queue failure while outbox rows remain,
+  and never move an already scheduled earlier outbox deadline later when
+  another reservation arrives,
   close managed-browser sessions, and expose only candidate data for explicit
   review. Supply the job's exact private R2 bytes to managed Chromium through
   request interception rather than a public or bearer-token artifact route.

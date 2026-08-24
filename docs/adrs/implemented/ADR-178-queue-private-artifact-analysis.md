@@ -52,12 +52,15 @@ and updates storage only when no alarm exists or the requested deadline is
 earlier. A later reservation therefore cannot postpone recovery already due for
 an older outbox row.
 
-Apply an append-only migration that inserts a placeholder outbox row for every
-queued generation left by the pre-outbox workflow. During Durable Object
-initialization, arm recovery and replace each placeholder with the object name
-before serving events. This upgrade reconciliation runs once, so it recovers
-the old commit-before-send failure window without repeatedly republishing a
-queued generation whose current outbox row was already confirmed.
+Before committing the append-only reconciliation migration for a Library with
+pre-outbox queued generations, arm or preserve its recovery alarm. The
+migration inserts a placeholder outbox row for every queued generation left by
+the pre-outbox workflow. During Durable Object initialization, replace each
+placeholder with the object name before serving events. This upgrade
+reconciliation runs once, so it recovers the old commit-before-send failure
+window without repeatedly republishing a queued generation whose current
+outbox row was already confirmed. If initialization stops after the migration
+commits, the guard alarm still wakes the object without another request.
 
 Retain `queueArtifactAnalysis` with its original plain `ArtifactAnalysis`
 response while an older Worker may call it. New consumers use the additive
