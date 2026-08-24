@@ -130,7 +130,7 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     reserveArtifactAnalysisQueuePublication: vi.fn(async () => {
       throw new Error("not used");
     }),
-    failArtifactAnalysis: vi.fn(async () => false),
+    confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
   };
   const getByName = vi.fn(() => library);
   const env: ResearchCorpusEnvironment = {

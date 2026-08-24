@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-29
 
-**Amended:** 2026-08-24
+**Amended:** 2026-08-24 — preserve rollout compatibility and recover Queue publication through a durable outbox
 
 ## Context
 
@@ -31,11 +31,22 @@ deliveries harmless.
 
 Reserve Queue publication atomically in that Durable Object. The additive
 `reserveArtifactAnalysisQueuePublication` RPC returns both the current analysis
-and whether this caller owns publication;
-only the caller that created or explicitly forced the queued generation sends
+and whether this caller owns publication. Only the caller that created or
+explicitly forced the queued generation sends
 the message. Concurrent ordinary starts return the same persisted generation
-without publishing duplicates. Queue-send failure may mark only that same
-fingerprint- and request-qualified generation as failed.
+without publishing duplicates.
+
+Persist a fingerprint- and request-qualified publication outbox row in the
+same SQLite transaction as a newly queued generation. Schedule the owner
+Durable Object's alarm before that transaction commits. The requesting Worker
+still attempts an immediate Queue send for latency and removes the matching
+outbox row only after Queue confirms durable acceptance. A send or confirmation
+failure leaves the analysis queued and the outbox pending. The alarm publishes
+at most 100 pending jobs per batch, deletes only confirmed rows, schedules the
+next batch while rows remain, and explicitly reschedules after a Queue failure.
+Starting, completing, or failing that exact generation also clears its stale
+outbox row. Queue consumers remain idempotent because termination after Queue
+acceptance but before outbox deletion can produce a duplicate delivery.
 
 Retain `queueArtifactAnalysis` with its original plain `ArtifactAnalysis`
 response while an older Worker may call it. New consumers use the additive
@@ -69,6 +80,8 @@ silently create library records or citation-graph assertions.
   Detect button.
 - Queue retries and Durable Object guards make analysis resilient and
   idempotent.
+- Durable alarm recovery prevents a queued analysis from depending on the
+  requesting Worker surviving through Queue acceptance.
 - Concurrent start requests publish one Queue message for one persisted job
   generation.
 - Private PDFs are not exposed through a new HTTP capability.
@@ -85,6 +98,8 @@ silently create library records or citation-graph assertions.
   limit, while fulfilling the intercepted browser request.
 - Local unit tests validate orchestration boundaries; full managed-browser
   behavior still requires a Browser Run integration environment.
+- Each owner Durable Object now stores a small publication outbox and may wake
+  on an alarm until Queue accepts every pending job.
 - Heuristic bibliography parsing favors conventional headings and numbered or
   author-year entries; unusual layouts remain visible only after future parser
   improvements rather than being guessed into library records.

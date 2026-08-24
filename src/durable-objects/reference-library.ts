@@ -84,6 +84,8 @@ import { currentRecoveryBookmark } from "./recovery";
 
 const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
 const maximumMetadataPreviewCacheEntries = 16;
+const artifactAnalysisPublicationDelayMilliseconds = 30_000;
+const artifactAnalysisPublicationRetryMilliseconds = 60_000;
 const uuidPattern = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu;
 
 interface MetadataPreviewCacheEntry {
@@ -1138,23 +1140,38 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
-    return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force).analysis;
-  }
-
-  // Versioned replacement for queueArtifactAnalysis across the Durable Object RPC boundary.
-  reserveArtifactAnalysisQueuePublication(
+  async queueArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     requestedAt: string,
     force = false,
-  ): ArtifactAnalysisQueueReservation {
-    return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
+  ): Promise<ArtifactAnalysis> {
+    return (await this.#reserveArtifactAnalysisQueuePublication(artifactId, kind, requestedAt, force)).analysis;
+  }
+
+  // Versioned replacement for queueArtifactAnalysis across the Durable Object RPC boundary.
+  async reserveArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force = false,
+  ): Promise<ArtifactAnalysisQueueReservation> {
+    return await this.#reserveArtifactAnalysisQueuePublication(artifactId, kind, requestedAt, force);
+  }
+
+  // Invoked across the Durable Object RPC boundary after Queue confirms durable acceptance.
+  confirmArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    fingerprint: string,
+    requestedAt: string,
+  ): boolean {
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.confirmPublication(artifactId, kind, fingerprint, requestedAt));
   }
 
   // Invoked across the Durable Object RPC boundary.
   startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
-    return this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt));
   }
 
   // Invoked across the Durable Object RPC boundary.
@@ -1165,12 +1182,37 @@ export class ReferenceLibrary extends DurableObject<Env> {
     requestedAt: string,
     result: ArtifactAnalysisResult,
   ): boolean {
-    return this.#artifactAnalyses.complete(artifactId, kind, fingerprint, requestedAt, result);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.complete(artifactId, kind, fingerprint, requestedAt, result));
   }
 
   // Invoked across the Durable Object RPC boundary.
   failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
-    return this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error);
+    return this.ctx.storage.transactionSync(() => this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error));
+  }
+
+  override async alarm(): Promise<void> {
+    const jobs = this.#artifactAnalyses.pendingPublications(100);
+    if (jobs.length === 0) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
+    try {
+      await this.env.ARTIFACT_ANALYSIS_QUEUE.sendBatch(jobs.map((body) => ({ body, contentType: "json" as const })));
+    } catch (error) {
+      console.error("Artifact analysis outbox publication failed", error);
+      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationRetryMilliseconds);
+      return;
+    }
+    this.ctx.storage.transactionSync(() => {
+      for (const job of jobs) {
+        this.#artifactAnalyses.confirmPublication(job.artifactId, job.kind, job.fingerprint, job.requestedAt);
+      }
+    });
+    if (this.#artifactAnalyses.hasPendingPublications()) {
+      await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
+    } else {
+      await this.ctx.storage.deleteAlarm();
+    }
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {
@@ -2199,6 +2241,24 @@ export class ReferenceLibrary extends DurableObject<Env> {
             limit + 1,
           )
           .toArray();
+  }
+
+  async #reserveArtifactAnalysisQueuePublication(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    requestedAt: string,
+    force: boolean,
+  ): Promise<ArtifactAnalysisQueueReservation> {
+    await this.ctx.storage.setAlarm(Date.now() + artifactAnalysisPublicationDelayMilliseconds);
+    return this.ctx.storage.transactionSync(() => {
+      const reservation = this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
+      if (reservation.shouldPublish) {
+        const ownerKey = this.ctx.id.name;
+        if (!ownerKey) throw new Error("Reference Library requires an owner-scoped Durable Object name");
+        this.#artifactAnalyses.reservePublication(ownerKey, reservation.analysis);
+      }
+      return reservation;
+    });
   }
 
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {

@@ -102,7 +102,7 @@ function fixture(options: { readonly created?: boolean } = {}) {
       analysis: analysis(kind),
       shouldPublish: true,
     })),
-    failArtifactAnalysis: vi.fn(async () => true),
+    confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
   };
   const stored = new Map<string, Uint8Array>();
   const storage = {

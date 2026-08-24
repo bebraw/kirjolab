@@ -3,6 +3,7 @@ import {
   isPdfReferenceAnalysisResult,
   isPdfTextAnalysisResult,
   type ArtifactAnalysis,
+  type ArtifactAnalysisJob,
   type ArtifactAnalysisKind,
   type ArtifactAnalysisQueueReservation,
   type ArtifactAnalysisResult,
@@ -22,6 +23,14 @@ interface ArtifactAnalysisRow extends Record<string, SqlStorageValue> {
   readonly requested_at: string;
   readonly started_at: string | null;
   readonly completed_at: string | null;
+}
+
+interface ArtifactAnalysisPublicationRow extends Record<string, SqlStorageValue> {
+  readonly artifact_id: string;
+  readonly fingerprint: string;
+  readonly kind: string;
+  readonly owner_key: string;
+  readonly requested_at: string;
 }
 
 export class ArtifactAnalysisService {
@@ -63,6 +72,58 @@ export class ArtifactAnalysisService {
     return { analysis: artifactAnalysisFromRow(this.#row(artifactId, kind)!), shouldPublish: true };
   }
 
+  reservePublication(ownerKey: string, analysis: ArtifactAnalysis): void {
+    this.sql.exec(
+      `INSERT INTO artifact_analysis_publications
+         (artifact_id, fingerprint, kind, owner_key, requested_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (artifact_id, kind) DO UPDATE SET
+         fingerprint = excluded.fingerprint,
+         owner_key = excluded.owner_key,
+         requested_at = excluded.requested_at`,
+      analysis.artifactId,
+      analysis.fingerprint,
+      analysis.kind,
+      ownerKey,
+      analysis.requestedAt,
+    );
+  }
+
+  pendingPublications(limit: number): ArtifactAnalysisJob[] {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("Publication batch size must be between 1 and 100");
+    return this.sql
+      .exec<ArtifactAnalysisPublicationRow>(
+        "SELECT * FROM artifact_analysis_publications ORDER BY requested_at, artifact_id, kind LIMIT ?",
+        limit,
+      )
+      .toArray()
+      .map((row) => ({
+        version: 1,
+        ownerKey: row.owner_key,
+        artifactId: row.artifact_id,
+        fingerprint: row.fingerprint,
+        kind: artifactAnalysisKind(row.kind),
+        requestedAt: row.requested_at,
+      }));
+  }
+
+  confirmPublication(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
+    return (
+      this.sql.exec(
+        `DELETE FROM artifact_analysis_publications
+         WHERE artifact_id = ? AND kind = ? AND fingerprint = ? AND requested_at = ?`,
+        artifactId,
+        kind,
+        fingerprint,
+        requestedAt,
+      ).rowsWritten === 1
+    );
+  }
+
+  hasPendingPublications(): boolean {
+    return this.sql.exec<{ present: number }>("SELECT 1 AS present FROM artifact_analysis_publications LIMIT 1").toArray().length > 0;
+  }
+
   start(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
     const row = this.#row(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
@@ -74,6 +135,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 
@@ -101,6 +163,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 
@@ -116,6 +179,7 @@ export class ArtifactAnalysisService {
       artifactId,
       kind,
     );
+    this.confirmPublication(artifactId, kind, fingerprint, requestedAt);
     return true;
   }
 

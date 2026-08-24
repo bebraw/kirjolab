@@ -395,4 +395,22 @@ export const referenceLibraryMigrations = [
       return undefined;
     },
   },
+  {
+    version: 16,
+    name: "recover-artifact-analysis-publication",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE artifact_analysis_publications (
+          artifact_id TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('pdf-highlights', 'pdf-references', 'pdf-text')),
+          owner_key TEXT NOT NULL,
+          requested_at TEXT NOT NULL,
+          PRIMARY KEY (artifact_id, kind),
+          FOREIGN KEY (artifact_id, kind) REFERENCES artifact_analyses(artifact_id, kind) ON DELETE CASCADE
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];

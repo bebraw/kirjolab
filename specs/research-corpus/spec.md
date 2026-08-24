@@ -66,8 +66,10 @@ recreated by each consumer.
   to the original representation.
 - Extraction kinds are the existing independent `pdf-text`, `pdf-highlights`,
   and `pdf-references` jobs. The owner-scoped storage authority atomically
-  reserves Queue publication so concurrent ordinary requests publish one job
-  generation. An explicit retry after failure creates a new generation.
+  reserves Queue publication and a durable outbox row so concurrent ordinary
+  requests publish one job generation. An immediate Queue-send failure leaves
+  the generation queued for alarm recovery. An explicit retry after analysis
+  failure creates a new generation.
 - Cross-script RPC evolution is additive across the provider-first deployment:
   the primary Worker exposes a new method before corpus calls it, and keeps the
   previous method and response shape valid while deployed versions may overlap.
@@ -146,6 +148,12 @@ returned without waiting for processing.
 Given concurrent clients starting the same extraction generation, exactly one
 authority response grants Queue publication and every caller observes the same
 persisted request identity.
+
+Given the requesting Worker stops after the authority commits a queued
+generation but before Queue acceptance is confirmed, the owner Durable Object
+alarm publishes the persisted outbox job without requiring another request.
+After a Queue failure it keeps the outbox row and schedules another alarm; after
+confirmed acceptance it removes only the matching fingerprint and request.
 
 Given the primary Worker has been upgraded while the prior corpus Worker is
 still serving traffic, its legacy catalog-page and queue-state RPC calls retain

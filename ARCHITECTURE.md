@@ -1465,8 +1465,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   never artifact bytes. Persist fingerprint-qualified lifecycle and bounded
   results in the owner Library Durable Object. Atomically reserve Queue
   publication there so concurrent ordinary starts emit one message for one
-  persisted generation; qualify send-failure rollback by fingerprint and
-  request time. Consumers must be idempotent,
+  persisted generation. Persist a matching publication outbox row and recover
+  it with the Durable Object alarm; clear it only after Queue acceptance or a
+  qualified lifecycle transition. Consumers must be idempotent because alarm
+  recovery may redeliver a job accepted before outbox acknowledgement. Always
+  reschedule the alarm after a Queue failure while outbox rows remain,
   close managed-browser sessions, and expose only candidate data for explicit
   review. Supply the job's exact private R2 bytes to managed Chromium through
   request interception rather than a public or bearer-token artifact route.

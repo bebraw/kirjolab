@@ -181,12 +181,11 @@ interface ReferenceLibraryApi {
     requestedAt: string,
     force?: boolean,
   ): Promise<ArtifactAnalysisQueueReservation>;
-  failArtifactAnalysis(
+  confirmArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     fingerprint: string,
     requestedAt: string,
-    error: string,
   ): Promise<boolean>;
   getPdfReferenceReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue | null>;
   reviewPdfReferenceCandidate(

@@ -1984,7 +1984,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       analysis: { ...analysis, kind },
       shouldPublish: true,
     })),
-    failArtifactAnalysis: vi.fn(async () => true),
+    confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
     getPdfReferenceReviewQueue: vi.fn(async (): Promise<PdfReferenceReviewQueue | null> => ({
       artifactId: artifact.id,
       fingerprint: artifact.fingerprint,

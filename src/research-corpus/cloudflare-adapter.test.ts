@@ -121,13 +121,13 @@ function fixture() {
     getPdfArtifact: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getPdfArtifact"]>>;
     getArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["getArtifactAnalysis"]>>;
     reserveArtifactAnalysisQueuePublication: ReturnType<typeof vi.fn<CorpusLibraryAuthority["reserveArtifactAnalysisQueuePublication"]>>;
-    failArtifactAnalysis: ReturnType<typeof vi.fn<CorpusLibraryAuthority["failArtifactAnalysis"]>>;
+    confirmArtifactAnalysisQueuePublication: ReturnType<typeof vi.fn<CorpusLibraryAuthority["confirmArtifactAnalysisQueuePublication"]>>;
   } = {
     getCorpusPdfArtifactPage: vi.fn(async () => page()),
     getPdfArtifact: vi.fn(async () => ({ artifact, reference: null })),
     getArtifactAnalysis: vi.fn(async () => null),
     reserveArtifactAnalysisQueuePublication: vi.fn(async () => ({ analysis: queued, shouldPublish: true })),
-    failArtifactAnalysis: vi.fn(async () => true),
+    confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
   };
   const getByName = vi.fn(() => library);

@@ -12,12 +12,11 @@ export interface ArtifactAnalysisJobLibrary {
     requestedAt: string,
     force?: boolean,
   ): Promise<ArtifactAnalysisQueueReservation>;
-  failArtifactAnalysis(
+  confirmArtifactAnalysisQueuePublication(
     artifactId: string,
     kind: ArtifactAnalysisKind,
     fingerprint: string,
     requestedAt: string,
-    error: string,
   ): Promise<boolean>;
 }
 
@@ -50,10 +49,9 @@ export async function enqueueArtifactAnalysis(
   };
   try {
     await queue.send(job, { contentType: "json" });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Artifact analysis could not be queued";
-    await library.failArtifactAnalysis(artifactId, kind, analysis.fingerprint, analysis.requestedAt, message);
-    return { ...analysis, status: "failed", error: message.slice(0, 1_000), completedAt: now() };
+    await library.confirmArtifactAnalysisQueuePublication(artifactId, kind, analysis.fingerprint, analysis.requestedAt);
+  } catch {
+    return analysis;
   }
   return analysis;
 }

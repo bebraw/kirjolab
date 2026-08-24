@@ -35,6 +35,7 @@ describe("artifact analysis job submission", () => {
       { contentType: "json" },
     );
     expect(JSON.stringify(queue.send.mock.calls)).not.toContain("objectKey");
+    expect(library.confirmArtifactAnalysisQueuePublication).toHaveBeenCalledWith(artifactId, "pdf-text", "sha256:paper", requestedAt);
   });
 
   it("does not submit a duplicate job without an authority publication reservation", async () => {
@@ -47,21 +48,14 @@ describe("artifact analysis job submission", () => {
     expect(queue.send).not.toHaveBeenCalled();
   });
 
-  it("records a bounded failed state when queue submission fails", async () => {
+  it("leaves a queued generation for durable recovery when immediate submission fails", async () => {
     const library = libraryFixture();
     const queue = { send: vi.fn(async () => Promise.reject(new Error("x".repeat(1_500)))) };
 
     const result = await enqueueArtifactAnalysis("owner-key", artifactId, "pdf-text", queue, library);
 
-    expect(library.failArtifactAnalysis).toHaveBeenCalledWith(
-      artifactId,
-      "pdf-text",
-      "sha256:paper",
-      expect.any(String),
-      expect.any(String),
-    );
-    expect(result.status).toBe("failed");
-    expect(result.error).toHaveLength(1_000);
+    expect(library.confirmArtifactAnalysisQueuePublication).not.toHaveBeenCalled();
+    expect(result).toEqual(analysis);
   });
 
   it("returns an explicit failed state when the queue capability is absent", async () => {
@@ -77,6 +71,6 @@ describe("artifact analysis job submission", () => {
 function libraryFixture(value: ArtifactAnalysis = analysis, shouldPublish = true) {
   return {
     reserveArtifactAnalysisQueuePublication: vi.fn(async () => ({ analysis: value, shouldPublish })),
-    failArtifactAnalysis: vi.fn(async () => true),
+    confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
   };
 }
