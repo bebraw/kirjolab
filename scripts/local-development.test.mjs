@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import test from "node:test";
+
+import { createWranglerLog } from "./e2e-wrangler-log.mjs";
 
 test("forces loopback-only authentication for interactive development", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
@@ -52,6 +58,25 @@ test("isolates E2E runs from artifact-analysis browser jobs", async () => {
 
   assert.match(wranglerConfig, /"ARTIFACT_ANALYSIS_MODE":\s*"enabled"/u);
   assert.match(server, /"ARTIFACT_ANALYSIS_MODE:disabled"/u);
+});
+
+test("keeps Wrangler output off Playwright's captured server pipes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "kirjolab-wrangler-log-test-"));
+
+  try {
+    const log = await createWranglerLog(directory);
+    const child = spawn(process.execPath, ["-e", 'console.log("standard output"); console.error("standard error");'], {
+      stdio: log.stdio,
+    });
+
+    const [code] = await once(child, "exit");
+    assert.equal(code, 0);
+    const output = await log.readTail();
+    assert.match(output, /standard output/u);
+    assert.match(output, /standard error/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("fails the browser gate when Playwright discovers no tests", async () => {
