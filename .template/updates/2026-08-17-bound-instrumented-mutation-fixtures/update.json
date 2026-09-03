@@ -4,7 +4,7 @@
   "status": "implemented",
   "risk": "low",
   "supersedes": [],
-  "adrs": [],
+  "adrs": ["docs/adrs/implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md"],
   "touches": ["src/test-support/mutation.ts", "src/**/*.test.ts", "docs/development.md", "specs/quality-gate/spec.md"],
   "checks": ["npm run mutation:affected", "npm run quality:gate", "npm run ci:local"]
 }

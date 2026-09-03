@@ -12,9 +12,12 @@ hard-boundary integration fixtures unsuitable for repetition per mutant.
 3. Skip those large fixtures only inside Stryker workers.
 4. Retain a small mutation-selected behavioral counterpart for every skipped
    performance regression.
-5. Factor production-used guards or accumulators into cheap internal seams so
-   mutation-selected tests still prove each skipped hard boundary, including
-   aggregation and its stable failure.
+5. Keep mutation-selected tests proving each skipped hard boundary, including
+   exact acceptance, first rejection, aggregation, and stable failure. Prefer a
+   cheap production-used guard or accumulator seam. If that source belongs to
+   an immutable published artifact, use an isolated test module to tighten only
+   the relevant imported hard ceilings and exercise the unchanged public
+   interface; never reimplement the guard or rewrite immutable source.
 6. Pin large deterministic byte fixtures with literal fingerprints instead of
    deep-comparing separately generated boundary-sized arrays.
 7. Reverify the worker marker whenever the pinned Stryker release changes.

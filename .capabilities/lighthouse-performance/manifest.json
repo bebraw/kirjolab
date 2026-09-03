@@ -1,11 +1,11 @@
 {
   "name": "lighthouse-performance",
-  "description": "Add local Lighthouse performance reports and a configurable performance budget.",
+  "description": "Add local Lighthouse web-quality reports and configurable category budgets.",
   "dependencies": {
     "dev": {
-      "@playwright/test": "1.59.1",
+      "@playwright/test": "1.62.1",
       "chrome-launcher": "1.2.1",
-      "lighthouse": "13.1.0"
+      "lighthouse": "13.4.1"
     }
   },
   "scripts": {

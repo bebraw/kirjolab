@@ -17,7 +17,7 @@ portability work attached to explicit contracts.
 
 - `docker compose up --build` starts one repository-pinned local Worker runtime
   and publishes Kirjolab only at `http://127.0.0.1:8787`.
-- The image pins Node.js 24.15.0, installs from `package-lock.json`, builds the
+- The image pins Node.js 24.20.0, installs from `package-lock.json`, builds the
   browser assets during image construction, and runs Wrangler directly as the
   non-root `node` user behind Compose's init process.
 - The profile uses `AUTH_MODE=local`. It must remain loopback-only because the

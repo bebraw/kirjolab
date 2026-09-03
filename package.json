@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "npm@11",
   "engines": {
-    "node": "24.15.0",
+    "node": "24.20.0",
     "npm": ">=11 <12"
   },
   "devEngines": {
@@ -21,7 +21,7 @@
       "nanoid": "3.3.18"
     },
     "typed-rest-client": {
-      "qs": "6.15.3"
+      "qs": "6.16.0"
     }
   },
   "vibeTemplate": {
@@ -72,8 +72,11 @@
       "2026-08-03-repository-local-spec-tdd",
       "2026-08-03-readme-skill-catalog",
       "2026-08-03-record-template-provenance",
+      "2026-08-17-dependency-toolchain-refresh",
       "2026-08-17-bound-instrumented-mutation-fixtures",
-      "2026-08-18-replace-pr-mutation-with-dry-run"
+      "2026-08-18-replace-pr-mutation-with-dry-run",
+      "2026-08-31-compact-agent-skills",
+      "2026-09-03-actionable-mutation-reporting"
     ]
   },
   "scripts": {
@@ -86,7 +89,7 @@
     "check:adrs": "node ./scripts/check-adr-registry.mjs",
     "ci:local": "npm run quality:gate",
     "ci:local:container": "node ./scripts/run-local-ci.mjs",
-    "ci:local:container:retry": "agent-ci retry",
+    "ci:local:container:retry": "local-ci retry",
     "deploy": "node ./scripts/deploy-production.mjs",
     "deploy:corpus": "node ./scripts/deploy-research-corpus.mjs",
     "deploy:corpus:dry-run": "node ./scripts/deploy-research-corpus.mjs --dry-run-only",
@@ -111,11 +114,12 @@
     "maintenance:clean": "node ./scripts/clean-local-state.mjs",
     "lint": "oxlint --max-warnings 0",
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
-    "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
+    "mutation": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation.mjs",
     "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
     "mutation:ci": "node ./scripts/run-ci-mutation.mjs",
-    "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
+    "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation.mjs --incremental --ignoreStatic",
     "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
+    "mutation:report": "node ./scripts/report-mutation-results.mjs",
     "paper-import:pack": "\"$npm_node_execpath\" ./scripts/pack-paper-import-package.mjs",
     "playwright:install": "playwright install chromium",
     "prepare": "node ./scripts/setup-git-hooks.mjs",
@@ -147,26 +151,26 @@
     "@codemirror/state": "6.7.1",
     "@codemirror/view": "6.43.7",
     "@playwright/test": "1.62.1",
-    "@redwoodjs/agent-ci": "0.17.1",
     "@replit/codemirror-vim": "6.4.0",
-    "@stryker-mutator/core": "9.6.1",
-    "@stryker-mutator/typescript-checker": "9.6.1",
-    "@stryker-mutator/vitest-runner": "9.6.1",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/typescript-checker": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@tailwindcss/cli": "4.3.3",
     "@types/node": "24.13.3",
     "@unified-latex/unified-latex-util-parse": "1.8.4",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "chrome-launcher": "1.2.1",
     "esbuild": "0.28.1",
-    "fallow": "3.10.0",
+    "fallow": "3.21.0",
     "lighthouse": "13.4.1",
-    "oxlint": "1.76.0",
+    "oxlint": "1.80.0",
     "prettier": "3.9.6",
+    "run-local-ci": "0.18.1",
     "tailwindcss": "4.3.3",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-7": "npm:typescript@7.0.2",
-    "vitest": "4.1.10",
-    "wrangler": "4.116.0",
+    "vitest": "4.1.11",
+    "wrangler": "4.127.1",
     "y-codemirror.next": "0.3.5",
     "y-protocols": "1.0.7"
   },

@@ -234,10 +234,12 @@ submission-period implementation range from Kirjolab's earlier foundation.
 
 ## Agent Skills
 
-Repository-local skills in [`.codex/skills/`](./.codex/skills/) help coding
-agents follow Kirjolab's conventions. Describe a job normally or request a
-skill by name, such as `$security`. `$wayfinder` and `$to-spec` are
-explicit-only, so they run only when explicitly requested.
+Compact repository-local skills in [`.codex/skills/`](./.codex/skills/) help
+capable coding agents follow Kirjolab-specific conventions without repeating
+generic engineering guidance. Version-sensitive details come from current
+primary sources. Describe a job normally or request a skill by name, such as
+`$security`. `$wayfinder` and `$to-spec` are explicit-only, so they run only
+when explicitly requested.
 
 ### Product Work
 
@@ -259,14 +261,14 @@ explicit-only, so they run only when explicitly requested.
 
 - [`$frontend-design`](./.codex/skills/frontend-design/SKILL.md) — design substantial production UI while preserving Kirjolab's reusable conventions.
 - [`$minimal-visual-style`](./.codex/skills/minimal-visual-style/SKILL.md) — extend the minimal, editorial, token-driven visual language.
-- [`$web-perf`](./.codex/skills/web-perf/SKILL.md) — audit Core Web Vitals, loading behavior, layout shifts, and accessibility signals.
+- [`$web-perf`](./.codex/skills/web-perf/SKILL.md) — measure Core Web Vitals, loading behavior, responsiveness, and network costs.
 
 ### Cloudflare and Validation
 
 - [`$durable-objects`](./.codex/skills/durable-objects/SKILL.md) — implement and review Kirjolab's stateful Cloudflare coordination layer.
 - [`$workers-best-practices`](./.codex/skills/workers-best-practices/SKILL.md) — author and review production Cloudflare Worker code.
 - [`$wrangler`](./.codex/skills/wrangler/SKILL.md) — guide Wrangler configuration, development, deployment, and resource commands.
-- [`$agent-ci`](./.codex/skills/agent-ci/SKILL.md) — run Kirjolab's native local gate and optional container parity checks.
+- [`$local-ci`](./.codex/skills/local-ci/SKILL.md) — run Kirjolab's native local gate and optional container parity checks.
 
 ## Template Maintenance
 

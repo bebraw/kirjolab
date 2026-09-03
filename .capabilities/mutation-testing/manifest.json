@@ -4,13 +4,14 @@
   "requires": ["typescript-setup", "quality-gate"],
   "dependencies": {
     "dev": {
-      "@stryker-mutator/core": "9.6.1",
-      "@stryker-mutator/typescript-checker": "9.6.1",
-      "@stryker-mutator/vitest-runner": "9.6.1"
+      "@stryker-mutator/core": "10.0.0",
+      "@stryker-mutator/typescript-checker": "10.0.0",
+      "@stryker-mutator/vitest-runner": "10.0.0"
     }
   },
   "scripts": {
-    "mutation": "stryker run"
+    "mutation": "node ./scripts/run-mutation.mjs",
+    "mutation:report": "node ./scripts/report-mutation-results.mjs"
   },
   "optionalScripts": {
     "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation"
@@ -20,10 +21,21 @@
       "source": "files/stryker.config.mjs",
       "target": "stryker.config.mjs",
       "mode": "copy-or-merge"
+    },
+    {
+      "source": "files/scripts/report-mutation-results.mjs",
+      "target": "scripts/report-mutation-results.mjs",
+      "mode": "copy"
+    },
+    {
+      "source": "files/scripts/run-mutation.mjs",
+      "target": "scripts/run-mutation.mjs",
+      "mode": "copy"
     }
   ],
   "docs": [
     "Document npm run mutation as the mutation testing command.",
+    "Document npm run mutation:report as the read-only latest-report summary.",
     "Document whether mutation testing belongs in the target repo's full quality gate.",
     "Document report output under reports/mutation/.",
     "Document .stryker-tmp/ as an ignored temporary sandbox."
@@ -32,6 +44,7 @@
   "notes": [
     "Adapt src/ mutation globs before applying to repos with a different runtime source directory.",
     "Keep mutation testing out of fast pre-push hooks unless the target repo explicitly accepts the runtime cost.",
+    "Use bounded clear-text reporting separately when individual affected mutants should be printed.",
     "Do not weaken existing mutation thresholds without explicit approval."
   ]
 }

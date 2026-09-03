@@ -8,7 +8,8 @@
 [ADR-166](./ADR-166-separate-browser-binders-from-mutation-contracts.md),
 [ADR-175](./ADR-175-delegate-scientific-markdown-to-scholarmark.md)
 
-**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md),
+[ADR-233](./ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)
 
 ## Context
 

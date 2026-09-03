@@ -1,0 +1,25 @@
+{
+  "id": "2026-08-17-dependency-toolchain-refresh",
+  "title": "Refresh the dependency toolchain and adopt Local CI",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": [
+    "docs/adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md",
+    "docs/adrs/implemented/ADR-232-adopt-local-ci-canonical-interface.md",
+    "docs/adrs/implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md"
+  ],
+  "touches": [
+    "package.json",
+    "package-lock.json",
+    ".nvmrc",
+    ".github/workflows/ci.yml",
+    "worker-configuration.d.ts",
+    ".env.local-ci.example",
+    ".codex/skills/local-ci/",
+    ".capabilities/",
+    "docs/",
+    "specs/"
+  ],
+  "checks": ["npm run quality:gate", "npm run worker:types:check", "npm run mutation", "npm run diagnostics:codebase", "npm run ci:local"]
+}

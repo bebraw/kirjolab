@@ -30,7 +30,7 @@ Kirjolab would not call the vendored extractor, but the apparent remediation
 would depend on npm being unable to inventory bundled source.
 
 Puppeteer's browser-installer package removed `extract-zip` in its version 3
-line. Kirjolab already pins Node.js 24.15.0, which satisfies that package's
+line. Kirjolab's Node.js 24 baseline satisfies that package's
 Node.js 22.12 or newer requirement, and the repository's Lighthouse tooling
 already resolves the same `@puppeteer/browsers@3.0.6` version.
 

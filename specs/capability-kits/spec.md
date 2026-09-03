@@ -4,7 +4,7 @@
 
 ### Context
 
-The template is useful both as a starter repo and as a source of specific practices that can be applied to existing projects. Contributors and agents need a lightweight way to transfer one capability, such as Agent CI, without copying unrelated template structure.
+The template is useful both as a starter repo and as a source of specific practices that can be applied to existing projects. Contributors and agents need a lightweight way to transfer one capability, such as Local CI, without copying unrelated template structure.
 
 ### Architecture
 
@@ -15,7 +15,7 @@ The template is useful both as a starter repo and as a source of specific practi
 - **Copyable files:** `files/`
 - **Package-manager recipes:** `recipes/`
 - **Validation notes:** `checks.md`
-- **Available kits:** `typescript-setup`, `agent-ci`, `quality-gate`, `mutation-testing`, `pre-push-quality-gate`, `readme-screenshot`, `lighthouse-performance`
+- **Available kits:** `typescript-setup`, `local-ci`, `quality-gate`, `mutation-testing`, `pre-push-quality-gate`, `readme-screenshot`, `lighthouse-performance`
 - **Optional adjacent setup:** capability kits may include prompted optional steps for prerequisites such as GitHub Actions workflows.
 - **Negotiation prompt:** `.capabilities/README.md` includes a prompt-style UI for selecting capabilities before editing a target repo.
 - **Later maintenance sync:** template update packs under `.template/updates/` cover follow-up changes to projects that already adopted a kit.
@@ -51,8 +51,8 @@ The template is useful both as a starter repo and as a source of specific practi
 - Optional adjacent setup must be opt-in when it adds a new target-project capability.
 - The negotiation prompt must instruct agents to inspect the target repo, present recommended capabilities with trade-offs, and wait for approval before editing files.
 - The TypeScript setup kit must keep its dependency, `typecheck` script, `tsconfig.json`, and optional CSS declaration guidance aligned with this repo's current TypeScript setup.
-- The Agent CI kit must keep its dependency and command guidance aligned with this repo's `package.json` and `.codex/skills/agent-ci/SKILL.md`.
-- The Agent CI kit must rely on current Agent CI warm-cache serialization instead of reintroducing a repo-local install-lock pattern for npm workflows.
+- The Local CI kit must keep its dependency and command guidance aligned with this repo's `package.json` and `.codex/skills/local-ci/SKILL.md`.
+- The Local CI kit must rely on current Local CI warm-cache serialization instead of reintroducing a repo-local install-lock pattern for npm workflows.
 - The quality-gate kit must keep the coverage gate script aligned with `scripts/run-coverage-gate.mjs`.
 - The mutation-testing kit must keep its Stryker config aligned with `stryker.config.mjs`.
 - The pre-push quality-gate kit must keep the hook setup aligned with `.githooks/pre-push` and `scripts/setup-git-hooks.mjs`.
@@ -62,21 +62,21 @@ The template is useful both as a starter repo and as a source of specific practi
 ### Verification
 
 - **Repo checks:** `npm run quality:gate` and `npm run ci:local`
-- **Manifest parse:** `node -e "JSON.parse(require('node:fs').readFileSync('.capabilities/agent-ci/manifest.json', 'utf8'))"`
-- **Docs check:** `rg "capability kits|\\.capabilities|Agent CI Capability Kit"`
+- **Manifest parse:** `node -e "JSON.parse(require('node:fs').readFileSync('.capabilities/local-ci/manifest.json', 'utf8'))"`
+- **Docs check:** `rg "capability kits|\\.capabilities|Local CI Capability Kit"`
 
 ### Scenarios
 
-**Scenario: Agent applies Agent CI to another npm repo**
+**Scenario: Agent applies Local CI to another npm repo**
 
 - Given: an npm repo with a GitHub Actions workflow
-- When: the agent follows `.capabilities/agent-ci/recipes/npm.md`
-- Then: the target repo gains the pinned Agent CI dependency, local CI scripts, local env example, Codex skill, and validation path
+- When: the agent follows `.capabilities/local-ci/recipes/npm.md`
+- Then: the target repo gains the pinned Local CI dependency, local CI scripts, local env example, Codex skill, and validation path
 
 **Scenario: Target repo has no GitHub Actions workflow**
 
 - Given: a target repo has no `.github/workflows/*.yml` or `.github/workflows/*.yaml` files
-- When: the agent applies the Agent CI capability kit
+- When: the agent applies the Local CI capability kit
 - Then: the agent asks whether to add a minimal GitHub Actions workflow before creating one
 
 **Scenario: Target repo differs from this template**
@@ -87,15 +87,15 @@ The template is useful both as a starter repo and as a source of specific practi
 
 **Scenario: Kit drift is introduced**
 
-- Given: this repo changes its Agent CI setup
-- When: the Agent CI kit still documents the old command or dependency
+- Given: this repo changes its Local CI setup
+- When: the Local CI kit still documents the old command or dependency
 - Then: the quality review treats the kit as stale and updates it in the same change set
 
 **Scenario: Contributor chooses a narrow upgrade**
 
 - Given: another repo only needs local README screenshot refresh
 - When: the agent applies `.capabilities/readme-screenshot/`
-- Then: the target repo receives screenshot tooling without inheriting Agent CI, hooks, Lighthouse, or the Worker starter
+- Then: the target repo receives screenshot tooling without inheriting Local CI, hooks, Lighthouse, or the Worker starter
 
 **Scenario: Contributor only needs TypeScript checking**
 

@@ -7,7 +7,7 @@ Capability kits are reviewable partial-upgrade guides for applying one template 
 | Kit                                                            | Purpose                                                            |
 | -------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [`typescript-setup`](./typescript-setup/README.md)             | Add strict no-emit TypeScript checking for npm projects.           |
-| [`agent-ci`](./agent-ci/README.md)                             | Add local GitHub Actions execution through Agent CI.               |
+| [`local-ci`](./local-ci/README.md)                             | Add local GitHub Actions execution through Local CI.               |
 | [`quality-gate`](./quality-gate/README.md)                     | Add the fast verification baseline and optional browser gate.      |
 | [`mutation-testing`](./mutation-testing/README.md)             | Add Stryker mutation testing for TypeScript projects using Vitest. |
 | [`pre-push-quality-gate`](./pre-push-quality-gate/README.md)   | Add a repo-managed pre-push hook that runs the fast quality gate.  |
@@ -55,8 +55,8 @@ Capability Pull Plan
     Adds strict no-emit TypeScript checking for npm projects.
     Include if the repo uses TypeScript, wants TypeScript, or needs a reusable typecheck script and tsconfig baseline.
 
-[ ] agent-ci
-    Adds local GitHub Actions execution through Agent CI.
+[ ] local-ci
+    Adds local GitHub Actions execution through Local CI.
     Include if the repo has or wants GitHub Actions and Docker-backed local CI.
 
 [ ] quality-gate
@@ -88,4 +88,4 @@ For each recommended capability, explain:
 Ask me to approve the final capability list before editing files.
 ```
 
-After approval, apply only the selected kits. If a selected kit discovers optional adjacent setup, such as creating a GitHub Actions workflow for Agent CI, ask again before adding that adjacent capability.
+After approval, apply only the selected kits. If a selected kit discovers optional adjacent setup, such as creating a GitHub Actions workflow for Local CI, ask again before adding that adjacent capability.

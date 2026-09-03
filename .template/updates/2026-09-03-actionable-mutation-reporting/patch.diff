@@ -1,0 +1,417 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -28,7 +28,8 @@
+     "lighthouse": "node ./scripts/run-lighthouse.mjs",
+     "lint": "oxlint --max-warnings 0",
+-    "mutation": "stryker run",
+-    "mutation:incremental": "stryker run --incremental",
++    "mutation": "node ./scripts/run-mutation.mjs",
++    "mutation:incremental": "node ./scripts/run-mutation.mjs --incremental",
++    "mutation:report": "node ./scripts/report-mutation-results.mjs",
+     "playwright:install": "playwright install chromium",
+     "prepare": "node ./scripts/setup-git-hooks.mjs",
+     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
+diff --git a/stryker.config.mjs b/stryker.config.mjs
+--- a/stryker.config.mjs
++++ b/stryker.config.mjs
+@@ -6,11 +6,21 @@
+   checkers: ["typescript"],
+   cleanTempDir: "always",
++  clearTextReporter: {
++    logTests: true,
++    maxTestsToLog: 3,
++    reportMutants: true,
++    reportScoreTable: true,
++    reportTests: false,
++  },
+   concurrency: "50%",
+   htmlReporter: {
+     fileName: "reports/mutation/index.html",
+   },
++  jsonReporter: {
++    fileName: "reports/mutation/mutation.json",
++  },
+   mutate: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/*.test.ts", "!src/**/*.e2e.ts", "!src/test-support.ts"],
+   packageManager: "npm",
+-  reporters: ["clear-text", "progress", "html", "json"],
++  reporters: ["progress", "html", "json"],
+   testRunner: "vitest",
+   thresholds: {
+     high: 90,
+diff --git a/scripts/report-mutation-results.mjs b/scripts/report-mutation-results.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/report-mutation-results.mjs
+@@ -0,0 +1,166 @@
++import { readFileSync } from "node:fs";
++import process from "node:process";
++import { pathToFileURL } from "node:url";
++
++import strykerConfig from "../stryker.config.mjs";
++
++const defaultHotspotLimit = 10;
++const knownStatuses = ["Killed", "Timeout", "Survived", "NoCoverage", "CompileError", "RuntimeError", "Ignored"];
++
++function increment(counts, key) {
++  counts[key] = (counts[key] ?? 0) + 1;
++}
++
++function countFor(counts, status) {
++  return counts[status] ?? 0;
++}
++
++function calculateScores(counts) {
++  const detected = countFor(counts, "Killed") + countFor(counts, "Timeout");
++  const survived = countFor(counts, "Survived");
++  const noCoverage = countFor(counts, "NoCoverage");
++  const valid = detected + survived + noCoverage;
++  const covered = detected + survived;
++
++  return {
++    coveredMutationScore: covered > 0 ? (detected / covered) * 100 : Number.NaN,
++    mutationScore: valid > 0 ? (detected / valid) * 100 : Number.NaN,
++  };
++}
++
++function summarizeFile(file, mutants) {
++  const counts = {};
++  for (const mutant of mutants) increment(counts, mutant.status);
++  const survived = countFor(counts, "Survived");
++  const noCoverage = countFor(counts, "NoCoverage");
++
++  return {
++    ...calculateScores(counts),
++    counts,
++    file,
++    missed: survived + noCoverage,
++    noCoverage,
++    survived,
++  };
++}
++
++function collectMutationCounts(report) {
++  const counts = {};
++  const staticCounts = {};
++  const files = [];
++
++  for (const [file, fileResult] of Object.entries(report.files ?? {})) {
++    const mutants = fileResult.mutants ?? [];
++    files.push(summarizeFile(file, mutants));
++    for (const mutant of mutants) {
++      increment(counts, mutant.status);
++      if (mutant.static) increment(staticCounts, mutant.status);
++    }
++  }
++
++  return { counts, files, staticCounts };
++}
++
++function countTotal(counts) {
++  return Object.values(counts).reduce((total, count) => total + count, 0);
++}
++
++function nonzeroKnownCounts(counts) {
++  return Object.fromEntries(knownStatuses.filter((status) => countFor(counts, status) > 0).map((status) => [status, counts[status]]));
++}
++
++function rankHotspots(files, limit) {
++  return files
++    .filter(({ missed }) => missed > 0)
++    .sort((left, right) => right.missed - left.missed || right.noCoverage - left.noCoverage || left.file.localeCompare(right.file))
++    .slice(0, limit);
++}
++
++export function summarizeMutationReport(report, { configuredBreakThreshold, hotspotLimit = defaultHotspotLimit } = {}) {
++  const { counts, files, staticCounts } = collectMutationCounts(report);
++
++  const scores = calculateScores(counts);
++  const recordedBreakThreshold = Number(report.thresholds?.break);
++  const configuredThreshold = Number(configuredBreakThreshold);
++  const breakThreshold = Number.isFinite(configuredThreshold) ? configuredThreshold : recordedBreakThreshold;
++  const hasBreakThreshold = Number.isFinite(breakThreshold);
++
++  return {
++    ...scores,
++    breakThreshold: hasBreakThreshold ? breakThreshold : null,
++    counts: nonzeroKnownCounts(counts),
++    framework: report.framework ?? {},
++    hotspots: rankHotspots(files, hotspotLimit),
++    recordedBreakThreshold: Number.isFinite(recordedBreakThreshold) ? recordedBreakThreshold : null,
++    staticCounts: nonzeroKnownCounts(staticCounts),
++    thresholdMargin: hasBreakThreshold && Number.isFinite(scores.mutationScore) ? scores.mutationScore - breakThreshold : null,
++    totalMutants: countTotal(counts),
++    totalStaticMutants: countTotal(staticCounts),
++  };
++}
++
++function formatNumber(value) {
++  return value.toLocaleString("en-US");
++}
++
++function formatPercent(value) {
++  return Number.isFinite(value) ? `${value.toFixed(2)}%` : "n/a";
++}
++
++function formatCountedNoun(value, singular, plural = `${singular}s`) {
++  return `${formatNumber(value)} ${value === 1 ? singular : plural}`;
++}
++
++function thresholdText(summary) {
++  if (summary.breakThreshold === null || summary.thresholdMargin === null) return "no blocking floor";
++  const outcome = summary.thresholdMargin >= 0 ? "pass" : "fail";
++  const current = `floor ${summary.breakThreshold.toFixed(2)}%, ${outcome} by ${Math.abs(summary.thresholdMargin).toFixed(2)} pp`;
++  if (summary.recordedBreakThreshold === null || summary.recordedBreakThreshold === summary.breakThreshold) return current;
++  return `${current}; report recorded floor ${summary.recordedBreakThreshold.toFixed(2)}%`;
++}
++
++export function formatMutationSummary(
++  summary,
++  { htmlReport = "reports/mutation/index.html", jsonReport = "reports/mutation/mutation.json" } = {},
++) {
++  const counts = summary.counts;
++  const errors = countFor(counts, "CompileError") + countFor(counts, "RuntimeError");
++  const framework = [summary.framework.name, summary.framework.version].filter(Boolean).join(" ") || "Mutation testing";
++  const staticPercent = summary.totalMutants > 0 ? (summary.totalStaticMutants / summary.totalMutants) * 100 : 0;
++  const lines = [
++    `[mutation-report] ${framework}: ${formatPercent(summary.mutationScore)} (${thresholdText(summary)}); covered-code score ${formatPercent(summary.coveredMutationScore)}.`,
++    `[mutation-report] ${formatNumber(summary.totalMutants)} mutants: ${formatNumber(countFor(counts, "Killed"))} killed, ${formatNumber(countFor(counts, "Timeout"))} timeout, ${formatNumber(countFor(counts, "Survived"))} survived, ${formatNumber(countFor(counts, "NoCoverage"))} no coverage, ${formatCountedNoun(errors, "error")}, ${formatNumber(countFor(counts, "Ignored"))} ignored.`,
++    `[mutation-report] Static mutants: ${formatNumber(summary.totalStaticMutants)} (${staticPercent.toFixed(2)}% of all): ${formatNumber(countFor(summary.staticCounts, "Killed"))} killed, ${formatNumber(countFor(summary.staticCounts, "Timeout"))} timeout, ${formatNumber(countFor(summary.staticCounts, "Survived"))} survived, ${formatNumber(countFor(summary.staticCounts, "NoCoverage"))} no coverage, ${formatCountedNoun(countFor(summary.staticCounts, "CompileError") + countFor(summary.staticCounts, "RuntimeError"), "error")}, ${formatNumber(countFor(summary.staticCounts, "Ignored"))} ignored.`,
++  ];
++
++  if (summary.hotspots.length > 0) {
++    lines.push("[mutation-report] Highest-impact files by survived + no-coverage mutants:");
++    for (const hotspot of summary.hotspots) {
++      lines.push(
++        `[mutation-report]   ${hotspot.file} — ${formatNumber(hotspot.missed)} missed (${formatNumber(hotspot.survived)} survived, ${formatNumber(hotspot.noCoverage)} no coverage), ${formatPercent(hotspot.mutationScore)} score`,
++      );
++    }
++  }
++
++  lines.push(`[mutation-report] HTML: ${htmlReport}`, `[mutation-report] JSON: ${jsonReport}`);
++  return lines.join("\n");
++}
++
++export function reportMutationResults(
++  reportFile = "reports/mutation/mutation.json",
++  { configuredBreakThreshold = strykerConfig.thresholds?.break } = {},
++) {
++  const report = JSON.parse(readFileSync(reportFile, "utf8"));
++  const output = formatMutationSummary(summarizeMutationReport(report, { configuredBreakThreshold }), { jsonReport: reportFile });
++  console.log(output);
++  return output;
++}
++
++if (import.meta.url === pathToFileURL(process.argv[1]).href) {
++  try {
++    reportMutationResults(process.argv[2]);
++  } catch (error) {
++    console.error(`[mutation-report] Could not summarize the mutation report: ${error.message}`);
++    process.exitCode = 1;
++  }
++}
+diff --git a/scripts/report-mutation-results.test.mjs b/scripts/report-mutation-results.test.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/report-mutation-results.test.mjs
+@@ -0,0 +1,91 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++
++import { formatMutationSummary, summarizeMutationReport } from "./report-mutation-results.mjs";
++
++const report = {
++  files: {
++    "src/a.ts": {
++      mutants: [
++        { status: "Killed", static: false },
++        { status: "Killed", static: false },
++        { status: "Timeout", static: false },
++        { status: "Survived", static: true },
++        { status: "Survived", static: false },
++        { status: "NoCoverage", static: true },
++      ],
++    },
++    "src/b.ts": {
++      mutants: [
++        { status: "Killed", static: true },
++        { status: "Survived", static: false },
++        { status: "NoCoverage", static: false },
++        { status: "NoCoverage", static: false },
++        { status: "CompileError", static: true },
++      ],
++    },
++    "src/c.ts": {
++      mutants: [
++        { status: "RuntimeError", static: false },
++        { status: "Ignored", static: false },
++      ],
++    },
++  },
++  framework: { name: "StrykerJS", version: "10.0.0" },
++  thresholds: { break: 39, high: 90, low: 80 },
++};
++
++test("summarizes score semantics, static mutants, and highest-impact files", () => {
++  const summary = summarizeMutationReport(report, { hotspotLimit: 2 });
++
++  assert.deepEqual(summary.counts, {
++    CompileError: 1,
++    Ignored: 1,
++    Killed: 3,
++    NoCoverage: 3,
++    RuntimeError: 1,
++    Survived: 3,
++    Timeout: 1,
++  });
++  assert.equal(summary.totalMutants, 13);
++  assert.equal(summary.mutationScore, 40);
++  assert.equal(summary.coveredMutationScore, (4 / 7) * 100);
++  assert.equal(summary.thresholdMargin, 1);
++  assert.deepEqual(summary.staticCounts, {
++    CompileError: 1,
++    Killed: 1,
++    NoCoverage: 1,
++    Survived: 1,
++  });
++  assert.deepEqual(
++    summary.hotspots.map(({ file, missed, noCoverage, survived }) => ({ file, missed, noCoverage, survived })),
++    [
++      { file: "src/b.ts", missed: 3, noCoverage: 2, survived: 1 },
++      { file: "src/a.ts", missed: 3, noCoverage: 1, survived: 2 },
++    ],
++  );
++});
++
++test("formats a concise terminal summary with report paths", () => {
++  const output = formatMutationSummary(summarizeMutationReport(report), {
++    htmlReport: "reports/mutation/index.html",
++    jsonReport: "reports/mutation/mutation.json",
++  });
++
++  assert.match(
++    output,
++    /^\[mutation-report\] StrykerJS 10\.0\.0: 40\.00% \(floor 39\.00%, pass by 1\.00 pp\); covered-code score 57\.14%\./u,
++  );
++  assert.match(output, /13 mutants: 3 killed, 1 timeout, 3 survived, 3 no coverage, 2 errors, 1 ignored\./u);
++  assert.match(output, /Static mutants: 4 \(30\.77% of all\): 1 killed, 0 timeout, 1 survived, 1 no coverage, 1 error, 0 ignored\./u);
++  assert.match(output, /Highest-impact files by survived \+ no-coverage mutants:/u);
++  assert.match(output, /src\/b\.ts — 3 missed \(1 survived, 2 no coverage\), 25\.00% score/u);
++  assert.match(output, /HTML: reports\/mutation\/index\.html/u);
++  assert.match(output, /JSON: reports\/mutation\/mutation\.json/u);
++});
++
++test("distinguishes the current floor from the floor recorded by an older report", () => {
++  const output = formatMutationSummary(summarizeMutationReport(report, { configuredBreakThreshold: 41 }));
++
++  assert.match(output, /40\.00% \(floor 41\.00%, fail by 1\.00 pp; report recorded floor 39\.00%\)/u);
++});
+diff --git a/scripts/run-mutation.mjs b/scripts/run-mutation.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-mutation.mjs
+@@ -0,0 +1,59 @@
++import { spawn } from "node:child_process";
++import { statSync } from "node:fs";
++import { join } from "node:path";
++import process from "node:process";
++import { pathToFileURL } from "node:url";
++
++import { reportMutationResults } from "./report-mutation-results.mjs";
++
++const defaultReportFile = "reports/mutation/mutation.json";
++
++export function mutationReportFingerprint(reportFile = defaultReportFile) {
++  try {
++    const { mtimeNs, size } = statSync(reportFile, { bigint: true });
++    return `${mtimeNs}:${size}`;
++  } catch (error) {
++    if (error.code === "ENOENT") return null;
++    throw error;
++  }
++}
++
++function spawnStryker(args) {
++  return new Promise((resolve) => {
++    const executable = join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "stryker.cmd" : "stryker");
++    const child = spawn(executable, ["run", ...args], { env: process.env, stdio: "inherit" });
++
++    child.once("error", (error) => {
++      console.error(`[mutation-report] Could not start Stryker: ${error.message}`);
++      resolve(1);
++    });
++    child.once("close", (code) => resolve(code ?? 1));
++  });
++}
++
++export async function runMutation({
++  args = process.argv.slice(2),
++  fingerprint = mutationReportFingerprint,
++  report = reportMutationResults,
++  reportFile = defaultReportFile,
++  run = spawnStryker,
++} = {}) {
++  const before = fingerprint(reportFile);
++  const exitCode = await run(args);
++  const after = fingerprint(reportFile);
++
++  if (after !== null && after !== before) {
++    try {
++      report(reportFile);
++    } catch (error) {
++      console.error(`[mutation-report] Could not summarize the new mutation report: ${error.message}`);
++      return exitCode === 0 ? 1 : exitCode;
++    }
++  }
++
++  return exitCode;
++}
++
++if (import.meta.url === pathToFileURL(process.argv[1]).href) {
++  process.exitCode = await runMutation();
++}
+diff --git a/scripts/run-mutation.test.mjs b/scripts/run-mutation.test.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-mutation.test.mjs
+@@ -0,0 +1,40 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++
++import { runMutation } from "./run-mutation.mjs";
++
++test("summarizes a newly written report and preserves Stryker's exit code", async () => {
++  const fingerprints = ["before", "after"];
++  const calls = [];
++
++  const exitCode = await runMutation({
++    args: ["--incremental"],
++    fingerprint: () => fingerprints.shift(),
++    report: (file) => calls.push(["report", file]),
++    run: async (args) => {
++      calls.push(["run", ...args]);
++      return 7;
++    },
++  });
++
++  assert.equal(exitCode, 7);
++  assert.deepEqual(calls, [
++    ["run", "--incremental"],
++    ["report", "reports/mutation/mutation.json"],
++  ]);
++});
++
++test("does not summarize a stale report when Stryker writes no JSON", async () => {
++  let reportCalls = 0;
++
++  const exitCode = await runMutation({
++    fingerprint: () => "unchanged",
++    report: () => {
++      reportCalls += 1;
++    },
++    run: async () => 0,
++  });
++
++  assert.equal(exitCode, 0);
++  assert.equal(reportCalls, 0);
++});

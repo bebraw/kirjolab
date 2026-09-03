@@ -1,54 +1,18 @@
 ---
 name: review
-description: Review proposed changes for vibe-template projects. Use when the user asks for a review, wants risks or regressions identified, or needs a code-focused quality pass before landing work, while keeping the review concrete, prioritized, and grounded in the repo's lightweight standards.
+description: Review proposed changes for concrete bugs, regressions, architecture drift, documentation gaps, and missing verification before landing them.
 ---
 
 # Review
 
-This project is a lightweight starter for AI-assisted experiments and small software projects. Reviews should focus on bugs, regressions, maintainability risks, and quality-gate gaps rather than broad stylistic commentary.
+Inspect the actual diff and enough surrounding code to understand intent. Prioritize:
 
-## When To Use
+1. behavioral or security regressions;
+2. broken contracts and quality-gate gaps;
+3. architecture or maintainability drift;
+4. missing documentation for changed behavior;
+5. low-priority polish.
 
-Use this skill when the user is:
+Report findings first, ordered by severity. Each finding must name the location, concrete failure or maintenance cost, why it matters, and a fix direction. Do not present preferences or unsupported possibilities as defects.
 
-- asking for a code review
-- asking whether a change is safe to merge
-- requesting bug, regression, or risk analysis
-- looking for a quality pass before commit or release
-
-## Review Priorities
-
-1. Behavioral regressions
-2. Broken quality-gate expectations
-3. Maintainability or architecture drift
-4. Missing or misleading documentation for user-visible changes
-5. Lower-priority polish issues
-
-## Workflow
-
-1. Inspect the actual diff or changed files first.
-2. Look for concrete failure modes before stylistic preferences.
-3. Check whether the change still fits the repo's lightweight and reusable nature.
-4. Verify whether tests, type checks, formatting, and other relevant gates were updated or bypassed.
-5. Report only findings that materially help the user decide what to fix next.
-
-## Output Shape
-
-- Present findings first, ordered by severity.
-- Include file references whenever possible.
-- Keep each finding concrete: what is wrong, why it matters, and what behavior or maintenance risk it creates.
-- If there are no findings, say so explicitly and mention any residual risk or verification gaps.
-
-## Repo Guidance
-
-- Prefer review comments that preserve the template's small, reusable shape.
-- Call out undocumented architectural changes that should update ADRs or specs.
-- Treat missing quality-gate coverage as a real issue when the change meaningfully alters behavior.
-- Do not invent problems just to make the review look thorough.
-
-## Anti-Patterns
-
-- Do not lead with summaries when there are real findings.
-- Do not focus on formatting nitpicks when there are behavioral issues.
-- Do not speculate about bugs without tying them to code or concrete execution paths.
-- Do not treat personal preference as a defect.
+Check fit with the repository's lightweight template purpose, specs, ADRs, tests, type checks, and required gates. If no findings remain, say so and state residual verification gaps.

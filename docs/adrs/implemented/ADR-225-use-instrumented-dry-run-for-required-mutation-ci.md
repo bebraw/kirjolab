@@ -9,6 +9,8 @@
 [ADR-213](./ADR-213-protect-main-with-authoritative-ci.md), and
 [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
 
+**Amended by:** [ADR-233](./ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)
+
 ## Context
 
 ADR-216 bounded the required GitHub mutation job to production sources selected

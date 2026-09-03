@@ -8,6 +8,11 @@ Kirjolab should retain agent workflows that directly support its architecture
 without vendoring large platform-documentation snapshots already available from
 connected tools.
 
+The skill baseline targets capable agents that can inspect repositories, use
+tools, and apply ordinary engineering judgment. Skill context should carry
+routing, Kirjolab-specific decisions, non-obvious invariants, exact local
+interfaces, and safety boundaries rather than generic tutorials.
+
 Focused correctness review, test review, and debugging workflows should provide
 concrete evidence without making the broad review skill heavier. Large,
 uncertain initiatives also need a lightweight way to preserve discovery across
@@ -30,12 +35,16 @@ runtime behavior.
 - **Composition root:** `AGENTS.md` for model routing
 - **Discovery catalog:** the `README.md` Agent Skills section links every
   canonical installed skill and identifies explicit-only workflows
+- **Instruction budget:** concise descriptions and entrypoints;
+  version-sensitive manuals stay in current primary documentation rather than
+  prompt context
 - **Cloudflare knowledge and account layer:** connected Cloudflare MCP
 - **Worker implementation skill:** `workers-best-practices`
 - **Cloudflare CLI skill:** `wrangler`
 - **Durable Object skill:** `durable-objects`
 - **Other specialized Cloudflare skills:** added with the capability that needs
   them
+- **Sandbox SDK skill:** absent until Kirjolab adopts `@cloudflare/sandbox`
 - **Focused correctness skill:** `.codex/skills/correctness-review/`
 - **Focused test skill:** `.codex/skills/test-review/`
 - **Systematic debugging skill:** `.codex/skills/debug/`
@@ -51,6 +60,12 @@ runtime behavior.
 
 - Do not vendor broad Cloudflare documentation snapshots when the connected MCP
   supplies current retrieval.
+- Do not embed static CLI catalogs, framework inventories, metric thresholds,
+  or API tutorials that current tools and primary documentation can resolve.
+- Do not repeat generic model capabilities when a project-specific constraint
+  is sufficient.
+- Do not add persistent persona or output-compression skill suites to the
+  repository baseline.
 - Do not treat the MCP as a replacement for local Worker, Wrangler, or Durable
   Object implementation workflows.
 - Do not retain product-specific skills for capabilities Kirjolab does not use.
@@ -80,6 +95,8 @@ runtime behavior.
       capabilities.
 - [ ] Broad and unused Cloudflare skill bundles are absent from both supported
       roots.
+- [ ] `sandbox-sdk` is absent while the repository has no Sandbox SDK runtime
+      dependency or feature contract.
 - [ ] Agent guidance routes current Cloudflare documentation, API discovery,
       and account operations through the connected MCP.
 - [ ] Product-specific skills are introduced only with the capability that
@@ -99,6 +116,8 @@ runtime behavior.
       records alternative verification for documented exceptions.
 - [ ] The adopted skills reuse Kirjolab's existing ADR, spec, authorization,
       test, and quality-gate conventions without runtime dependencies.
+- [ ] Skill descriptions remain discriminating and normally fit within 30
+      words; entrypoints contain only decision-changing guidance.
 - [ ] The README catalog links every installed canonical skill and keeps
       explicit-only workflows visibly distinguished.
 
@@ -106,6 +125,14 @@ runtime behavior.
 
 - The baseline must not reintroduce `cloudflare`, `agents-sdk`, or
   `cloudflare-email-service` without an explicit architecture change.
+- The baseline must not reintroduce `sandbox-sdk` or communication-style skill
+  suites without adopting their capability explicitly.
+- Compact rewrites must preserve destructive-action approval, secret handling,
+  retrieval pins, telemetry controls, public-seam testing, evidence thresholds,
+  and repository verification rules.
+- Version-sensitive commands and thresholds must be retrieved from current
+  primary sources or resolved from installed tool help rather than accumulated
+  in skill entrypoints.
 - The three retained Cloudflare skill copies must remain available while
   Kirjolab uses Cloudflare Workers and Durable Objects.
 - Removing a skill must not implicitly remove or change runtime behavior.
@@ -130,8 +157,11 @@ runtime behavior.
 
 - **Cloudflare skills:** confirm `workers-best-practices`, `wrangler`, and
   `durable-objects` remain present under both intentionally supported roots
-- **Pruned bundles:** confirm `cloudflare`, `agents-sdk`, and
-  `cloudflare-email-service` remain absent from both roots
+- **Pruned bundles:** confirm unused Cloudflare product skills, `sandbox-sdk`,
+  and communication-style suites are absent from repository skill roots
+- **Instruction size:** inspect `wc -w $(rg --files .codex/skills -g SKILL.md)`
+  and review growth that is not justified by a fragile workflow or safety
+  boundary
 - **Focused engineering skills:** confirm
   `.codex/skills/{correctness-review,test-review,debug}/SKILL.md` and their
   license files exist and retain the reviewed source revision
@@ -166,6 +196,13 @@ runtime behavior.
 - When: that capability is approved
 - Then: Kirjolab adds only the relevant skill instead of restoring the complete
   Cloudflare bundle
+
+**Scenario: Agent needs version-sensitive syntax**
+
+- Given: an installed CLI, platform API, or browser metric may have changed
+- When: a skill guides implementation or review
+- Then: the agent retrieves current primary documentation or installed-tool
+  help and keeps only Kirjolab-specific invariants in prompt context
 
 **Scenario: Changed logic needs focused review**
 

@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` and `.capabilities/quality-gate/` first 
 Add the mutation testing dependencies:
 
 ```bash
-npm install --save-dev @stryker-mutator/core@9.6.1 @stryker-mutator/typescript-checker@9.6.1 @stryker-mutator/vitest-runner@9.6.1
+npm install --save-dev @stryker-mutator/core@10.0.0 @stryker-mutator/typescript-checker@10.0.0 @stryker-mutator/vitest-runner@10.0.0
 ```
 
 Add or merge this script:
@@ -17,7 +17,8 @@ Add or merge this script:
 ```json
 {
   "scripts": {
-    "mutation": "stryker run"
+    "mutation": "node ./scripts/run-mutation.mjs",
+    "mutation:report": "node ./scripts/report-mutation-results.mjs"
   }
 }
 ```
@@ -39,6 +40,8 @@ Adapt the quality-gate command to the target repo's existing browser or integrat
 Copy or merge:
 
 - `files/stryker.config.mjs` to `stryker.config.mjs`
+- `files/scripts/report-mutation-results.mjs` to `scripts/report-mutation-results.mjs`
+- `files/scripts/run-mutation.mjs` to `scripts/run-mutation.mjs`
 
 Adapt these config fields when needed:
 
@@ -59,3 +62,11 @@ Document these write targets wherever the target repo tracks development workflo
 
 - `reports/mutation/`
 - `.stryker-tmp/`
+
+The long-run config intentionally keeps exhaustive test and mutant listings out
+of clear text. The wrapper prints a compact terminal summary after any fresh
+JSON report, including threshold failures, while the HTML report retains full
+drill-down detail. Use a separate bounded command with Stryker's `clear-text`
+reporter when a target project wants individual affected-mutant output.
+The supplied clear-text options suppress the full related-test inventory while
+retaining survivor details and at most three relevant tests per survivor.

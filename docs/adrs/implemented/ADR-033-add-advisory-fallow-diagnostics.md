@@ -64,7 +64,7 @@ public members on `DurableObject` subclasses as framework-invoked RPC surface.
 This keeps generated types and Cloudflare's runtime dispatch model from
 obscuring actionable new-only findings.
 
-Fallow 3.10's optional TypeScript-Go pass runs separately from the syntactic
+Fallow 3.21's optional TypeScript-Go pass runs separately from the syntactic
 changed-code audit. The semantic pass receives the repository's root, browser,
 and Workers-test TypeScript projects explicitly, uses best-effort completeness,
 and refines existing export, type, and class-member candidates without emitting

@@ -1,0 +1,45 @@
+{
+  "name": "local-ci",
+  "description": "Add local GitHub Actions execution through Local CI.",
+  "dependencies": {
+    "dev": {
+      "run-local-ci": "0.18.1"
+    }
+  },
+  "scripts": {
+    "ci:local": "local-ci run --quiet --json --pause-on-failure --workflow .github/workflows/ci.yml --prewarm-through .github/workflows/ci.yml:quality-fast:install",
+    "ci:local:retry": "local-ci retry"
+  },
+  "files": [
+    {
+      "source": "files/.env.local-ci.example",
+      "target": ".env.local-ci.example",
+      "mode": "copy"
+    },
+    {
+      "source": "files/.codex/skills/local-ci/SKILL.md",
+      "target": ".codex/skills/local-ci/SKILL.md",
+      "mode": "copy-or-merge"
+    }
+  ],
+  "optionalSteps": [
+    {
+      "name": "github-actions-workflow",
+      "when": "The target repo has no .github/workflows/*.yml or .github/workflows/*.yaml files.",
+      "prompt": "This repo has no GitHub Actions workflow for Local CI to run. Do you want me to add a minimal npm CI workflow as part of this upgrade?",
+      "recipe": "recipes/github-actions.md"
+    }
+  ],
+  "docs": [
+    "Document Docker prerequisites and the canonical local CI command.",
+    "Document LOCAL_CI_DOCKER_HOST when a non-default Docker socket is needed.",
+    "Record any new target-project verification contract in the target repo's durable docs."
+  ],
+  "verify": ["npm run ci:local"],
+  "notes": [
+    "Combine --quiet with --json so agents receive structured lifecycle progress without animated terminal output.",
+    "Give one deterministic npm install step a stable id and select it with --prewarm-through before parallel jobs start.",
+    "Use current Local CI cache isolation instead of forcing --jobs 1 or adding repo-local install locks.",
+    "Keep the target repo's package manager and workflow names unless there is a documented reason to change them."
+  ]
+}

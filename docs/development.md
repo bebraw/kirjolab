@@ -14,9 +14,8 @@ The repository vendors the ASDLC knowledge base in `.asdlc/`.
 
 ## Local CI
 
-Routine local CI runs natively on the supported macOS host. The pinned Agent CI
-runner from `agent-ci.dev` remains available for optional workflow and Linux
-container parity.
+Routine local CI runs natively on the supported macOS host. The pinned Local CI
+runner remains available for optional workflow and Linux-container parity.
 
 ### Prerequisites
 
@@ -27,10 +26,10 @@ container parity.
 - The exact Node.js version is pinned in `package.json`, mirrored in `.nvmrc` for `nvm` users, and read directly by CI through `actions/setup-node`.
 - The repo requires npm 11 in `package.json` but does not pin one exact patch release. Local development, CI, and platforms such as Cloudflare may use different npm 11 patch versions as long as they stay inside the supported major range.
 - Copy `.dev.vars.example` to `.dev.vars` and replace placeholder values when a project needs local secrets.
-- Copy `.env.agent-ci.example` to `.env.agent-ci` only when you need machine-local overrides for optional container parity. Agent CI loads that file automatically.
-- If your clone has no `origin` remote, set `GITHUB_REPO=owner/repo` in `.env.agent-ci` to stop Agent CI from warning while inferring the repository name.
-- If Agent CI needs a non-default Docker socket or daemon, set `AGENT_CI_DOCKER_HOST=...` in `.env.agent-ci`.
-- Start a Docker runtime before running Agent CI.
+- Copy `.env.local-ci.example` to `.env.local-ci` only when you need machine-local overrides for optional container parity. Local CI loads that file automatically.
+- If your clone has no `origin` remote, set `GITHUB_REPO=owner/repo` in `.env.local-ci` to stop Local CI from warning while inferring the repository name.
+- If Local CI needs a non-default Docker socket or daemon, set `LOCAL_CI_DOCKER_HOST=...` in `.env.local-ci`.
+- Start a Docker runtime before running optional container Local CI.
 - Install the GitHub Actions runner image once with `docker pull ghcr.io/actions/actions-runner:latest`.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
@@ -39,7 +38,7 @@ The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflar
 
 The repository root contains an evaluation-only Compose distribution. It is a
 way to try Kirjolab, not the macOS source-development baseline or the optional
-Agent CI container. From a clean checkout, Docker supplies the pinned Node.js
+Local CI container. From a clean checkout, Docker supplies the pinned Node.js
 runtime and all application dependencies:
 
 ```sh
@@ -157,13 +156,13 @@ For local development only, copy `.dev.vars.example` to the ignored `.dev.vars` 
 
 If optional container parity fails with `No such image: ghcr.io/actions/actions-runner:latest`, pull that image manually and re-run the workflow.
 
-If optional container parity warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` to `.env.agent-ci` and rerun the workflow.
+If optional container parity warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` to `.env.local-ci` and rerun the workflow.
 
 ### Commands
 
 - Run the native local readiness gate with live phase output using
   `npm run ci:local`.
-- Run the GitHub Actions workflow in Agent CI containers only when Linux or
+- Run the GitHub Actions workflow in Local CI containers only when Linux or
   workflow-orchestration parity matters using `npm run ci:local:container`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
 - Rebuild the content-fingerprinted application, service worker, Markdown
@@ -300,10 +299,10 @@ the related initial Vitest run without executing mutant plans or calculating a
 score. It has a 10-minute timeout and does not repeat on the merge push to
 `main`. Use `npm run mutation:incremental`, `npm run mutation:affected`, or
 `npm run mutation` explicitly when scored mutation feedback is needed.
-Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container
+Dependency installation uses plain `npm ci`. Optional Local CI 0.18.1 container
 parity explicitly prewarms through the fast job's stable `install` step, then
 gives concurrent jobs isolated writable dependency views. Its wrapper consumes
-Agent CI's versioned JSON events and reports each job and step with elapsed
+Local CI's versioned JSON events and reports each job and step with elapsed
 time, including a heartbeat every 15 seconds.
 
 If authenticated pushes create no workflow runs even though the Actions API
@@ -431,10 +430,19 @@ The coverage gate is stricter than the basic test run. `npm run test:coverage` m
 Mutation testing uses Stryker with Vitest. `npm run mutation` performs an
 explicit full mutation audit with the TypeScript checker against runtime
 `src/**/*.ts` files while excluding declarations, unit tests, end-to-end tests,
-and `src/test-support.ts`. It includes static mutants and the configured
-detailed reports. `npm run mutation:affected` accepts an explicit Stryker
+and `src/test-support.ts`. It includes static mutants, periodic progress, and
+the configured HTML and JSON reports. When Stryker finalizes a fresh JSON
+report, the command prints a concise summary of the aggregate and covered-code
+scores, threshold margin, status and static-mutant totals, and the ten files
+with the most survived plus no-coverage mutants. The wrapper preserves
+Stryker's exit status, including threshold failures. `npm run mutation:report`
+prints the same summary from the latest JSON report without starting a new run.
+Use the HTML report for individual mutant drill-down. `npm run
+mutation:affected` accepts an explicit Stryker
 `--mutate` list, ignores static mutants, and retains concise clear-text and
-progress reporting for a human-readable bounded signal. The automated
+progress reporting for a human-readable bounded signal. Clear text omits the
+full related-test inventory but retains undetected-mutant diffs, up to three
+relevant tests per survivor, and the score table. The automated
 pre-push selector appends `--reporters progress` so its final option overrides
 the base reporters.
 `npm run mutation:incremental` enables Stryker incremental mode so repeated
@@ -490,11 +498,12 @@ roughly another five hours. The required remote check therefore preserves the
 distinct Stryker-worker compatibility signal without making hosted mutant
 execution a merge prerequisite.
 
-The base `stryker.config.mjs` break threshold remains 68, rebased to the whole-
-number score observed after the well-tested local Markdown renderer moved
-behind the Scholarmark package boundary; the 80 and 90 warning bands remain
-visible. It remains blocking for full, affected, incremental, and pre-push
-mutation. The required pull-request compatibility smoke does not evaluate that
+The base `stryker.config.mjs` break threshold is temporarily 63, based on the
+complete 63.15% Stryker 10 migration run recorded in ADR-233; the 80 and 90
+warning bands remain visible. It remains blocking for full, affected,
+incremental, and pre-push mutation. Do not lower it again without measured
+evidence and an ADR; focused test hardening should first restore the previous
+68 floor. The required pull-request compatibility smoke does not evaluate that
 threshold; run affected mutation through pre-push or an explicit local command
 for assertion-strength evidence, and run `npm run mutation` explicitly for a
 full audit.
@@ -515,12 +524,16 @@ stay out of Stryker's instrumented repetitions. They still run in ordinary unit
 and coverage CI. Small mutation-selected counterparts must cover the same
 parser behavior and every production limit guard or accumulator, including the
 accepted boundary, first rejected value, aggregate accounting where relevant,
-and stable typed failure. This convention depends on the worker marker exposed
-by the pinned Stryker release and must be reverified when that pin changes.
+and stable typed failure. Prefer a small production seam. When the guarded
+source belongs to an immutable published artifact, an isolated test module may
+instead tighten only the imported hard ceilings and exercise the unchanged
+public conversion interface; it must not reimplement the guard or alter the
+published source. This convention depends on the worker marker exposed by the
+pinned Stryker release and must be reverified when that pin changes.
 
 The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` files and `src/**/*.ts`, and `npm run typecheck` runs TypeScript 7. During the TypeScript 7.0 transition, `typescript` is intentionally pinned to the `@typescript/typescript6` compatibility package for tools that import the compiler API, while `typescript-7` provides the compiler used by the typecheck script.
 
-Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a syntactic changed-code audit for production-code complexity and duplication plus project dependency hygiene and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. Fallow 3 compares the branch with its upstream through a temporary Git worktree so its new-only verdict can distinguish introduced findings from inherited context. `npm run diagnostics:type-aware` runs Fallow 3.10's optional TypeScript-Go pass against the explicit root, browser, and Workers-test TypeScript projects. It refines existing export, type, and class-member candidates with exact static-use and contract evidence while conservatively retaining dynamic or incomplete cases; ordinary TypeScript diagnostics remain owned by `npm run typecheck`. The type-aware pass stays separate because new-only audit baselines cannot compare different semantic identities. Unit and end-to-end tests are excluded from Fallow complexity and duplication because exact boundary fixtures intentionally repeat structures; generated Worker declarations are excluded entirely, and Durable Object RPC methods are registered as framework-invoked members. Esbuild-only diagnostic and spike inputs plus the unit-test Cloudflare runtime shim are explicit entry points, while development-only CLI dependencies are classified separately from production dependencies. Formatting, linting, typechecking, and test execution remain authoritative for excluded files. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, refactoring targets, and advisory public-signature type coupling using the same explicit TypeScript projects. `npm run diagnostics:codebase` runs all three diagnostic views. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
+Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a syntactic changed-code audit for production-code complexity and duplication plus project dependency hygiene and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. Fallow 3 compares the branch with its upstream through a temporary Git worktree so its new-only verdict can distinguish introduced findings from inherited context. `npm run diagnostics:type-aware` runs Fallow 3.21's optional TypeScript-Go pass against the explicit root, browser, and Workers-test TypeScript projects. It refines existing export, type, and class-member candidates with exact static-use and contract evidence while conservatively retaining dynamic or incomplete cases; ordinary TypeScript diagnostics remain owned by `npm run typecheck`. The type-aware pass stays separate because new-only audit baselines cannot compare different semantic identities. Unit and end-to-end tests are excluded from Fallow complexity and duplication because exact boundary fixtures intentionally repeat structures; generated Worker declarations are excluded entirely, and Durable Object RPC methods are registered as framework-invoked members. Esbuild-only diagnostic and spike inputs plus the unit-test Cloudflare runtime shim are explicit entry points, while development-only CLI dependencies are classified separately from production dependencies. Formatting, linting, typechecking, and test execution remain authoritative for excluded files. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, refactoring targets, and advisory public-signature type coupling using the same explicit TypeScript projects. `npm run diagnostics:codebase` runs all three diagnostic views. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
 
 `npm run diagnostics:dependencies` reports direct production dependencies,
 unique production package/version nodes, and raw plus deterministic gzip sizes
@@ -558,7 +571,7 @@ Template update packs live under `.template/updates/`. Use them to port later te
 
 ## Write Boundaries
 
-Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/` and the private paper-import staging directory at `.generated/paper-import-package/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/` and the private paper-import staging directory at `.generated/paper-import-package/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Local CI caches belong under Local CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.local-ci`.
 
 `npm run maintenance:clean` removes only the documented disposable targets:
 `.stryker-tmp/`, `.wrangler/tmp/`, `.wrangler/logs/`, generated coverage,
@@ -603,7 +616,7 @@ cannot omit real Durable Object persistence verification. GitHub Actions runs
 separate fast, browser, and affected mutation jobs, with repository-shape
 validation included in the fast job. Native local CI runs the same fast and
 browser package scripts sequentially on the supported macOS host. The optional
-`npm run ci:local:container` path executes the complete workflow with Agent CI
+`npm run ci:local:container` path executes the complete workflow with Local CI
 when its orchestration or Linux container environment is the subject under
 test. Local browser installation should go through the pinned
 `npm run playwright:install` script.

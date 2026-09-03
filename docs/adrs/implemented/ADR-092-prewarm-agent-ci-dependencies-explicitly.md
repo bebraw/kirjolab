@@ -6,7 +6,8 @@
 
 **Partially supersedes:** [ADR-072](./ADR-072-report-local-ci-progress.md)
 
-**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md),
+[ADR-232](./ADR-232-adopt-local-ci-canonical-interface.md)
 
 ## Context
 
@@ -15,21 +16,24 @@ warm-cache preparation could leave concurrent jobs mutating the same writable
 dependency tree. That protected correctness but serialized the independent fast
 and browser workflow jobs.
 
-Agent CI 0.17.1 adds explicit prewarming and isolated writable dependency views
+Agent CI 0.17.1 introduced explicit prewarming and isolated writable dependency views
 for parallel jobs. Kirjolab already owns a small NDJSON formatter around the
 runner, so the new lifecycle must fit that wrapper without losing progress,
 heartbeat, pause, retry, or exit-code behavior.
 
 ## Decision
 
-Pin Agent CI 0.17.1. Give the fast workflow's deterministic `npm ci` step the
-stable id `install`, and select
+Pin the then-current Agent CI 0.17.1 compatibility package. Give the fast
+workflow's deterministic `npm ci` step the stable id `install`, and select
 `.github/workflows/ci.yml:quality-fast:install` with `--prewarm-through` from
 the local wrapper.
 
 Remove the one-job limit. Agent CI prepares dependencies once, then supplies
 each concurrent job with its own writable dependency view. The wrapper remains
 the canonical local entrypoint and continues to consume versioned JSON events.
+
+The local wrapper now uses the canonical Local CI interface described in
+[ADR-232](./ADR-232-adopt-local-ci-canonical-interface.md).
 
 ## Consequences
 

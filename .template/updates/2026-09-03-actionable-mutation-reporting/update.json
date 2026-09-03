@@ -1,0 +1,14 @@
+{
+  "id": "2026-09-03-actionable-mutation-reporting",
+  "title": "Add actionable mutation reporting",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md"],
+  "touches": ["package.json", "stryker.config.mjs", "scripts/", "docs/", "specs/"],
+  "checks": [
+    "node --test scripts/report-mutation-results.test.mjs scripts/run-mutation.test.mjs",
+    "npm run mutation -- --dryRunOnly",
+    "npm run format:check"
+  ]
+}

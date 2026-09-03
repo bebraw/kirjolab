@@ -3,7 +3,7 @@ import process from "node:process";
 
 const heartbeatIntervalMs = 15_000;
 const activeSteps = new Map();
-const command = process.platform === "win32" ? "agent-ci.cmd" : "agent-ci";
+const command = process.platform === "win32" ? "local-ci.cmd" : "local-ci";
 const child = spawn(
   command,
   [
@@ -47,72 +47,84 @@ heartbeat.unref();
 
 child.on("error", (error) => {
   clearInterval(heartbeat);
-  console.error(`[ci] Could not start Agent CI: ${error.message}`);
+  console.error(`[ci] Could not start Local CI: ${error.message}`);
   process.exitCode = 1;
 });
 
 child.on("close", (code, signal) => {
   clearInterval(heartbeat);
   if (buffer.trim()) reportLine(buffer);
-  if (signal) console.error(`[ci] Agent CI stopped by ${signal}`);
+  if (signal) console.error(`[ci] Local CI stopped by ${signal}`);
   process.exitCode = code ?? 1;
 });
 
 function reportLine(line) {
   if (!line.trim()) return;
-  let event;
-  try {
-    event = JSON.parse(line);
-  } catch {
+  const event = parseEvent(line);
+  if (!event) {
     console.log(line);
     return;
   }
 
-  switch (event.event) {
-    case "run.start":
-      runStartedAt = eventTime(event.ts);
-      console.log(`[ci] ▶ Local workflow started (${event.runId})`);
-      if (event.schemaVersion !== 1) {
-        console.error(`[ci] warning: unsupported Agent CI event schema ${event.schemaVersion}`);
-      }
-      break;
-    case "job.start":
-      console.log(`[ci] ▶ ${event.job}`);
-      break;
-    case "step.start":
-      activeSteps.set(stepKey(event), {
-        job: event.job,
-        name: event.step,
-        startedAt: eventTime(event.ts),
-      });
-      console.log(`[ci]   ▶ ${event.job} › ${event.index}. ${event.step}`);
-      break;
-    case "step.finish":
-      activeSteps.delete(stepKey(event));
-      console.log(`[ci]   ${statusMark(event.status)} ${event.job} › ${event.index}. ${event.step}${durationSuffix(event.durationMs)}`);
-      break;
-    case "job.finish":
-      console.log(`[ci] ${statusMark(event.status)} ${event.job}${durationSuffix(event.durationMs)}`);
-      break;
-    case "run.paused":
-      activeSteps.clear();
-      console.error(`[ci] ⏸ ${event.runner} paused${event.step ? ` at ${event.step}` : ""}`);
-      console.error(`[ci] Resume with: ${event.retry_cmd}`);
-      break;
-    case "run.finish":
-      activeSteps.clear();
-      runFinished = true;
-      console.log(
-        `[ci] ${statusMark(event.status)} Local workflow ${event.status}${durationSuffix(event.durationMs ?? Date.now() - runStartedAt)}`,
-      );
-      break;
-    case "diagnostic":
-      console.error(`[ci] ${event.level}: ${event.message}`);
-      break;
-    default:
-      console.log(line);
+  const reportEvent = eventReporters[event.event];
+  if (reportEvent) reportEvent(event);
+  else console.log(line);
+}
+
+function parseEvent(line) {
+  try {
+    return JSON.parse(line);
+  } catch {
+    return null;
   }
 }
+
+function reportRunStart(event) {
+  runStartedAt = eventTime(event.ts);
+  console.log(`[ci] ▶ Local workflow started (${event.runId})`);
+  if (event.schemaVersion !== 1) {
+    console.error(`[ci] warning: unsupported Local CI event schema ${event.schemaVersion}`);
+  }
+}
+
+function reportStepStart(event) {
+  activeSteps.set(stepKey(event), {
+    job: event.job,
+    name: event.step,
+    startedAt: eventTime(event.ts),
+  });
+  console.log(`[ci]   ▶ ${event.job} › ${event.index}. ${event.step}`);
+}
+
+function reportStepFinish(event) {
+  activeSteps.delete(stepKey(event));
+  console.log(`[ci]   ${statusMark(event.status)} ${event.job} › ${event.index}. ${event.step}${durationSuffix(event.durationMs)}`);
+}
+
+function reportRunPaused(event) {
+  activeSteps.clear();
+  console.error(`[ci] ⏸ ${event.runner} paused${event.step ? ` at ${event.step}` : ""}`);
+  console.error(`[ci] Resume with: ${event.retry_cmd}`);
+}
+
+function reportRunFinish(event) {
+  activeSteps.clear();
+  runFinished = true;
+  console.log(
+    `[ci] ${statusMark(event.status)} Local workflow ${event.status}${durationSuffix(event.durationMs ?? Date.now() - runStartedAt)}`,
+  );
+}
+
+const eventReporters = {
+  diagnostic: (event) => console.error(`[ci] ${event.level}: ${event.message}`),
+  "job.finish": (event) => console.log(`[ci] ${statusMark(event.status)} ${event.job}${durationSuffix(event.durationMs)}`),
+  "job.start": (event) => console.log(`[ci] ▶ ${event.job}`),
+  "run.finish": reportRunFinish,
+  "run.paused": reportRunPaused,
+  "run.start": reportRunStart,
+  "step.finish": reportStepFinish,
+  "step.start": reportStepStart,
+};
 
 function stepKey(event) {
   return `${event.runner}:${event.index}`;

@@ -1,0 +1,19 @@
+{
+  "id": "2026-08-31-compact-agent-skills",
+  "title": "Compact the agent skill baseline",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-231-target-a-compact-agent-skill-baseline.md"],
+  "touches": [
+    ".codex/skills/",
+    ".github/skills/",
+    ".agents/skills/",
+    ".capabilities/",
+    "ARCHITECTURE.md",
+    "README.md",
+    "docs/adrs/",
+    "specs/"
+  ],
+  "checks": ["npm run format:check", "npm run ci:local"]
+}

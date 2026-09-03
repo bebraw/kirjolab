@@ -9,6 +9,7 @@ bin/
 .wrangler/
 .dev.vars
 .env.agent-ci
+.env.local-ci
 .env
 .env.local
 playwright-report/

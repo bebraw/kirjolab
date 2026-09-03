@@ -5,13 +5,23 @@ const config = {
   $schema: "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   checkers: ["typescript"],
   cleanTempDir: "always",
+  clearTextReporter: {
+    logTests: true,
+    maxTestsToLog: 3,
+    reportMutants: true,
+    reportScoreTable: true,
+    reportTests: false,
+  },
   concurrency: 2,
   htmlReporter: {
     fileName: "reports/mutation/index.html",
   },
+  jsonReporter: {
+    fileName: "reports/mutation/mutation.json",
+  },
   mutate: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/*.test.ts", "!src/**/*.e2e.ts", "!src/test-support.ts"],
   packageManager: "npm",
-  reporters: ["clear-text", "progress", "html", "json"],
+  reporters: ["progress", "html", "json"],
   testRunner: "vitest",
   thresholds: {
     high: 90,

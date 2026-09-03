@@ -1,6 +1,6 @@
 ---
 name: correctness-review
-description: Review whether changed logic does what it claims — bugs, edge cases, broken contracts. Use when reviewing a diff for correctness, not just style or structure.
+description: Check changed logic for concrete bugs, edge cases, async failures, and broken caller contracts rather than style or structure.
 license: MIT
 metadata:
   source: https://github.com/cniska/skills
@@ -9,69 +9,8 @@ metadata:
 
 # Correctness Review
 
-Review whether the changed code actually does what it claims — the bugs that pass type-checking and linting but produce wrong results. This is the dimension the others miss: style, boundaries, coverage, and docs can all be clean while the logic is simply wrong.
+Read the diff, claimed behavior, surrounding callers, and relevant tests. Trace valid inputs, boundary values, failure paths, ordering, and asynchronous interleavings through the changed code.
 
-## Scope
+Flag a bug only when you can name a triggering input or sequence and the wrong observable result. Check for incorrect comparisons or operands, missed empty or boundary cases, swallowed failures, missing awaits, unexpected mutation, return-shape changes, nullability changes, and caller assumptions invalidated by the change. Do not re-report behavior an adequate existing test already proves.
 
-### 1. Logic
-
-- inverted or off-by-one conditions, wrong comparison or boolean operator
-- wrong variable, field, or argument order used
-- a calculation that produces the wrong result for a valid input
-
-### 2. Edge cases
-
-- unhandled empty, null, zero, negative, or maximum inputs
-- a missing early return or default branch — a case the code silently skips
-- a boundary where behavior flips (first/last, inclusive/exclusive)
-
-### 3. Control flow and async
-
-- missing `await`, unhandled rejection, or fire-and-forget that should block
-- errors swallowed or caught too broadly; a failure path that returns success
-- unreachable code, or a branch that can't be entered
-
-### 4. Contract
-
-- the function does not do what its name, signature, or doc claims
-- a caller's assumption the change now breaks (return shape, nullability, ordering)
-- shared state mutated without guarding a race, or written where callers don't expect it
-
-## Evidence threshold
-
-Flag a bug only with a concrete trigger: name the input or sequence and the wrong result it produces. If you can't state the input that breaks it, it's not a finding — it's a worry. Don't re-flag what an existing test already covers.
-
-## Workflow
-
-1. Read the diff and enough surrounding code to know what each change is _supposed_ to do.
-2. For each change, ask: what input or interleaving makes this do the wrong thing? Trace actual behavior against claimed behavior.
-3. Check the tests — a green suite around wrong behavior means the test is wrong too; note both.
-4. For large diffs (more than 3 files), delegate independent sub-agents — one per area — to surface candidate bugs. Verify each trigger yourself before reporting.
-
-## Output
-
-For each finding, report the **label**, **file**, **bug**, **triggering input → wrong result**, and **fix direction**. Use these labels:
-
-- **Critical:** the concrete trigger causes data loss or corruption, breaks a security or access boundary, or makes a core workflow unusable.
-- **Fix:** the concrete trigger produces incorrect behavior or breaks a contract and should block landing.
-- **Consider:** the concrete trigger produces a lower-impact defect that is safe to defer deliberately.
-
-Do not use a correctness label for style-only polish.
-
-- Bad: "This function looks fragile and could misbehave." (no trigger)
-- Good: **Fix** — `pricing.ts:40` `applyDiscount` uses `>` not `>=`, so an order exactly at the threshold gets nothing (total 100, threshold 100 → 0% instead of 10%).
-
-Order Critical → Fix → Consider. If nothing breaks under a concrete input, report "No correctness findings" — don't invent worries.
-
-## See also
-
-- `review` for broader merge-readiness framing
-- `test-review` for whether the bug's absence is guarded by a test
-- `debug` for reproducing and root-causing a confirmed bug
-
-## Red flags
-
-- Flagging style, naming, or structure as correctness — that's another dimension
-- A finding with no triggering input — speculation, not a bug
-- Re-deriving what a passing test already proves, with no new evidence
-- "Could theoretically" / "might" with no concrete case
+For each finding include severity, file, bug, `trigger → wrong result`, and fix direction. Order findings by severity. If no concrete trigger breaks behavior, report "No correctness findings" and any unverified boundary.
