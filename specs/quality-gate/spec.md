@@ -19,9 +19,8 @@ failures quickly during normal development.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
-- **Browser server output isolation:** each E2E Wrangler process writes to a
-  per-run log inside its temporary persistence directory; only a bounded tail
-  is forwarded when the process stops unexpectedly
+- **Browser Worker runtime:** Wrangler `4.116.0`, retained below the affected
+  releases until the upstream `wrangler dev` EPIPE regression is resolved
 - **Browser discovery failure policy:** Playwright must fail when the canonical
   suite resolves to zero tests; the gate must not use `--pass-with-no-tests`.
 - **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs
@@ -163,8 +162,8 @@ failures quickly during normal development.
 - [ ] Citation-provider diagnostics use production bounded adapters, report
       current coverage and completeness, and remain outside the hard gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
-- [ ] The browser gate keeps Wrangler output off Playwright's captured server
-      pipes and reports a bounded diagnostic when Wrangler exits unexpectedly.
+- [ ] The browser gate pins a Wrangler release demonstrated to keep its local
+      Worker runtime alive throughout the canonical Playwright suite.
 - [ ] The browser gate does not launch real artifact-analysis browser jobs for
       analysis endpoints that the E2E suite replaces with deterministic mocks.
 - [ ] The explicit full mutation audit covers runtime `src/**/*.ts` files with

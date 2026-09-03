@@ -31,12 +31,11 @@ The GitHub Actions workflow will:
 - run the browser gate in the version-pinned Playwright container image instead of installing Chromium during the job
 - cancel superseded runs for the same workflow and ref
 
-The Playwright-managed E2E servers will route each Wrangler process's stdout
-and stderr to a log inside that run's existing temporary persistence directory.
-The launcher emits a bounded tail of the log only when Wrangler stops
-unexpectedly. This keeps a closed Playwright output consumer from propagating
-an `EPIPE` into the Worker runtime while preserving an actionable failure
-diagnostic.
+The browser gate will retain Wrangler 4.116.0 while the upstream
+[`wrangler dev` EPIPE regression](https://github.com/cloudflare/workers-sdk/issues/15202)
+remains unresolved. Newer affected versions can terminate the local Worker
+runtime partway through Playwright's suite and turn the remaining journeys into
+misleading connection failures.
 
 The coverage gate will also treat colocated tests and test-support files as non-source inputs when deciding whether runtime source code lacks unit coverage.
 
@@ -50,7 +49,7 @@ The repo had reached the point where slow browser setup was the dominant verific
 
 - Fast failures return earlier in remote CI.
 - The browser job avoids repeated Chromium setup work by starting from the Playwright image.
-- Browser runs do not lose their Worker runtime when Playwright closes a captured output pipe.
+- Browser runs avoid the known Wrangler EPIPE failure that terminates the local Worker runtime.
 - Superseded CI runs stop consuming time once a newer push exists.
 - Local contributors gain a lighter `pnpm run quality:gate:fast` iteration path.
 - The coverage gate's source detection better reflects actual runtime code.
@@ -59,7 +58,7 @@ The repo had reached the point where slow browser setup was the dominant verific
 
 - The workflow is more complex than a single-job chain.
 - Dependency installation now happens in more than one CI job.
-- Live Wrangler diagnostics are buffered during E2E runs and shown only after an unexpected exit.
+- Wrangler upgrades must wait for an upstream fix or equivalent repository evidence that the EPIPE regression is resolved.
 
 **Neutral:**
 

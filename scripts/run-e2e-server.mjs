@@ -4,10 +4,7 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
 
-import { createWranglerLog } from "./e2e-wrangler-log.mjs";
-
 const persistenceDirectory = await mkdtemp(join(tmpdir(), "kirjolab-e2e-"));
-const wranglerLog = await createWranglerLog(persistenceDirectory);
 const port = process.env.KIRJOLAB_E2E_PORT ?? "8788";
 const inspectorPort = process.env.KIRJOLAB_E2E_INSPECTOR_PORT ?? "9230";
 const gitHubVariables = process.env.KIRJOLAB_E2E_GITHUB === "disabled" ? [] : gitHubTestVariables();
@@ -35,7 +32,7 @@ const wrangler = spawn(
     "--show-interactive-dev-session=false",
   ],
   {
-    stdio: wranglerLog.stdio,
+    stdio: "inherit",
     env: {
       ...process.env,
       CHOKIDAR_USEPOLLING: "1",
@@ -60,15 +57,7 @@ const result = await new Promise((resolve) => {
   wrangler.once("exit", (code, signal) => resolve({ code, signal }));
 });
 
-const stoppedUnexpectedly = !requestedSignal && ("error" in result || result.signal || result.code !== 0);
-const wranglerOutput = stoppedUnexpectedly ? await wranglerLog.readTail() : "";
-if (!stoppedUnexpectedly) await wranglerLog.close();
 await rm(persistenceDirectory, { recursive: true, force: true });
-
-if (stoppedUnexpectedly) {
-  const reason = "error" in result ? result.error.message : `code=${result.code ?? "none"}, signal=${result.signal ?? "none"}`;
-  process.stderr.write(`[e2e:server] Wrangler stopped unexpectedly (${reason}).\n${wranglerOutput}`);
-}
 
 if ("error" in result) throw result.error;
 if (!requestedSignal && result.signal) process.kill(process.pid, result.signal);
