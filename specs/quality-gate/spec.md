@@ -19,6 +19,8 @@ failures quickly during normal development.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
+- **Browser Worker runtime:** Wrangler `4.116.0`, retained below the affected
+  releases until the upstream `wrangler dev` EPIPE regression is resolved
 - **Browser discovery failure policy:** Playwright must fail when the canonical
   suite resolves to zero tests; the gate must not use `--pass-with-no-tests`.
 - **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs
@@ -36,6 +38,7 @@ failures quickly during normal development.
 - **PDF reference quality:** `npm run diagnostics:pdf-references`
 - **Live citation-provider coverage:** `npm run diagnostics:citation-providers`
 - **Explicit full mutation audit:** `npm run mutation`
+- **Latest mutation report summary:** `npm run mutation:report`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
 - **Manual incremental refresh:** `npm run mutation:incremental:refresh`
@@ -60,7 +63,7 @@ failures quickly during normal development.
 - **Local readiness:** `npm run ci:local` delegates to the native full gate
 - **Optional container parity:** `npm run ci:local:container`
 - **Container workflow formatter:** `scripts/run-local-ci.mjs`
-- **Container workflow progress source:** Agent CI versioned NDJSON events
+- **Container workflow progress source:** Local CI versioned NDJSON events
 - **Container workflow heartbeat:** every 15 seconds while the workflow is active
 - **Container retry:** `npm run ci:local:container:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
@@ -92,11 +95,20 @@ failures quickly during normal development.
 - **Paper-import package consumer baseline:** exact Node.js `24.15.0`, ESM,
   NodeNext declaration compilation, offline tarball installation, and
   consumer-owned PDF.js runtime injection
+- **Paper-import CI toolchain isolation:** `quality-fast` provisions the exact
+  release-manifest Node.js runtime into the GitHub runner tool cache before
+  restoring `package.json#engines.node` as the active repository runtime
 - **Codebase diagnostics config:** `.fallowrc.json`
 - **Formatting ownership exclusions:** duplicated `.github/skills/` content and
   vendored `.codex/skills/**/references/`
 - **Formatting cache:** content-based results under ignored `.cache/prettier`
 - **Mutation config:** `stryker.config.mjs`
+- **Long-run mutation reporter:** `scripts/run-mutation.mjs`
+- **Mutation summary formatter:** `scripts/report-mutation-results.mjs`
+- **Mutation report layers:** periodic console progress, a concise terminal
+  score/status/static/hotspot summary, interactive
+  `reports/mutation/index.html`, and machine-readable
+  `reports/mutation/mutation.json`
 - **Instrumented large-fixture exclusion:** Tests whose purpose is near-cap
   complexity or whose public integration fixture is inherently boundary-sized
   may skip only inside a Stryker worker, detected through the repository's
@@ -108,7 +120,10 @@ failures quickly during normal development.
   mutation-selected test of the production-used guard or accumulator that
   proves the accepted boundary, first rejected value, aggregation when
   applicable, and stable typed failure. A boundary-sized public fixture is not
-  a mutation-coverage waiver; use a small internal production seam.
+  a mutation-coverage waiver. Use a small internal production seam, or, when
+  production source belongs to an immutable published artifact, exercise the
+  unchanged public interface in an isolated test module that tightens only the
+  relevant hard ceilings. The test must not reimplement the guard.
 - **Mutation heap ceiling:** 8 GiB for TypeScript-aware Stryker instrumentation
 - **Readiness baseline:** `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests
@@ -123,7 +138,7 @@ failures quickly during normal development.
   latency, or quota state.
 - Do not make routine readiness depend on a container when the same
   authoritative package scripts run natively on the supported host.
-- Do not parse Agent CI's human-oriented logs when its versioned event stream
+- Do not parse Local CI's human-oriented logs when its versioned event stream
   provides the same state directly.
 - Do not treat advisory Fallow diagnostics as a replacement for formatting, type checking, runtime audit, unit coverage, browser tests, mutation testing, or Worker-specific guardrails.
 - Do not treat targeted iteration checks as a replacement for the readiness baseline unless the change is documentation-only and qualifies for the documented local CI exception.
@@ -147,11 +162,17 @@ failures quickly during normal development.
 - [ ] Citation-provider diagnostics use production bounded adapters, report
       current coverage and completeness, and remain outside the hard gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
+- [ ] The browser gate pins a Wrangler release demonstrated to keep its local
+      Worker runtime alive throughout the canonical Playwright suite.
 - [ ] The browser gate does not launch real artifact-analysis browser jobs for
       analysis endpoints that the E2E suite replaces with deterministic mocks.
 - [ ] The explicit full mutation audit covers runtime `src/**/*.ts` files with
       Stryker, Vitest, TypeScript checking, static mutants, and the configured
       full reporters.
+- [ ] Full and incremental mutation runs preserve Stryker's exit status, omit
+      exhaustive test and mutant dumps, and summarize every fresh JSON result
+      with aggregate and covered-code scores, threshold margin, status and
+      static-mutant totals, highest-impact files, and report paths.
 - [ ] The affected mutation gate retains TypeScript checking and limits routine
       pre-push mutation to affected Node-testable source files.
 - [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit full-surface local test-hardening runs while preserving a complete mutation report.
@@ -177,7 +198,7 @@ failures quickly during normal development.
       run inside a Stryker worker with progress output and a 10-minute bound.
 - [ ] The pull-request compatibility path executes no mutant plans or
       per-mutant TypeScript checks, finalizes no mutation-result report, and
-      evaluates no score threshold; the base 68 break remains blocking for
+      evaluates no score threshold; the temporary base 63 break remains blocking for
       full, affected, incremental, and pre-push mutation.
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
@@ -194,7 +215,7 @@ failures quickly during normal development.
 - [ ] The required pull-request mutation check retains the `quality-mutation`
       name and does not repeat after merge on pushes to `main`.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
-- [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
+- [ ] Optional container parity preserves Local CI job progress, failure, and retry semantics.
 - [ ] Tooling tests rebuild and pack the private paper-import candidate
       reproducibly, enforce the reviewed tarball allowlist and checked release
       manifest, reject Node/npm drift without resolving nested tools through
@@ -244,6 +265,16 @@ failures quickly during normal development.
 - Passing pre-push diagnostics must keep inherited Fallow findings and individual
   surviving-mutant listings out of routine output while preserving tool exit
   status, health score, mutation progress, and final mutation score.
+- Full and incremental Stryker runs must retain periodic progress plus HTML and
+  JSON detail without printing every discovered test or undetected mutant. A
+  newly finalized JSON report must produce a concise console summary even when
+  Stryker exits non-zero for the configured threshold, and the wrapper must
+  preserve that exit status.
+- Bounded affected clear-text runs must omit the full related-test inventory
+  while retaining undetected-mutant diffs, at most three relevant test names
+  per survivor, and the final score table.
+- `npm run mutation:report` must summarize the latest JSON report without
+  starting Stryker or writing a second persisted report.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
 - Fallow type-aware diagnostics must use the explicit root, browser, and
   Workers-test TypeScript projects with best-effort completeness, must remain
@@ -269,10 +300,12 @@ failures quickly during normal development.
   repetition.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.
-- The base mutation break threshold must remain at the whole-number baseline of
-  68 established after delegating the scientific Markdown implementation,
+- The base mutation break threshold must remain at the temporary whole-number
+  Stryker 10 migration baseline of 63 measured from a complete 63.15% run,
   while the 80 and 90 warning bands continue to expose mutation debt. It stays
-  blocking for full, affected, incremental, and pre-push mutation.
+  blocking for full, affected, incremental, and pre-push mutation; a further
+  reduction requires measured evidence and a new ADR, and test hardening should
+  restore at least the prior 68 floor.
 - A denominator-changing source delegation may recalibrate the aggregate break
   threshold only when the mutation surface remains unchanged and the measured
   score change is documented in an implemented ADR.
@@ -323,7 +356,7 @@ failures quickly during normal development.
   per-mutant TypeScript checks, finalize no mutation-result report, or evaluate
   a score threshold. Any selector, instrumentation, sandbox, or initial-test
   error must fail the required check.
-- The base Stryker break threshold of 68 must remain blocking for full,
+- The base Stryker break threshold of 63 must remain blocking for full,
   affected, incremental, and pre-push mutation runs.
 - The GitHub `quality-mutation` job must run only for pull requests, retain its
   branch-protection check name, stop after 10 minutes, and not repeat on pushes
@@ -345,11 +378,11 @@ failures quickly during normal development.
 - The CI workflow must keep using npm for install and verification steps without depending on one exact npm patch release.
 - The npm release used by CI must stay inside the supported npm range declared in `package.json`.
 - CI jobs must install dependencies with plain `npm ci`.
-- Optional container Agent CI must rely on its built-in warm-cache serialization instead of repo-local install locking.
+- Optional container Local CI must rely on its built-in warm-cache serialization instead of repo-local install locking.
 - The CI workflow must pin every GitHub Actions `uses:` action reference to a full commit SHA, with any tag information kept only as a comment.
 - The browser CI job must use the pinned Playwright container instead of reinstalling Chromium at runtime.
 - The coverage gate must only require unit tests when runtime `src/` code exists.
-- The coverage gate must work in both the normal workspace and local Agent CI's warmed `node_modules` layout.
+- The coverage gate must work in both the normal workspace and Local CI's warmed `node_modules` layout.
 - The Worker client-code guard must fail on inline script blocks without a `src`, inline event-handler attributes, and `javascript:` URLs in Worker/view runtime files while allowing external scripts from the typed client build.
 - The ADR registry guard must run in the fast gate and affected guardrails when
   ADR records, their index, or the validator change.
@@ -369,17 +402,17 @@ failures quickly during normal development.
 - The affected test path must run full unit coverage when affected-file helper logic changes.
 - The affected test path must run full unit coverage when affected runtime files have no related tests and no affected unit test files were supplied.
 - The affected guardrail path may fall back to project-level type checking or coverage when a safe per-file check is not available.
-- The optional container CI script should use the repo-pinned `agent-ci` binary directly instead of carrying repo-specific runtime patching or install locking.
+- The optional container CI script should use the repo-pinned `local-ci` binary directly instead of carrying repo-specific runtime patching or install locking.
 - The optional container CI script must explicitly prewarm through the stable fast
   job install step before concurrent jobs receive isolated writable dependency
   views.
 - The optional container CI script should use pause-on-failure so agents can fix and retry a failed runner without restarting the whole workflow.
-- The optional container CI formatter must consume Agent CI's versioned JSON event stream
+- The optional container CI formatter must consume Local CI's versioned JSON event stream
   instead of matching human log text.
-- The optional container CI formatter must preserve Agent CI's final process exit code,
+- The optional container CI formatter must preserve Local CI's final process exit code,
   attached pause-on-failure lifecycle, and retry command.
 - The optional container CI formatter must report a heartbeat at least every 15 seconds while
-  Agent CI is running without an active step completion.
+  Local CI is running without an active step completion.
 - The local verification workflow should document macOS as the supported host baseline instead of implying cross-platform support.
 - The Playwright server path must avoid macOS file-watcher exhaustion in local runs without changing the normal `npm run dev` workflow.
 - Playwright must ignore Stryker's generated `.stryker-tmp/` sandbox so an
@@ -389,8 +422,8 @@ failures quickly during normal development.
 - The isolated Playwright server must override `ARTIFACT_ANALYSIS_MODE` to
   `disabled`; the committed Wrangler default must remain `enabled` so normal
   development and deployed queue consumers retain production behavior.
-- The local CI documentation must cover the no-`origin` case through `.env.agent-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
-- The local CI Docker daemon override must use Agent CI's `AGENT_CI_DOCKER_HOST` variable instead of the general Docker CLI `DOCKER_HOST` variable.
+- The local CI documentation must cover the no-`origin` case through `.env.local-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
+- The local CI Docker daemon override must use Local CI's `LOCAL_CI_DOCKER_HOST` variable instead of the general Docker CLI `DOCKER_HOST` variable.
 - Local Playwright browser installation should go through a pinned repo script instead of ad hoc `npx playwright install ...` usage.
 - Targeted checks may be documented for iteration, but `npm run ci:local` remains the readiness baseline for non-documentation changes.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
@@ -507,9 +540,9 @@ failures quickly during normal development.
 
 **Scenario: Optional container workflow pauses on failure**
 
-- Given: an Agent CI workflow step fails
+- Given: a Local CI workflow step fails
 - When: `npm run ci:local:container` receives the paused-runner event
-- Then: it prints the failed runner and retry command while Agent CI remains
+- Then: it prints the failed runner and retry command while Local CI remains
   available for an attached retry
 
 **Scenario: Documentation-only change**

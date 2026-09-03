@@ -1,5 +1,6 @@
 import { strToU8 } from "fflate";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
+import { describeOutsideMutation } from "../../test-support/mutation";
 import { analyzeLatexArchiveFiles, type LatexArchiveFile } from "./latex-archive";
 import {
   LatexConversionError,
@@ -28,7 +29,7 @@ function captureFailure(run: () => unknown): unknown {
   return undefined;
 }
 
-describe("LaTeX provenance limits", () => {
+describeOutsideMutation("LaTeX provenance limits", () => {
   it("allows prose provenance above the independent figure ceiling", () => {
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", nestedListSource(1_000))]), {
       rootPath: "paper.tex",

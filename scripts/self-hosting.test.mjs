@@ -56,7 +56,7 @@ test("keeps the evaluation container loopback-only, persistent, and non-root", a
     readFile(projectFile(".dockerignore"), "utf8"),
   ]);
 
-  assert.match(dockerfile, /^FROM node:24\.15\.0-bookworm-slim$/mu);
+  assert.match(dockerfile, /^FROM node:24\.20\.0-bookworm-slim$/mu);
   assert.match(dockerfile, /^RUN npm ci --ignore-scripts && npm cache clean --force$/mu);
   assert.match(dockerfile, /^RUN npm run build$/mu);
   assert.match(dockerfile, /mkdir -p \/app\/\.wrangler \/app\/node_modules\/\.mf \/data/u);

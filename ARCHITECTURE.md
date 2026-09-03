@@ -25,6 +25,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Vendor third-party agent skills at a reviewed source revision, retain their
   license and provenance, and adapt only the integration points needed for
   Kirjolab's durable context and authorization boundaries.
+- Keep skill descriptions discriminating and entrypoints limited to
+  project-specific decisions, invariants, exact local commands, retrieval
+  routes, and safety boundaries. Assume a capable agent baseline; retrieve
+  version-sensitive manuals instead of vendoring command catalogs or teaching
+  generic engineering judgment.
 - Organize browser and domain source by product capability once a source root
   contains multiple cohesive feature clusters. Keep browser entrypoints at
   `src/client/`, colocate implementations with their tests in the owning
@@ -1977,7 +1982,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 ## Tooling Baseline
 
 - Local development and local CI target macOS as the supported host platform baseline.
-- Node is pinned exactly through `package.json`, and npm is constrained to a compatible major there instead of an exact patch pin.
+- Node is pinned exactly through `package.json`, npm is constrained to a
+  compatible major there instead of an exact patch pin, and `@types/node`
+  stays on the supported Node major.
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
 - The repo-managed `pre-push` Git hook should run affected-file guardrails,
   Fallow for affected codebase inputs, and targeted Stryker checks for affected
@@ -2011,14 +2018,22 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   mutation-result report, or evaluate a remote score threshold. Fail on any
   selector, instrumentation, sandbox, or initial-test error and keep the job
   within a 10-minute bound. Keep the base
-  `stryker.config.mjs` break threshold at 68 for full, affected, incremental,
-  and pre-push mutation. Do not repeat the compatibility smoke on the merge
-  push to `main`; retain `npm run mutation` as the explicit full local or manual
-  audit.
+  `stryker.config.mjs` break threshold at the temporary measured Stryker 10
+  baseline of 63 for full, affected, incremental, and pre-push mutation. Keep
+  the 80 and 90 reporting bands visible, do not reduce the floor again without
+  measured evidence and an ADR, and treat restoring at least 68 through test
+  hardening as explicit debt. Do not repeat the compatibility smoke on the
+  merge push to `main`; retain `npm run mutation` as the explicit full local or
+  manual audit.
+- Keep long Stryker output layered: periodic progress while mutants run, a
+  concise post-run score/status/static/hotspot summary even when the threshold
+  fails, and ignored HTML plus JSON reports for complete drill-down. Preserve
+  Stryker's exit status and keep bounded affected runs capable of emitting
+  individual mutant details.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.
-- Local Agent CI must explicitly prewarm through one deterministic install step
+- Optional container Local CI must explicitly prewarm through one deterministic install step
   before parallel jobs receive isolated writable dependency views. Do not
   restore shared mutable dependency mounts or repo-local install locks.
 - Keep Node Vitest responsible for fast pure-domain coverage and mutation

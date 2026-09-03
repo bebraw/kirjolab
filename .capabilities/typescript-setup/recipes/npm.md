@@ -7,15 +7,19 @@ Apply this recipe when the target repo uses npm.
 Add the TypeScript dependencies:
 
 ```bash
-npm install --save-dev typescript@6.0.3 @types/node@24.12.2
+npm install --save-dev --save-exact @types/node@24.13.3 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
 ```
+
+This keeps the TypeScript 6 compatibility package under the canonical
+`typescript` name for compiler-API tooling while exposing TypeScript 7 through
+the `typescript-7` alias used by the project typecheck command.
 
 Add or merge this script into `package.json`:
 
 ```json
 {
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit"
   }
 }
 ```

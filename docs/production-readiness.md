@@ -16,7 +16,7 @@ a general SaaS checklist.
 | Restore              | An authenticated drill verifies the latest manifest and binaries, restores logical state into a dedicated isolated Durable Object, and reads it back before digest comparison. | Run the isolated drill after the first hosted backup. Never overwrite live state during a drill.                                              |
 | Deployment           | Wrangler config includes bindings, migrations, generated assets, and observability, but defaults to local auth and has no custom-domain preflight.                             | A production command must require hostname, Access team domain, and audience; run strict dry-run checks; and refuse placeholder/local values. |
 | Observability        | Workers logs and sampled traces are enabled. `/api/health` is public and `/api/session` is authenticated.                                                                      | Document log tailing, smoke checks, version inspection, and rollback. Do not log JWTs, email addresses, manuscript text, or backup bodies.    |
-| Quality              | Unit, Workers-runtime, browser, coverage, mutation, and local Agent CI gates exist.                                                                                            | Run the full gate, local CI, Wrangler type check, deploy dry run, and startup check on the release commit.                                    |
+| Quality              | Unit, Workers-runtime, browser, coverage, mutation, and native local CI gates exist.                                                                                           | Run the full gate, local CI, Wrangler type check, deploy dry run, and startup check on the release commit.                                    |
 
 ## Explicitly Deferred
 
@@ -41,7 +41,7 @@ release commit:
 - a recovery drill restores into isolated recovery identities and compares the
   stable digest with the source backup
 - authenticated and unauthenticated production smoke checks pass
-- the full quality gate and local Agent CI pass
+- the full quality gate and native local CI pass
 - `wrangler versions list` shows the deployed version and the operator has the
   exact rollback command
 
@@ -53,7 +53,7 @@ unprotected `workers.dev` route must not expose application data.
 
 The 2026-07-13 release candidate passed the full quality gate (389 unit tests,
 40 Workers-runtime tests, 36 browser tests, 81.02% mutation score, and zero
-production dependency vulnerabilities), both local Agent CI jobs, generated
+production dependency vulnerabilities), both remote CI jobs, generated
 binding type validation, Wrangler startup analysis, and a strict production dry
 run with non-secret test identifiers. No Worker was uploaded.
 

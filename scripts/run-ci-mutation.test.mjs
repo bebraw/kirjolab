@@ -415,8 +415,15 @@ test("retains the bounded Stryker and TypeScript-checker contract", () => {
 
   assert.match(packageJson.scripts["mutation:affected"], /(?:^|\s)--ignoreStatic(?:\s|$)/u);
   assert.doesNotMatch(packageJson.scripts["mutation:affected"], /dryRunOnly/u);
-  assert.equal(strykerConfig.thresholds.break, 68);
+  assert.match(packageJson.scripts.mutation, /scripts\/run-mutation\.mjs/u);
+  assert.equal(packageJson.scripts["mutation:report"], "node ./scripts/report-mutation-results.mjs");
+  assert.equal(strykerConfig.thresholds.break, 63);
   assert.deepEqual(strykerConfig.checkers, ["typescript"]);
+  assert.equal(strykerConfig.clearTextReporter?.reportTests, false);
+  assert.equal(strykerConfig.clearTextReporter?.reportMutants, true);
+  assert.equal(strykerConfig.clearTextReporter?.maxTestsToLog, 3);
+  assert.deepEqual(strykerConfig.reporters, ["progress", "html", "json"]);
+  assert.equal(strykerConfig.jsonReporter?.fileName, "reports/mutation/mutation.json");
   assert.equal(strykerConfig.typescriptChecker?.prioritizePerformanceOverAccuracy, true);
 });
 

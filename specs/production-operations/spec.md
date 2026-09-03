@@ -163,7 +163,7 @@ not be operated under this production runbook or its recovery claims.
 - [x] Mutation-configuration pushes test affected production sources plus the
       stable canary without automatically rebuilding the full incremental
       report; explicit manual refresh remains available.
-- [x] Full quality gate, local Agent CI, generated type check, startup check,
+- [x] Full quality gate, optional container Local CI, generated type check, startup check,
       and production dry run pass.
 
 ### Bounds

@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import {
   createLatexConversionManifest,
   createLatexPreviewIdentity,
@@ -131,7 +132,43 @@ describe("neutral LaTeX preview identity", () => {
     ).not.toBe(digest);
   });
 
-  it("hashes repeated enclosing-figure provenance without quadratic canonical JSON", async () => {
+  it("hashes one figure and nested-list provenance in the conversion manifest", async () => {
+    const archive = zipSync({
+      "main.tex": strToU8(
+        "\\documentclass{article}\\begin{document}" +
+          "\\begin{figure}\\includegraphics{plot}\\caption{Plot}\\label{fig:plot}\\end{figure}" +
+          "\\begin{itemize}\\item Outer.\\begin{itemize}\\item Inner.\\end{itemize}\\end{itemize}" +
+          "\\end{document}",
+      ),
+      "plot.png": new Uint8Array([137, 80, 78, 71]),
+    });
+    const inspection = await inspectLatexArchive(archive);
+    const conversion = convertLatexProject(inspection, { rootPath: "main.tex" });
+    const manifest = createLatexConversionManifest(conversion);
+    const figure = conversion.figures[0];
+    const manifestFigure = manifest.semantics.figures[0];
+    const outerSource = conversion.proseBlocks[0]?.source;
+
+    expect(conversion.figures).toHaveLength(1);
+    expect(conversion.proseBlocks).toHaveLength(2);
+    expectHashedText(manifestFigure?.source, figure?.source ?? "");
+    expectHashedText(manifestFigure?.figureSource, figure?.figureSource ?? "");
+    expectHashedText(manifestFigure?.caption?.value, figure?.caption?.value ?? "");
+    expectHashedText(manifestFigure?.caption?.source, figure?.caption?.source ?? "");
+    expectHashedText(manifestFigure?.label?.value, figure?.label?.value ?? "");
+    expectHashedText(manifestFigure?.label?.source, figure?.label?.source ?? "");
+    expectHashedText(manifest.semantics.proseBlocks[0]?.source, outerSource ?? "");
+    expect(
+      digestLatexConversionManifest({
+        ...conversion,
+        proseBlocks: conversion.proseBlocks.map((block, index) =>
+          index === 0 ? { ...block, source: `${block.source.slice(0, -1)}x` } : block,
+        ),
+      }),
+    ).not.toBe(digestLatexConversionManifest(conversion));
+  });
+
+  itOutsideMutation("hashes repeated enclosing-figure provenance without quadratic canonical JSON", async () => {
     const references = "\\includegraphics{plot}\n".repeat(300);
     const archive = zipSync({
       "main.tex": strToU8(
@@ -160,7 +197,7 @@ describe("neutral LaTeX preview identity", () => {
     expect(serialized.length).toBeLessThan((inspection.files.find(({ path }) => path === "main.tex")?.text?.length ?? 0) * 80);
   });
 
-  it("hashes overlapping nested-list provenance without quadratic canonical JSON", async () => {
+  itOutsideMutation("hashes overlapping nested-list provenance without quadratic canonical JSON", async () => {
     const depth = 300;
     const nested =
       Array.from({ length: depth }, (_, index) => `\\begin{itemize}\\item Level ${index}.`).join("") + "\\end{itemize}".repeat(depth);

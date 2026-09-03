@@ -1,6 +1,6 @@
 ---
 name: test-review
-description: Review test adequacy for changed code — meaningful gaps, quality problems, and unnecessary tests. Use when reviewing whether changed code has adequate tests.
+description: Review whether changed behavior has meaningful, maintainable regression coverage without demanding tests for trivial or type-only behavior.
 license: MIT
 metadata:
   source: https://github.com/cniska/skills
@@ -9,61 +9,8 @@ metadata:
 
 # Test Review
 
-Review test adequacy for changed code. For large changes spanning many files or test suites, delegate independent sub-agents per logical area — one per package or suite — each returning gap candidates. Synthesize and filter in this session.
+Compare changed behavior with existing tests. Look for unguarded branches, errors, boundaries, configuration variants, and public contracts; also identify brittle, duplicative, obsolete, timing-dependent, or implementation-coupled tests.
 
-## Scope
+Flag a missing test only when you can name the concrete bug or regression it would catch. Prefer public behavior, independent expected values, and mocks only at true external boundaries. Do not demand 100% coverage or tests for behavior the type system already guarantees.
 
-### 1. Coverage gaps
-
-- new exported behavior with a plausible failure mode — name the bug a missing test would catch
-- new branches or error paths without coverage
-- changed behavior that existing tests do not exercise
-- renamed concepts or protocol terms without tests that cover the new form and guard the old form if needed
-
-### 2. Edge cases
-
-- boundary conditions (empty inputs, missing files, null/undefined)
-- error recovery paths (command not found, parse failures)
-- configuration variants the code handles
-
-### 3. Test quality
-
-- tests asserting implementation details instead of behavior (method call sequences break on refactor)
-- tests duplicating coverage without distinct scenarios
-- fragile tests (timing, ordering, absolute paths)
-- missing cleanup (temp files, cache state)
-- mocking internals instead of testing through the real contract — mock at boundaries only
-- test names that don't read as specifications
-- tests with more than one reason to fail — assert one behavior each
-
-### 4. Unnecessary tests
-
-- tests covering trivial pass-through or type-only modules
-- tests duplicating what the type system guarantees
-- tests for code that has since changed
-
-## Evidence threshold
-
-Flag a gap as Must-add or Should-add only if you can name the concrete bug or regression the test would catch. If you can't name the bug, don't flag it. Never demand 100% coverage.
-
-- Low-value (don't flag): `formatLabel()` has no test — trivial pass-through, no failure mode.
-- High-value (flag): `parseConfig()` on an empty file returns `undefined` but callers assume an object — untested path crashes startup.
-
-## Output
-
-For each finding: **label** (`Must-add` | `Should-add` | `Optional` | `Remove`), **source file + test file**, **what is untested**, **why it matters** (the concrete bug the test would catch), **fix direction**. When invoked from `review`, preserve these native labels; place Must-add and Should-add findings before Optional and Remove findings without renaming them.
-
-Group the summary by those labels. Cap Must-add/Should-add at ~5; fold the rest into one Optional line or omit. If nothing clears the threshold, say "No test findings".
-
-## See also
-
-- `tdd` for implementation-time test discipline
-- `review` for multi-axis merge decisions
-
-## Red flags
-
-- Demanding 100% line coverage
-- Flagging missing tests for trivial functions
-- Suggesting tests that only verify the type system
-- Broad test rewrites instead of targeted additions
-- Confusing test quantity with quality
+Label findings `Must-add`, `Should-add`, `Optional`, or `Remove`. Include source and test locations, the untested behavior, the concrete regression, and a fix direction. Cap required additions to the highest-value cases. If nothing clears the evidence threshold, report "No test findings."

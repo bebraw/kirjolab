@@ -33,6 +33,9 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-233](./implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)         | Implemented          | Adopt Stryker 10 with a measured temporary floor and concise hotspot-oriented reporting.                        |
+| [ADR-232](./implemented/ADR-232-adopt-local-ci-canonical-interface.md)                    | Implemented          | Use Local CI's canonical package and names for optional container parity while retaining native CI by default.  |
+| [ADR-231](./implemented/ADR-231-target-a-compact-agent-skill-baseline.md)                 | Implemented          | Target capable agents with compact, retrieval-first skills while retaining Kirjolab-specific guidance.          |
 | [ADR-230](./implemented/ADR-230-authenticate-private-corpus-mcp-with-access.md)           | Implemented          | Use Access Managed OAuth for private user-scoped MCP clients and reject unmapped service identities.            |
 | [ADR-229](./implemented/ADR-229-bound-corpus-library-rpc-queries.md)                      | Implemented          | Select bounded corpus artifact pages and records beside the Library storage authority.                          |
 | [ADR-228](./implemented/ADR-228-expose-corpus-through-http-and-mcp.md)                    | Partially superseded | Use versioned HTTP as the data plane and stateless MCP as a bounded semantic projection.                        |

@@ -38,6 +38,12 @@ compares npm's package identity, filename and size plus the emitted byte count
 and SHA-256 with the checked manifest. The command never updates the manifest;
 review and `apply_patch` remain the separate approval step for new bytes.
 
+Provision the current release manifest's exact Node.js runtime into the GitHub
+Actions tool cache before restoring the repository-pinned Node.js runtime as the
+active `PATH`. Package verification locates the secondary runtime through
+`RUNNER_TOOL_CACHE`; the rest of the quality gate continues to run on the
+repository pin.
+
 Enable GitHub immutable releases for this repository. Hand a reviewed private
 candidate to the named consumer as an asset on a namespaced release tag such as
 `paper-import-v0.1.2`. Create the release as a draft, attach the exact locally

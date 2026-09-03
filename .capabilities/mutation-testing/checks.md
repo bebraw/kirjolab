@@ -4,6 +4,7 @@ Run these after applying the mutation testing kit.
 
 ```bash
 npm run mutation
+npm run mutation:report
 ```
 
 Expected:
@@ -12,6 +13,9 @@ Expected:
 - Unit tests run through the Vitest runner.
 - TypeScript checking rejects type-invalid mutants before running tests.
 - Reports are written under `reports/mutation/`.
+- A fresh long run prints a concise score, threshold, status, static-mutant, and
+  hotspot summary without changing Stryker's exit status.
+- The report command summarizes the latest JSON without starting Stryker.
 - Temporary Stryker files stay under ignored `.stryker-tmp/`.
 - The command exits non-zero when the mutation score is below the configured break threshold.
 

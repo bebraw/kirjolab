@@ -74,6 +74,40 @@ test("resolves libc-qualified native canvas package names", () => {
   );
 });
 
+test("finds an exact release Node.js runtime provisioned in the GitHub runner tool cache", () => {
+  assert.deepEqual(
+    exactNodeCandidates("24.15.0", {
+      architecture: "x64",
+      currentExecutable: "/opt/hostedtoolcache/node/24.20.0/x64/bin/node",
+      homeDirectory: "/home/runner",
+      platform: "linux",
+      runnerToolCache: "/opt/hostedtoolcache",
+    }),
+    [
+      "/opt/hostedtoolcache/node/24.20.0/x64/bin/node",
+      "/home/runner/.nvm/versions/node/v24.15.0/bin/node",
+      "/opt/hostedtoolcache/node/24.15.0/x64/bin/node",
+      "/opt/homebrew/opt/node@24/bin/node",
+    ],
+  );
+});
+
+test("provisions the immutable paper-import release runtime before the repository runtime", async () => {
+  const { releaseManifest } = await loadCurrentPaperImportRelease();
+  const workflow = await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8");
+  const qualityFast = workflow.slice(workflow.indexOf("  quality-fast:"), workflow.indexOf("  quality-browser:"));
+  const releaseRuntimeStep = [
+    "      - name: Provision paper-import release Node.js",
+    "        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
+    "        with:",
+    `          node-version: ${releaseManifest.toolchain.node}`,
+    "          package-manager-cache: false",
+  ].join("\n");
+
+  assert.equal(qualityFast.includes(releaseRuntimeStep), true);
+  assert.equal(qualityFast.indexOf(releaseRuntimeStep) < qualityFast.indexOf("      - name: Set up Node.js"), true);
+});
+
 test("packs a reproducible private paper-import package for an isolated Node 24 consumer", async () => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "kirjolab-paper-import-package-"));
   try {
@@ -238,7 +272,7 @@ function canvasNativePackageName(packageNames, platform, architecture) {
 
 async function findExactNode(version) {
   const expected = `v${version}`;
-  const candidates = [process.execPath, join(homedir(), `.nvm/versions/node/v${version}/bin/node`), "/opt/homebrew/opt/node@24/bin/node"];
+  const candidates = exactNodeCandidates(version);
   for (const candidate of candidates) {
     try {
       await access(candidate, constants.X_OK);
@@ -249,6 +283,22 @@ async function findExactNode(version) {
     }
   }
   throw new Error(`Node ${version} is required for the isolated paper-import consumer test`);
+}
+
+function exactNodeCandidates(
+  version,
+  {
+    architecture = process.arch,
+    currentExecutable = process.execPath,
+    homeDirectory = homedir(),
+    platform = process.platform,
+    runnerToolCache = process.env.RUNNER_TOOL_CACHE,
+  } = {},
+) {
+  const candidates = [currentExecutable, join(homeDirectory, `.nvm/versions/node/v${version}/bin/node`)];
+  if (runnerToolCache) candidates.push(join(runnerToolCache, "node", version, architecture, "bin/node"));
+  if (platform === "darwin" || platform === "linux") candidates.push("/opt/homebrew/opt/node@24/bin/node");
+  return candidates;
 }
 
 async function createPoisonedToolPath(root) {

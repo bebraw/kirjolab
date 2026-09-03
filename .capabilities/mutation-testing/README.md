@@ -7,8 +7,11 @@ Use this kit to add the template's Stryker mutation testing setup to another npm
 - Stryker mutation testing with the Vitest runner.
 - TypeScript checker integration so type-invalid mutants are rejected before tests run.
 - A `mutation` script suitable for a full quality gate.
+- Periodic progress plus a concise post-run score, status, static-mutant, and hotspot summary that preserves Stryker's exit status.
+- Bounded clear-text output that omits the full test inventory while retaining
+  survivor diffs and a short list of relevant tests.
 - Runtime-source mutation globs that exclude declarations, colocated unit tests, end-to-end tests, and test support.
-- HTML and JSON mutation reports under `reports/mutation/`.
+- HTML and JSON mutation reports under `reports/mutation/`, with a read-only `mutation:report` command for summarizing the latest result.
 
 ## Good Fit
 
@@ -29,7 +32,7 @@ Use this kit to add the template's Stryker mutation testing setup to another npm
 1. Read `manifest.json`.
 2. Confirm the target repo has TypeScript and Vitest, or apply equivalent setup first.
 3. Follow `recipes/npm.md`.
-4. Copy or merge `files/stryker.config.mjs` into `stryker.config.mjs`.
+4. Copy or merge `files/stryker.config.mjs` into `stryker.config.mjs` and copy the two reporting scripts under `files/scripts/` into `scripts/`.
 5. Adapt `mutate`, `tsconfigFile`, and `vitest.configFile` if the target repo uses different source or config paths.
 6. Document `reports/mutation/` and `.stryker-tmp/` as workflow write targets in the target repo.
 7. Run the checks in `checks.md`.

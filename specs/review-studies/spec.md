@@ -677,7 +677,7 @@ published deliberately into several writing projects.
   Domain and Workers tests cover the lower-level conflict, exact-selector,
   synthesis publication, artifact-pin provenance, disclosure, export, backup,
   and restore boundaries.
-- The full quality gate and local Agent CI pass before the feature is treated as
+- The full quality gate and native local CI pass before the feature is treated as
   ready.
 
 ### Scenarios

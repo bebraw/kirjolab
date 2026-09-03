@@ -6,7 +6,7 @@
 
 **Amends:** [ADR-009](./ADR-009-split-fast-and-browser-verification.md), [ADR-017](./ADR-017-prune-redundant-package-scripts.md)
 
-**Amended by:** [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md), [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md), [ADR-134](./ADR-134-keep-mutation-explicit.md), [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md), [ADR-225](./ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)
+**Amended by:** [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md), [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md), [ADR-134](./ADR-134-keep-mutation-explicit.md), [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md), [ADR-225](./ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md), [ADR-233](./ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)
 
 ## Context
 

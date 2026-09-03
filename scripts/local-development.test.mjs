@@ -54,6 +54,12 @@ test("isolates E2E runs from artifact-analysis browser jobs", async () => {
   assert.match(server, /"ARTIFACT_ANALYSIS_MODE:disabled"/u);
 });
 
+test("pins the browser Worker runtime below the upstream EPIPE regression", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+  assert.equal(packageJson.devDependencies?.wrangler, "4.116.0");
+});
+
 test("fails the browser gate when Playwright discovers no tests", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   const command = packageJson.scripts?.e2e;

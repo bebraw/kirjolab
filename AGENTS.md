@@ -9,8 +9,8 @@
 | Intent             | Command                                                    | Notes                                        |
 | ------------------ | ---------------------------------------------------------- | -------------------------------------------- |
 | Local CI           | `npm run ci:local`                                         | Runs the full quality gate natively on macOS |
-| Container CI       | `npm run ci:local:container`                               | Optional Agent CI workflow-parity check      |
-| Retry container CI | `npm run ci:local:container:retry -- --name <runner-name>` | Retries a paused Agent CI runner             |
+| Container CI       | `npm run ci:local:container`                               | Optional Local CI workflow-parity check      |
+| Retry container CI | `npm run ci:local:container:retry -- --name <runner-name>` | Retries a paused Local CI runner             |
 | Workflow notes     | `docs/development.md`                                      | Setup details and prerequisites              |
 
 ## Judgment Boundaries
@@ -39,7 +39,7 @@
 - Record global architecture rules in `ARCHITECTURE.md` and feature-level contracts in `specs/{feature-domain}/spec.md`.
 - Treat completed feature work as spec work: create a new `specs/{feature-domain}/spec.md` or update the relevant existing spec in the same change set whenever feature behavior, contracts, workflows, or quality guardrails change.
 - Prefer native `npm run ci:local` before relying on remote CI. Use the optional
-  Agent CI container path only for workflow or Linux-container parity.
+  Local CI container path only for workflow or Linux-container parity.
 - Treat a non-documentation change as ready only after the quality gate and local CI both pass.
 - Treat `package.json` as the source of truth for pinned Node and npm versions, with `.nvmrc` kept in sync as a convenience mirror for `nvm use`.
 - Read the relevant library or tool documentation carefully before applying, upgrading, or reconfiguring it in the project, especially when behavior is version-sensitive.
@@ -60,7 +60,7 @@
 
 ## Local CI
 
-- Use the project-local [`agent-ci`](./.codex/skills/agent-ci/SKILL.md) skill when testing, running checks, or validating code changes before pushing.
+- Use the project-local [`local-ci`](./.codex/skills/local-ci/SKILL.md) skill when testing, running checks, or validating code changes before pushing.
 - Treat native `npm run ci:local` as the default loop. It runs the full quality
   gate without Docker and keeps live phase output.
 - Use `npm run ci:local:container` only for explicit GitHub Actions or

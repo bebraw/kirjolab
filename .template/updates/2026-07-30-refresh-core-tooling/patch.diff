@@ -4,7 +4,7 @@ diff --git a/package.json b/package.json
 @@
 +  "overrides": {
 +    "typed-rest-client": {
-+      "qs": "6.15.3"
++      "qs": "6.16.0"
 +    }
 +  },
 @@

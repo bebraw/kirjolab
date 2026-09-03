@@ -1,0 +1,237 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 6935b9c..d39b83f 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -14,6 +14,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
+ - Add or update an ADR in `docs/adrs/` whenever a change introduces or changes a lasting architectural constraint, selects between credible architectural alternatives, or replaces an earlier decision. Keep drafts in `docs/adrs/proposed/`, approved-but-not-yet-implemented decisions in `docs/adrs/accepted/`, and implemented decisions in `docs/adrs/implemented/`.
+ - Create or update the relevant feature spec in `specs/` in the same change set whenever feature behavior, contracts, workflows, or regression guardrails change.
+ - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
++- Keep agent skill descriptions discriminating and entrypoints limited to project-specific decisions, invariants, exact local commands, and safety boundaries. Assume a capable `gpt-5.6-sol`-class baseline; retrieve version-sensitive manuals instead of vendoring command catalogs or teaching generic engineering judgment.
+ - Keep optional multi-session discovery maps under `docs/wayfinding/<effort>.md`. Treat them as working context rather than durable authority, and promote lasting outcomes into `ARCHITECTURE.md`, ADRs, or feature specs.
+ - Use focused red-green slices for observable runtime behavior and regression fixes when a stable test seam exists. When no meaningful failing test can be written, use and state the relevant deterministic verification instead.
+ - For every new or materially expanded independently evolvable capability, record its source root, composition root, state authority, public contracts, and dependency direction in the relevant feature spec.
+@@ -34,7 +35,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
+ - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
+ - The fast and affected quality paths enforce extreme source-file and flat-directory limits through `npm run quality:structure`; Fallow remains the richer advisory layer for coupling, churn, complexity, and refactoring evidence.
+ - Keep incremental mutation testing in an explicit deep local gate instead of making it an unconditional baseline phase. GitHub remains responsible for the clean full mutation signal on runtime-relevant changes.
+-- Keep duplicated `.github/skills/` content and vendored `.codex/skills/**/references/` material outside the Prettier baseline. Continue formatting project-owned skill entry points, specs, ADRs, and documentation.
++- Keep duplicated `.github/skills/` content and deliberately vendored skill references outside the Prettier baseline. Continue formatting project-owned skill entry points, specs, ADRs, and documentation.
+ - Cache successful Prettier checks by file content under ignored `.cache/prettier` so repeated local gates avoid unchanged files without trusting timestamps.
+ - Keep Oxlint focused on its default correctness rules unless additional rule categories are adopted through an explicit, documented decision. Oxlint does not replace Prettier or TypeScript checking.
+ - Fallow codebase diagnostics use best-effort type-aware analysis for exact-symbol evidence, public-signature coupling, complexity, duplication, dependency hygiene, and cleanup evidence; they remain advisory and do not replace the baseline quality gate.
+diff --git a/README.md b/README.md
+index e2a6e28..377be8f 100644
+--- a/README.md
++++ b/README.md
+@@ -20,7 +20,7 @@ Local development in this repo targets macOS. Other platforms may need script an
+ 
+ ## Agent Skills
+ 
+-The repository includes focused instructions under `.codex/skills/` that help coding agents follow its conventions. You can describe the job normally and let the agent select a matching skill, or require one by name—for example, `Use $security to review this authentication change`.
++The repository includes compact instructions under `.codex/skills/` that help capable coding agents follow project-specific conventions without repeating generic engineering guidance. Version-sensitive details come from current primary sources. You can describe the job normally and let the agent select a matching skill, or require one by name—for example, `Use $security to review this authentication change`.
+ 
+ `$start-project`, `$wayfinder`, and `$to-spec` are intentionally explicit: the agent uses them only when you name them. This keeps repository pruning, exploratory maps, and durable specifications from appearing as accidental side effects.
+ 
+@@ -47,13 +47,12 @@ The repository includes focused instructions under `.codex/skills/` that help co
+ - [`$frontend-design`](.codex/skills/frontend-design/SKILL.md) — design or substantially revise production-quality UI while preserving the starter's reusable nature.
+ - [`$minimal-visual-style`](.codex/skills/minimal-visual-style/SKILL.md) — extend the existing minimal, editorial, token-driven visual language.
+ - [`$modern-web-guidance`](.codex/skills/modern-web-guidance/SKILL.md) — retrieve pinned, telemetry-disabled, Baseline-aware implementation guidance for substantive browser-platform work.
+-- [`$web-perf`](.codex/skills/web-perf/SKILL.md) — audit Core Web Vitals, loading behavior, network costs, layout shifts, and related accessibility signals.
++- [`$web-perf`](.codex/skills/web-perf/SKILL.md) — measure Core Web Vitals, loading behavior, interaction responsiveness, and network costs.
+ 
+ ### Cloudflare and Validation
+ 
+ - [`$workers-best-practices`](.codex/skills/workers-best-practices/SKILL.md) — author or review Worker code using current production guidance and repository conventions.
+ - [`$wrangler`](.codex/skills/wrangler/SKILL.md) — guide Wrangler configuration and commands for local development, bindings, deployment, and platform resources.
+-- [`$sandbox-sdk`](.codex/skills/sandbox-sdk/SKILL.md) — build applications that execute untrusted or agent-generated code in Cloudflare sandboxes.
+ - [`$local-ci`](.codex/skills/local-ci/SKILL.md) — run the repository's GitHub Actions workflow locally for workflow-sensitive or release-readiness validation.
+ 
+ Each linked `SKILL.md` is the source of truth for boundaries and workflow details. Project-wide routing rules live in [`AGENTS.md`](AGENTS.md).
+diff --git a/docs/adrs/README.md b/docs/adrs/README.md
+index 5dca27b..0e2f30c 100644
+--- a/docs/adrs/README.md
++++ b/docs/adrs/README.md
+@@ -86,6 +86,7 @@ No accepted-only ADRs are currently pending implementation.
+ | [ADR-051](./implemented/ADR-051-add-approval-gated-project-start.md)                   | Implemented | Add a read-only project-start plan before approved pruning of a fresh clone.                      |
+ | [ADR-052](./implemented/ADR-052-adopt-scoped-modern-web-guidance.md)                   | Implemented | Add pinned, telemetry-disabled web-platform guidance with explicit browser-support boundaries.    |
+ | [ADR-053](./implemented/ADR-053-adopt-local-ci-canonical-interface.md)                 | Implemented | Use Local CI's canonical package, executable, configuration, and agent-skill names.               |
++| [ADR-054](./implemented/ADR-054-target-a-compact-agent-skill-baseline.md)              | Implemented | Target capable agents with compact, retrieval-first skills and remove overlapping or unused ones. |
+ 
+ ## Creating A New ADR
+ 
+diff --git a/docs/adrs/implemented/ADR-054-target-a-compact-agent-skill-baseline.md b/docs/adrs/implemented/ADR-054-target-a-compact-agent-skill-baseline.md
+new file mode 100644
+index 0000000..c914ff7
+--- /dev/null
++++ b/docs/adrs/implemented/ADR-054-target-a-compact-agent-skill-baseline.md
+@@ -0,0 +1,66 @@
++# ADR-054: Target A Compact Agent Skill Baseline
++
++**Status:** Implemented
++
++**Date:** 2026-08-31
++
++## Context
++
++The repository had 26 active local skill entrypoints containing 15,727 words, including 1,023 words of descriptions exposed during skill routing. Several skills repeated generic engineering advice already handled by capable agents, while Wrangler, Worker, Sandbox, and performance skills embedded version-sensitive command catalogs and tutorials despite the repository's retrieval-first architecture.
++
++The installed Caveman suite added six overlapping routing entries and two names for the same file-compression implementation. Its broad automatic triggers could replace normal review, commit, or communication behavior when a user merely mentioned brevity or token efficiency. The local Sandbox SDK skill described a product the template does not use, contrary to the on-demand product-skill rule in `specs/agent-skills/spec.md`.
++
++The project can assume a `gpt-5.6-sol`-class baseline with strong repository navigation, tool use, and ordinary engineering judgment. Skill context should change decisions, not reteach those capabilities.
++
++## Decision
++
++Author repository skills for that capable baseline:
++
++- Keep descriptions short and discriminating.
++- Keep entrypoints focused on project-specific contracts, non-obvious invariants, exact local commands, retrieval routes, and safety boundaries.
++- Retrieve version-sensitive CLI syntax, APIs, metrics, and platform rules from installed help or current primary documentation instead of embedding static catalogs.
++- Preserve approval gates, secret handling, telemetry controls, reviewed pins, evidence thresholds, public-seam testing, and repository verification requirements even when they cost context.
++- Keep intentional `.github/skills/` and capability-kit copies byte-equivalent to their canonical sources.
++
++Remove the Caveman skill suite and its lockfile. Remove the local and GitHub Sandbox SDK skill until the project adopts `@cloudflare/sandbox`. Retain and compact the Worker and Wrangler baseline required by ADR-047.
++
++Treat instruction size as a review signal rather than an absolute file limit. A larger skill remains valid when a fragile workflow, safety boundary, or genuinely conditional reference requires it.
++
++## Trigger
++
++The user asked to reduce skill context for a `gpt-5.6-sol` baseline and explicitly approved dropping Caveman when it did not provide enough value.
++
++## Consequences
++
++**Positive:**
++
++- Every session sees fewer and shorter routing descriptions.
++- Activated skills spend more context on repository evidence and task artifacts.
++- Current documentation replaces stale command and threshold snapshots.
++- Overlapping persona, review, commit, compression, and unused product routing disappears.
++- Compact skills are easier to audit and keep synchronized across mirrors.
++
++**Negative:**
++
++- Weaker or offline agents receive less embedded tutorial material.
++- Version-sensitive work depends more heavily on installed help or current documentation access.
++- Future upstream skill updates require intent-level review rather than copying prose wholesale.
++
++**Neutral:**
++
++- Worker runtime behavior, package dependencies, and quality-gate scope do not change.
++- Focused skills remain independently invocable; this decision changes their instruction density, not their ownership.
++
++## Alternatives Considered
++
++### Keep The Existing Definitions
++
++This preserved compatibility with weaker agents but spent context on generic reasoning, created routing conflicts, and kept stale platform details beside retrieval-first instructions.
++
++### Move Every Manual Into References
++
++This made entrypoints look smaller but preserved repository weight and still loaded the same stale material whenever a broad reference was required. References remain appropriate only for genuinely conditional detail.
++
++### Remove All Local Skills
++
++This minimized context but discarded project-specific approval gates, quality interfaces, architecture workflows, reviewed pins, and portable guidance for environments without the same global skill catalog.
+diff --git a/specs/agent-skills/spec.md b/specs/agent-skills/spec.md
+index 61088bc..3f69c4e 100644
+--- a/specs/agent-skills/spec.md
++++ b/specs/agent-skills/spec.md
+@@ -6,6 +6,8 @@
+ 
+ The template should include agent workflows that are broadly useful to its baseline without vendoring large product documentation snapshots already available from connected platform tools.
+ 
++The skill baseline targets capable `gpt-5.6-sol`-class agents that can inspect repositories, use tools, and apply ordinary engineering judgment. Skill context should therefore carry only routing, project-specific decisions, non-obvious invariants, exact local interfaces, and safety boundaries.
++
+ Large, uncertain initiatives also need a lightweight way to preserve discovery across sessions without requiring an external issue tracker or turning transient planning notes into architectural authority.
+ 
+ Once decisions settle, the template should provide a direct repository-local path from discussion to its living feature spec and from that contract to behavior-first implementation.
+@@ -21,11 +23,14 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ - **Copy policy:** keep an intentional distribution copy byte-equivalent to its canonical `.codex/skills/` source unless the target surface requires a documented compatibility adaptation
+ - **Composition roots:** `AGENTS.md` for model routing and `README.md` for user discovery
+ - **Skill contracts:** each canonical `SKILL.md` plus optional `agents/openai.yaml`
++- **Agent capability baseline:** `gpt-5.6-sol`-class repository navigation, tool use, and engineering judgment
++- **Instruction budget:** concise descriptions and entrypoints; version-sensitive manuals stay in current primary documentation rather than the prompt
+ - **Dependency direction:** routing and distribution surfaces point to canonical skills; canonical skills do not depend on their copies
+ - **Cloudflare knowledge and account layer:** connected Cloudflare MCP
+ - **Baseline Cloudflare implementation skill:** `workers-best-practices`
+ - **Baseline Cloudflare CLI skill:** `wrangler`
+ - **Specialized Cloudflare skills:** added on demand when their product is adopted
++- **Sandbox SDK skill:** absent until the project adopts `@cloudflare/sandbox`
+ - **Repository-local wayfinding skill:** `.codex/skills/wayfinder/`
+ - **Explicit project-start skill:** `.codex/skills/start-project/`
+ - **Project-start behavior owner:** `specs/project-start/spec.md`
+@@ -47,6 +52,9 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ ### Anti-Patterns
+ 
+ - Do not vendor broad Cloudflare documentation snapshots when the connected MCP supplies current retrieval.
++- Do not embed static CLI catalogs, framework inventories, metric thresholds, or API tutorials that current tools and primary documentation can resolve.
++- Do not repeat generic model capabilities such as basic debugging, review, or design judgment when a project-specific constraint is sufficient.
++- Do not add persistent persona or output-compression skill suites to the template baseline.
+ - Do not treat the MCP as a replacement for local Wrangler development, configuration, type generation, or testing workflows.
+ - Do not retain product-specific skills for capabilities the template does not use.
+ - Do not let intentional compatibility or capability-kit copies diverge from their canonical `.codex/skills/` source without a documented adaptation.
+@@ -72,6 +80,7 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ 
+ - [ ] The template includes `workers-best-practices` and `wrangler` in both supported skill roots.
+ - [ ] Broad and unused product-specific Cloudflare skill bundles are absent from both roots.
++- [ ] `sandbox-sdk` is absent while the repository has no Sandbox SDK runtime dependency or feature contract.
+ - [ ] Agent guidance routes current Cloudflare documentation, API discovery, and account operations through the connected MCP.
+ - [ ] Product-specific skills are introduced only with the capability that needs them.
+ - [ ] The template includes an explicitly invoked `wayfinder` skill for large, uncertain, multi-session efforts.
+@@ -81,6 +90,7 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ - [ ] The template includes a model-invoked `tdd` skill for observable source behavior and regression fixes.
+ - [ ] Both skills reuse the existing spec, ADR, test, and quality-gate conventions without companion setup.
+ - [ ] The README groups every project-local skill by job and gives each a concise, user-facing purpose.
++- [ ] Skill descriptions remain discriminating and normally fit within 30 words; entrypoints contain only decision-changing guidance.
+ - [ ] The README explains natural matching, named `$skill` invocation, and which workflows require explicit invocation.
+ - [ ] The template includes a model-invoked `architecture-review` skill that combines durable capability contracts, deterministic source-shape checks, and advisory Fallow evidence.
+ - [ ] The template includes an explicitly invoked `start-project` skill whose behavior is owned by `specs/project-start/spec.md`.
+@@ -91,6 +101,9 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ ### Regression Guardrails
+ 
+ - The baseline must not reintroduce `cloudflare`, `agents-sdk`, `cloudflare-email-service`, or `durable-objects` as vendored skills without an explicit architecture change.
++- The baseline must not reintroduce `sandbox-sdk` or communication-style skill suites without adopting their capability explicitly.
++- Compact rewrites must preserve destructive-action approval, secret handling, retrieval pins, telemetry controls, public-seam testing, evidence thresholds, and repository verification rules.
++- Version-sensitive commands and thresholds must be retrieved or resolved from installed tool help rather than accumulated in skill entrypoints.
+ - The Worker and Wrangler skill copies must remain available while this repository is a Cloudflare Worker starter.
+ - Removing a baseline skill must not remove its runtime dependency or product implementation implicitly.
+ - Wayfinding must remain optional, repository-local, and independent of issue-tracker infrastructure.
+@@ -106,7 +119,8 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ 
+ - **Skill presence:** `test -f .codex/skills/workers-best-practices/SKILL.md && test -f .codex/skills/wrangler/SKILL.md`
+ - **Mirror presence:** `test -f .github/skills/workers-best-practices/SKILL.md && test -f .github/skills/wrangler/SKILL.md`
+-- **Pruned bundles:** confirm the four removed skill directories are absent from both roots
++- **Pruned bundles:** confirm unused Cloudflare product skills, `sandbox-sdk`, and communication-style suites are absent from repository skill roots
++- **Instruction size:** inspect `wc -w $(rg --files .codex/skills -g SKILL.md)` and review any entrypoint whose growth is not justified by a fragile workflow or safety boundary
+ - **Documentation check:** `npm run format:check`
+ - **Wayfinder structure:** confirm the skill has valid `name` and `description` frontmatter plus valid `agents/openai.yaml`; use the skill-creator validator when its Python dependencies are available
+ - **Specification and TDD structure:** apply the same metadata validation to `.codex/skills/to-spec/` and `.codex/skills/tdd/`
+@@ -131,10 +145,16 @@ Browser-facing implementation needs current web-platform and compatibility guida
+ 
+ **Scenario: Project adopts a specialized Cloudflare product**
+ 
+-- Given: the project adds Agents SDK, Durable Objects, or Email Service
++- Given: the project adds Agents SDK, Durable Objects, Email Service, or Sandbox SDK
+ - When: specialized implementation guidance becomes useful
+ - Then: the project adds only the relevant skill rather than restoring the complete Cloudflare bundle
+ 
++**Scenario: Agent needs version-sensitive syntax**
++
++- Given: an installed CLI, platform API, or browser metric may have changed
++- When: a skill guides implementation or review
++- Then: the agent retrieves current primary documentation or installed-tool help and keeps only project-specific invariants in prompt context
++
+ **Scenario: Initiative is too uncertain to specify**
+ 
+ - Given: an initiative will span multiple sessions and still contains material decision fog
+diff --git a/specs/template-updates/spec.md b/specs/template-updates/spec.md
+index 5e2e52f..dd079a9 100644
+--- a/specs/template-updates/spec.md
++++ b/specs/template-updates/spec.md
+@@ -50,6 +50,7 @@ copying unrelated starter structure.
+   - `2026-08-03-project-start-workflow`
+   - `2026-08-10-scoped-modern-web-guidance`
+   - `2026-08-17-dependency-toolchain-refresh`
++  - `2026-08-31-compact-agent-skills`
+ 
+ ### Anti-Patterns
+ 

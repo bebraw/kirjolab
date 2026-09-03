@@ -31,7 +31,11 @@ copying unrelated starter structure.
   `2026-08-03-repository-local-wayfinder`, and
   `2026-08-03-repository-local-spec-tdd`, plus the discoverability-only
   `2026-08-03-readme-skill-catalog` and the focused
-  `2026-08-03-record-template-provenance`
+  `2026-08-03-record-template-provenance`, followed by
+  `2026-08-17-dependency-toolchain-refresh` (including Kirjolab's measured
+  Stryker 10 floor under ADR-233) and
+  `2026-08-31-compact-agent-skills`, followed by the reusable local
+  `2026-09-03-actionable-mutation-reporting` refinement
 - **Current backfilled update registry:** directories containing
   `.template/updates/*/update.json`
 
