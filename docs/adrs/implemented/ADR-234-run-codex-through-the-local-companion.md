@@ -1,6 +1,6 @@
 # ADR-234: Run Codex Through the Local Companion
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-09-04
 
