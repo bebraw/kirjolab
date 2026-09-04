@@ -27,12 +27,13 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No ADRs are currently accepted and awaiting implementation.
+No ADRs are currently accepted but unimplemented.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-234](./implemented/ADR-234-run-codex-through-the-local-companion.md)                 | Implemented          | Run bounded Codex SDK generations through the authenticated local companion without involving the Worker.       |
 | [ADR-233](./implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)         | Implemented          | Adopt Stryker 10 with a measured temporary floor and concise hotspot-oriented reporting.                        |
 | [ADR-232](./implemented/ADR-232-adopt-local-ci-canonical-interface.md)                    | Implemented          | Use Local CI's canonical package and names for optional container parity while retaining native CI by default.  |
 | [ADR-231](./implemented/ADR-231-target-a-compact-agent-skill-baseline.md)                 | Implemented          | Target capable agents with compact, retrieval-first skills while retaining Kirjolab-specific guidance.          |

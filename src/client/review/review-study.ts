@@ -601,7 +601,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
 
   async function generateScreeningCandidate(state: ScreeningRecordState): Promise<void> {
     if (!snapshot || !screeningSnapshot || snapshot.protocol.modelAssistance.mode === "off") return;
-    setScreenStatus("Asking the configured local model for a reviewable screening candidate…");
+    setScreenStatus("Asking the configured writing model for a reviewable screening candidate…");
     try {
       const provider = reviewModelProvider();
       const suggestion = await provider.screenReviewRecord({
@@ -657,7 +657,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     const data = new FormData(formElement);
     const pointer = evidenceFromForm(data);
     if (!pointer.quote.trim()) return setEvidenceStatus("extract", "Paste the exact authorized quotation before asking the model.");
-    setEvidenceStatus("extract", "Asking the configured local model for a typed extraction candidate…");
+    setEvidenceStatus("extract", "Asking the configured writing model for a typed extraction candidate…");
     try {
       const provider = reviewModelProvider();
       const suggestion = await provider.extractReviewField({

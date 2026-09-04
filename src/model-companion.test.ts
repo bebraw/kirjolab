@@ -1,10 +1,28 @@
 import { once } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleModelCompanionRequest, readModelCompanionConfig, startModelCompanion, type ModelCompanionConfig } from "./model-companion";
+import {
+  createCodexModelBackend,
+  handleModelCompanionRequest,
+  readModelCompanionConfig,
+  startModelCompanion,
+  type CodexModelCompanionConfig,
+  type ModelCompanionConfig,
+} from "./model-companion";
+import type { CodexGenerationRunner } from "./codex-model-backend";
 
 const config: ModelCompanionConfig = {
+  kind: "openai-compatible",
   upstream: new URL("http://127.0.0.1:1234/v1/chat/completions"),
   allowedOrigin: "https://kirjolab.example",
+  port: 8790,
+};
+const codexToken = "codex-token-with-at-least-24-chars";
+const codexConfig: CodexModelCompanionConfig = {
+  kind: "codex",
+  allowedOrigin: config.allowedOrigin,
+  bearerToken: codexToken,
+  codexHome: "/private/tmp/kirjolab-codex-home",
+  model: "gpt-5.6-terra",
   port: 8790,
 };
 
@@ -24,11 +42,13 @@ describe("local model companion", () => {
   it("reads a fixed loopback upstream, exact browser origin, and bounded port", () => {
     expect(
       readModelCompanionConfig({
+        KIRJOLAB_MODEL_PROVIDER: "openai-compatible",
         KIRJOLAB_MODEL_UPSTREAM: "http://localhost:1234/v1/chat/completions",
         KIRJOLAB_MODEL_COMPANION_ORIGIN: "https://kirjolab.example",
         KIRJOLAB_MODEL_COMPANION_PORT: "9000",
       }),
     ).toEqual({
+      kind: "openai-compatible",
       upstream: new URL("http://localhost:1234/v1/chat/completions"),
       allowedOrigin: "https://kirjolab.example",
       port: 9000,
@@ -38,13 +58,68 @@ describe("local model companion", () => {
       port: 8790,
     });
     for (const upstream of ["http://127.0.0.1/model", "https://localhost/model", "https://[::1]/model"]) {
-      expect(readModelCompanionConfig({ KIRJOLAB_MODEL_UPSTREAM: upstream }).upstream.href).toBe(upstream);
+      const parsed = readModelCompanionConfig({ KIRJOLAB_MODEL_UPSTREAM: upstream });
+      expect(parsed.kind).toBe("openai-compatible");
+      if (parsed.kind === "openai-compatible") expect(parsed.upstream.href).toBe(upstream);
     }
     for (const port of [1, 65_535]) {
       expect(
         readModelCompanionConfig({ KIRJOLAB_MODEL_UPSTREAM: "http://localhost/model", KIRJOLAB_MODEL_COMPANION_PORT: String(port) }).port,
       ).toBe(port);
     }
+  });
+
+  it("reads a fixed authenticated Codex backend without an HTTP upstream", () => {
+    expect(
+      readModelCompanionConfig({
+        KIRJOLAB_MODEL_PROVIDER: "codex",
+        KIRJOLAB_CODEX_HOME: "/private/tmp/kirjolab-codex-home",
+        KIRJOLAB_CODEX_MODEL: "gpt-5.6-terra",
+        KIRJOLAB_CODEX_TOKEN: codexToken,
+        KIRJOLAB_MODEL_COMPANION_ORIGIN: "https://kirjolab.example",
+        KIRJOLAB_MODEL_COMPANION_PORT: "9000",
+      }),
+    ).toEqual({
+      kind: "codex",
+      allowedOrigin: "https://kirjolab.example",
+      bearerToken: codexToken,
+      codexHome: "/private/tmp/kirjolab-codex-home",
+      model: "gpt-5.6-terra",
+      port: 9000,
+    });
+  });
+
+  it.each([
+    [{ KIRJOLAB_MODEL_PROVIDER: "unknown" }, "KIRJOLAB_MODEL_PROVIDER"],
+    [{ KIRJOLAB_MODEL_PROVIDER: "codex" }, "KIRJOLAB_CODEX_HOME"],
+    [
+      {
+        KIRJOLAB_MODEL_PROVIDER: "codex",
+        KIRJOLAB_CODEX_HOME: "relative/home",
+        KIRJOLAB_CODEX_MODEL: "gpt-5.6-terra",
+        KIRJOLAB_CODEX_TOKEN: codexToken,
+      },
+      "absolute",
+    ],
+    [
+      {
+        KIRJOLAB_MODEL_PROVIDER: "codex",
+        KIRJOLAB_CODEX_HOME: "/private/tmp/kirjolab-codex-home",
+        KIRJOLAB_CODEX_TOKEN: codexToken,
+      },
+      "KIRJOLAB_CODEX_MODEL",
+    ],
+    [
+      {
+        KIRJOLAB_MODEL_PROVIDER: "codex",
+        KIRJOLAB_CODEX_HOME: "/private/tmp/kirjolab-codex-home",
+        KIRJOLAB_CODEX_MODEL: "gpt-5.6-terra",
+        KIRJOLAB_CODEX_TOKEN: "short",
+      },
+      "24-512",
+    ],
+  ])("rejects unsafe Codex companion configuration %#", (environment, message) => {
+    expect(() => readModelCompanionConfig(environment)).toThrow(message);
   });
 
   it.each([
@@ -125,6 +200,176 @@ describe("local model companion", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     expect(String(fetcher.mock.calls[0]?.[0])).toBe("http://127.0.0.1:1234/v1/models");
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ method: "GET", redirect: "error", headers: { accept: "application/json" } });
+  });
+
+  it("requires the Codex bearer token after origin-gated preflight and lists only the configured model", async () => {
+    const runner: CodexGenerationRunner = { run: vi.fn() };
+    const backend = createCodexModelBackend(codexConfig, runner);
+    const health = await handleModelCompanionRequest(new Request("http://127.0.0.1:8790/health"), codexConfig, backend);
+    expect(await health.clone().text()).not.toContain(codexToken);
+    await expect(health.json()).resolves.toEqual({ ok: true, provider: "codex", model: codexConfig.model });
+    const preflight = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", {
+        method: "OPTIONS",
+        headers: { origin: codexConfig.allowedOrigin },
+      }),
+      codexConfig,
+      backend,
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-headers")).toBe("authorization, content-type");
+
+    for (const authorization of [undefined, "Bearer wrong-token-with-at-least-24-characters"]) {
+      const denied = await handleModelCompanionRequest(
+        new Request("http://127.0.0.1:8790/v1/models", {
+          headers: {
+            origin: codexConfig.allowedOrigin,
+            ...(authorization ? { authorization } : {}),
+          },
+        }),
+        codexConfig,
+        backend,
+      );
+      expect(denied.status).toBe(401);
+      expect(denied.headers.get("www-authenticate")).toBe("Bearer");
+    }
+
+    const response = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", {
+        headers: { authorization: `Bearer ${codexToken}`, origin: codexConfig.allowedOrigin },
+      }),
+      codexConfig,
+      backend,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ object: "list", data: [{ id: "gpt-5.6-terra", object: "model" }] });
+  });
+
+  it("runs an authenticated structured completion through Codex and returns an OpenAI-compatible envelope", async () => {
+    const run = vi.fn(async () => ({ finalResponse: '{"replacement":"Codex revision."}' }));
+    const backend = createCodexModelBackend(codexConfig, { run });
+    const payload = {
+      ...validPayload,
+      model: codexConfig.model,
+      reasoning_effort: "none",
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "revision",
+          strict: true,
+          schema: { type: "object", properties: { replacement: { type: "string" } }, required: ["replacement"] },
+        },
+      },
+    };
+    const response = await handleModelCompanionRequest(
+      request("POST", payload, { authorization: `Bearer ${codexToken}` }),
+      codexConfig,
+      backend,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe(codexConfig.allowedOrigin);
+    await expect(response.json()).resolves.toMatchObject({
+      object: "chat.completion",
+      model: codexConfig.model,
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: '{"replacement":"Codex revision."}' } }],
+    });
+    expect(run).toHaveBeenCalledWith({
+      messages: validPayload.messages,
+      model: codexConfig.model,
+      outputSchema: payload.response_format.json_schema.schema,
+      reasoningEffort: "none",
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("bounds Codex results, redacts provider failures, and aborts an active generation on close", async () => {
+    const headers = { authorization: `Bearer ${codexToken}` };
+    const payload = {
+      ...validPayload,
+      model: codexConfig.model,
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "result", strict: true, schema: { type: "object" } },
+      },
+    };
+    const failed = await handleModelCompanionRequest(
+      request("POST", payload, headers),
+      codexConfig,
+      createCodexModelBackend(codexConfig, { run: vi.fn(async () => Promise.reject(new Error("private Codex detail"))) }),
+    );
+    expect(failed.status).toBe(502);
+    await expect(failed.json()).resolves.toEqual({ error: "Codex unavailable" });
+
+    const oversized = await handleModelCompanionRequest(
+      request("POST", payload, headers),
+      codexConfig,
+      createCodexModelBackend(codexConfig, { run: vi.fn(async () => ({ finalResponse: "x".repeat(256 * 1_024 + 1) })) }),
+    );
+    expect(oversized.status).toBe(502);
+    await expect(oversized.json()).resolves.toEqual({ error: "Codex unavailable" });
+
+    let signal: AbortSignal | undefined;
+    const backend = createCodexModelBackend(codexConfig, {
+      run: vi.fn(
+        (request) =>
+          new Promise<never>((_resolve, reject) => {
+            signal = request.signal;
+            request.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+          }),
+      ),
+    });
+    const pending = handleModelCompanionRequest(request("POST", payload, headers), codexConfig, backend);
+    await vi.waitFor(() => expect(signal).toBeInstanceOf(AbortSignal));
+    backend.close?.();
+    expect(signal?.aborted).toBe(true);
+    expect((await pending).status).toBe(502);
+  });
+
+  it("rejects a different Codex model, a missing schema, and concurrent generations", async () => {
+    let release: (() => void) | undefined;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const run = vi.fn(async () => {
+      await pending;
+      return { finalResponse: "{}" };
+    });
+    const backend = createCodexModelBackend(codexConfig, { run });
+    const headers = { authorization: `Bearer ${codexToken}` };
+    const format = {
+      type: "json_schema",
+      json_schema: { name: "result", strict: true, schema: { type: "object" } },
+    };
+
+    expect(
+      (
+        await handleModelCompanionRequest(
+          request("POST", { ...validPayload, model: "other", response_format: format }, headers),
+          codexConfig,
+          backend,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await handleModelCompanionRequest(request("POST", { ...validPayload, model: codexConfig.model }, headers), codexConfig, backend))
+        .status,
+    ).toBe(400);
+
+    const first = handleModelCompanionRequest(
+      request("POST", { ...validPayload, model: codexConfig.model, response_format: format }, headers),
+      codexConfig,
+      backend,
+    );
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    const concurrent = await handleModelCompanionRequest(
+      request("POST", { ...validPayload, model: codexConfig.model, response_format: format }, headers),
+      codexConfig,
+      backend,
+    );
+    expect(concurrent.status).toBe(429);
+    release?.();
+    expect((await first).status).toBe(200);
   });
 
   it("keeps model discovery inside the companion route and response limits", async () => {

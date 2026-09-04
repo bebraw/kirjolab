@@ -24,7 +24,8 @@ import {
   type ReviewModelSnapshot,
   type ScreeningModelResult,
 } from "../../domain/review/review-model";
-import { OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "../assistant/model-provider";
+import { readStoredModelProviderPreferences } from "../assistant/model-provider-preferences";
+import { OpenAICompatibleBrowserProvider } from "../assistant/model-provider";
 import {
   assertPublicationTarget,
   latestExtractionValue,
@@ -240,7 +241,7 @@ export function screeningCard(
   abstract.className = "review-screen-abstract";
   abstract.textContent = state.record.metadata.abstract || "No abstract was present in the imported record.";
   card.append(header, abstract, screeningControls(state, stage, protocolSnapshot, submit, adjudicate));
-  if (generateCandidate) card.append(actionButton("Ask local model", () => void generateCandidate(state)));
+  if (generateCandidate) card.append(actionButton("Ask writing model", () => void generateCandidate(state)));
   for (const candidate of candidates) card.append(modelCandidateCard(candidate, resolveCandidate));
   const history = screeningHistory(stageState.decisions);
   if (history) card.append(history);
@@ -462,7 +463,7 @@ function extractionForm(
   );
   if (recorded) populateRecordedExtraction(form, recorded);
   appendSubmit(form, recorded ? "Supersede value" : "Save value", () => submit(record.record.id, field.id, field.type, form));
-  if (generateCandidate) form.append(actionButton("Ask local model", () => void generateCandidate(record, field, form)));
+  if (generateCandidate) form.append(actionButton("Ask writing model", () => void generateCandidate(record, field, form)));
   if (recorded) form.append(recordedExtractionStatus(recorded));
   return form;
 }
@@ -742,7 +743,7 @@ function modelCandidateCard(
   const card = document.createElement("aside");
   card.className = "review-model-candidate";
   const heading = document.createElement("strong");
-  heading.textContent = `Local-model candidate · ${candidate.disposition}`;
+  heading.textContent = `Writing model candidate · ${candidate.disposition}`;
   const result =
     candidate.operation === "screen-record" ? (candidate.result as ScreeningModelResult) : (candidate.result as ExtractionModelResult);
   const summary = document.createElement("p");
@@ -771,36 +772,21 @@ function modelCandidateCard(
 }
 
 export function reviewModelProvider(): OpenAICompatibleBrowserProvider {
-  const stored = readReviewModelPreferences();
-  if (!stored.model) throw new Error("Choose a local model in Assistant settings first.");
+  const stored = readStoredModelProviderPreferences();
+  if (!stored.model) throw new Error("Choose a writing model in Assistant settings first.");
+  const usesCodex = stored.connection === "codex";
   return new OpenAICompatibleBrowserProvider({
     endpoint: stored.endpoint,
-    providerLabel: stored.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
+    providerLabel:
+      stored.connection === "codex"
+        ? "Codex via local companion"
+        : stored.connection === "companion"
+          ? "Local companion · OpenAI-compatible"
+          : "Browser-local OpenAI-compatible",
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
+    ...(usesCodex ? { bearerToken: stored.codexToken, temperature: 0 } : {}),
   });
-}
-
-function readReviewModelPreferences(): {
-  connection: "direct" | "companion";
-  endpoint: string;
-  model: string;
-  reasoningEffort: ModelReasoningEffort;
-} {
-  let value: unknown = null;
-  try {
-    value = JSON.parse(localStorage.getItem("kirjolab:model-preferences") ?? "null");
-  } catch {
-    value = null;
-  }
-  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-  const effort = record.reasoningEffort;
-  return {
-    connection: record.connection === "companion" ? "companion" : "direct",
-    endpoint: typeof record.endpoint === "string" ? record.endpoint : "http://127.0.0.1:1234/v1/chat/completions",
-    model: typeof record.model === "string" ? record.model : "",
-    reasoningEffort: effort === "none" || effort === "low" || effort === "medium" || effort === "high" ? effort : "provider-default",
-  };
 }
 
 export function latestReviewRevision(...values: readonly (number | undefined)[]): number {

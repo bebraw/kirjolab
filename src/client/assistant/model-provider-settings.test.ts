@@ -13,12 +13,13 @@ class TestModelProviderSettings extends ModelProviderSettings {
     return this.createRenderRoot();
   }
 
-  changeForTest(field: "connection" | "endpoint" | "model" | "reasoning", value: string): void {
+  changeForTest(field: "connection" | "endpoint" | "model" | "reasoning" | "token", value: string): void {
     const event = eventWithValue(value);
     if (field === "connection") this.changeConnection(event);
     else if (field === "endpoint") this.changeEndpoint(event);
     else if (field === "model") this.changeModel(event);
-    else this.changeReasoningEffort(event);
+    else if (field === "reasoning") this.changeReasoningEffort(event);
+    else this.changeCodexToken(event);
   }
 
   override focusConnection(): void {
@@ -65,6 +66,7 @@ describe("model provider settings", () => {
       endpoint: "http://127.0.0.1:8790/v1/chat/completions",
       model: "saved-local",
       reasoningEffort: "low",
+      codexToken: "",
     });
     expect(panel.renderForTest()).toBeDefined();
   });
@@ -119,6 +121,7 @@ describe("model provider settings", () => {
       endpoint: "http://127.0.0.1:9999/v1/chat/completions",
       model: "qwen-local",
       reasoningEffort: "provider-default",
+      codexToken: "",
     });
     expect(statuses).toEqual([
       "The local companion starts with npm run dev; select manuscript text and grounding evidence.",
@@ -127,6 +130,41 @@ describe("model provider settings", () => {
       null,
     ]);
     expect(panel.provider()).toBeInstanceOf(OpenAICompatibleBrowserProvider);
+  });
+
+  it("keeps the Codex companion token tab-scoped and authenticates discovery", async () => {
+    const localValues = new Map<string, string>();
+    const sessionValues = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn((key: string) => localValues.get(key) ?? null),
+      removeItem: vi.fn((key: string) => localValues.delete(key)),
+      setItem: vi.fn((key: string, value: string) => localValues.set(key, value)),
+    });
+    vi.stubGlobal("sessionStorage", {
+      getItem: vi.fn((key: string) => sessionValues.get(key) ?? null),
+      removeItem: vi.fn((key: string) => sessionValues.delete(key)),
+      setItem: vi.fn((key: string, value: string) => sessionValues.set(key, value)),
+    });
+    const panel = new TestModelProviderSettings();
+    panel.changeForTest("connection", "codex");
+    panel.changeForTest("token", "tab-only-token-with-at-least-24-chars");
+    panel.changeForTest("model", "gpt-5.6-terra");
+
+    const stored = localValues.get("kirjolab:model-preferences") ?? "";
+    expect(stored).not.toContain("tab-only-token");
+    expect(sessionValues.get("kirjolab:codex-companion-token")).toBe("tab-only-token-with-at-least-24-chars");
+    expect(panel.value).toMatchObject({
+      connection: "codex",
+      endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+      codexToken: "tab-only-token-with-at-least-24-chars",
+    });
+
+    const discovery = vi.fn(async () => ["gpt-5.6-terra"]);
+    await panel.discoverModels(discovery);
+    expect(discovery).toHaveBeenCalledWith("http://127.0.0.1:8790/v1/chat/completions", {
+      bearerToken: "tab-only-token-with-at-least-24-chars",
+    });
+    expect(JSON.stringify(panel.renderForTest())).toContain("sent to OpenAI");
   });
 
   it("owns successful model discovery and ignores overlapping requests", async () => {

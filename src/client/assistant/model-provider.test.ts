@@ -619,10 +619,10 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(idle).not.toHaveBeenCalled();
 
     const invalidQuestions = [
-      ["not json", "Local model returned malformed clarity question"],
-      ["{}", "Local model returned invalid clarity question"],
+      ["not json", "Writing model returned malformed clarity question"],
+      ["{}", "Writing model returned invalid clarity question"],
       ['{"issue":"","question":"Why?"}', "Clarity issue is required"],
-      ['{"issue":"Issue","question":"","extra":true}', "Local model returned invalid clarity question"],
+      ['{"issue":"Issue","question":"","extra":true}', "Writing model returned invalid clarity question"],
     ] as const;
     for (const [content, message] of invalidQuestions) {
       await expect(
@@ -643,7 +643,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
       ['{"rewrites":[{"text":"One","rationale":""},{"text":"Two","rationale":"Why"}]}', "Clarity rationale is required"],
       [
         '{"rewrites":[{"text":"One","rationale":"Why","extra":true},{"text":"Two","rationale":"Why"}]}',
-        "Local model returned invalid clarity rewrite",
+        "Writing model returned invalid clarity rewrite",
       ],
     ] as const;
     for (const [content, message] of invalidRewrites) {
@@ -659,7 +659,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
 
     const validIdeas = Array.from({ length: 3 }, (_, index) => ({ title: `Idea ${index}`, direction: "Direction", draft: "Draft" }));
     for (const [content, message] of [
-      ["not json", "Local model returned malformed ideas"],
+      ["not json", "Writing model returned malformed ideas"],
       ['{"ideas":[]}', "Ideation must return between 3 and 5 ideas"],
       [JSON.stringify({ ideas: validIdeas.slice(0, 2) }), "Ideation must return between 3 and 5 ideas"],
       [JSON.stringify({ ideas: [...validIdeas, ...validIdeas] }), "Ideation must return between 3 and 5 ideas"],
@@ -668,7 +668,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
       [JSON.stringify({ ideas: [{ ...validIdeas[0], direction: "" }, ...validIdeas.slice(1)] }), "Idea direction is required"],
       [
         JSON.stringify({ ideas: [{ ...validIdeas[0], draft: "", extra: true }, ...validIdeas.slice(1)] }),
-        "Local model returned invalid idea",
+        "Writing model returned invalid idea",
       ],
     ] as const) {
       await expect(
@@ -938,6 +938,30 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toHaveProperty("reasoning_effort", reasoningEffort);
   });
 
+  it("authenticates Codex companion requests and uses its deterministic temperature", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"replacement":"Codex revision"}'));
+    const provider = createProvider({
+      endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+      bearerToken: "codex-token-with-at-least-24-chars",
+      temperature: 0,
+      fetcher,
+    });
+
+    await expect(provider.reviseSelection(operation)).resolves.toMatchObject({ replacement: "Codex revision" });
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      authorization: "Bearer codex-token-with-at-least-24-chars",
+      "content-type": "application/json",
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toMatchObject({ temperature: 0 });
+  });
+
+  it.each(["short", "contains spaces but is definitely long enough", "x".repeat(513)])(
+    "rejects an unsafe companion bearer token %j",
+    (bearerToken) => {
+      expect(() => createProvider({ bearerToken })).toThrow("bearer token");
+    },
+  );
+
   it("invokes the browser fetch function without binding the provider as its receiver", async () => {
     const browserFetch = vi.fn(function (this: unknown) {
       if (this !== undefined) throw new TypeError("Illegal invocation");
@@ -1052,7 +1076,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
 
   it("rejects non-successful and malformed provider responses", async () => {
     for (const [response, message] of [
-      [new Response("unavailable", { status: 503 }), "Local model request failed (503)"],
+      [new Response("unavailable", { status: 503 }), "Writing model request failed (503)"],
       [new Response("not json"), "malformed JSON"],
       [new Response(new Uint8Array([0xc3, 0x28])), "malformed JSON"],
       [new Response(null), "empty response"],
@@ -1089,12 +1113,12 @@ describe("OpenAICompatibleBrowserProvider", () => {
       createProvider({
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_000) }), { status: 400 })),
       }).reviseSelection(operation),
-    ).rejects.toThrow(`Local model request failed (400): ${"x".repeat(1_000)}`);
+    ).rejects.toThrow(`Writing model request failed (400): ${"x".repeat(1_000)}`);
     await expect(
       createProvider({
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_001) }), { status: 400 })),
       }).reviseSelection(operation),
-    ).rejects.toThrow("Local model request failed (400).");
+    ).rejects.toThrow("Writing model request failed (400).");
 
     for (const body of [
       "not json",
@@ -1106,7 +1130,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
         createProvider({
           fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 400 })),
         }).reviseSelection(operation),
-      ).rejects.toThrow("Local model request failed (400).");
+      ).rejects.toThrow("Writing model request failed (400).");
     }
   });
 
@@ -1252,6 +1276,21 @@ describe("OpenAI-compatible model discovery", () => {
       redirect: "error",
       headers: { accept: "application/json" },
     });
+  });
+
+  it("authenticates Codex companion model discovery without browser credentials", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: [{ id: "gpt-5.6-terra" }] }));
+    await expect(
+      discoverOpenAICompatibleModels("http://127.0.0.1:8790/v1/chat/completions", {
+        bearerToken: "codex-token-with-at-least-24-chars",
+        fetcher,
+      }),
+    ).resolves.toEqual(["gpt-5.6-terra"]);
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      accept: "application/json",
+      authorization: "Bearer codex-token-with-at-least-24-chars",
+    });
+    expect(fetcher.mock.calls[0]?.[1]?.credentials).toBe("omit");
   });
 
   it("normalizes bounded identifiers and strips completion endpoint query data", async () => {

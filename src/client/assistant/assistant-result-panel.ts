@@ -129,7 +129,7 @@ export class AssistantResultPanel extends LightDomElement {
   ): Promise<void> {
     const table = await provider.buildTable(request);
     if (table.columns.length !== request.columns.length || table.rows.length !== request.rows.length) {
-      throw new Error("Local model changed the requested table shape");
+      throw new Error("Writing model changed the requested table shape");
     }
     this.showTable(tableMarkdown(table), context);
   }

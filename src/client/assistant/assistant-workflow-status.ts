@@ -55,10 +55,10 @@ export class AssistantWorkflowStatus extends LightDomElement {
   generationStarted(operationId: AssistantOperationId): void {
     this.status =
       operationId === "draft-claim"
-        ? "Asking the local model for one grounded claim draft…"
+        ? "Asking the writing model for one grounded claim draft…"
         : operationId === "clarity-drill"
           ? "Finding the single ambiguity that matters most…"
-          : "Asking the local model for a grounded candidate…";
+          : "Asking the writing model for a grounded candidate…";
   }
 
   validateGeneration(requirements: AssistantGenerationRequirements): boolean {
@@ -166,7 +166,7 @@ export class AssistantWorkflowStatus extends LightDomElement {
       >
         <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>
         <p class="mt-2">
-          Patterns are independently derived from CC BY PLOS articles and adapted by the configured local model. No Academic Phrasebank
+          Patterns are independently derived from CC BY PLOS articles and adapted by the configured writing model. No Academic Phrasebank
           content is included.
         </p>
         <p class="mt-2">

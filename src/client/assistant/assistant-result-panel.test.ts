@@ -111,7 +111,7 @@ describe("assistant result panel", () => {
 
     buildTable.mockResolvedValueOnce({ ...provenance, caption: request.caption, columns: ["Only one"], rows: request.rows });
     await expect(panel.generateTable({ buildTable }, request, tableContext)).rejects.toThrow(
-      "Local model changed the requested table shape",
+      "Writing model changed the requested table shape",
     );
   });
 
