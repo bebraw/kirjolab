@@ -2,6 +2,7 @@ import type * as Y from "yjs";
 import { resolveManuscriptAnchor } from "../../domain/manuscript/manuscript-anchor";
 import { projectCompanionNotesPath, type ProjectFile } from "../../domain/project/project-files";
 import type {
+  BibliographicRecord,
   LibraryHighlight,
   LibraryPdfArtifact,
   LibraryPdfDrawing,
@@ -12,7 +13,12 @@ import type {
 } from "../../domain/reference-library";
 import { isProjectReferencePdfs } from "../../domain/reference-library";
 import { suggestCitationKey } from "../../domain/publication/publication-intake";
-import type { AnnotationResource, ManuscriptAnchorSelector, WorkspaceSnapshot } from "../../domain/workspace/workspace";
+import type {
+  AnnotationResource,
+  ManuscriptAnchorSelector,
+  PublicationResource,
+  WorkspaceSnapshot,
+} from "../../domain/workspace/workspace";
 import { AssistantWorkflowStatus } from "../assistant/assistant-workflow-status";
 import type {
   AssistantApplicationOwners,
@@ -42,6 +48,7 @@ import { PdfSearchPanel } from "../pdf/pdf-search-panel";
 import "../pdf/pdf-search-panel";
 import { PdfNavigationPanel } from "../pdf/pdf-navigation-panel";
 import "../pdf/pdf-navigation-panel";
+import { PdfReferenceDetailsPanel, pdfReferenceDetailsVisibilityEvent, type PdfReferenceDetails } from "../pdf/pdf-reference-details-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "../library/library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "../library/library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "../library/library-pdf-inspector";
@@ -577,11 +584,14 @@ export class ContextResourcePresenter extends LightDomController {
     void this.openProjectPdf(pdf, annotation.page, annotation.id);
   }
 
-  async openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
+  async openPublicationPaper(paper: PublicationPaperOption, page?: number): Promise<void> {
     if (!this.routeBinding) return;
-    if (paper.kind === "project") return await this.openProjectPdf(paper.pdf);
-    if (paper.kind === "library") return await this.openLibraryPdf(paper.artifact);
-    await this.openReferencePdf(paper.pdf);
+    if (paper.kind === "project")
+      return page === undefined ? await this.openProjectPdf(paper.pdf) : await this.openProjectPdf(paper.pdf, page);
+    if (paper.kind === "library")
+      return page === undefined ? await this.openLibraryPdf(paper.artifact) : await this.openLibraryPdf(paper.artifact, page);
+    if (page === undefined) await this.openReferencePdf(paper.pdf);
+    else await this.openReferencePdf(paper.pdf, page);
   }
 
   openProjectNote(id: string): void {
@@ -626,9 +636,20 @@ export class ContextResourcePresenter extends LightDomController {
       return;
     }
     const links = project.publicationPdfLinks.filter(({ publicationId }) => publicationId === publication.id);
-    const pdf = links.length === 1 ? project.pdfs.find(({ id }) => id === links[0]?.pdfId) : undefined;
+    const projectPapers = links.flatMap((link) => {
+      const pdf = project.pdfs.find(({ id }) => id === link.pdfId);
+      return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
+    });
+    const libraryPapers = (this.boundLibrary()?.artifacts ?? [])
+      .filter(({ referenceId }) => referenceId === publication.id)
+      .map((artifact) => ({ kind: "library" as const, artifact }));
+    const localArtifactIds = new Set(libraryPapers.map(({ artifact }) => artifact.id));
+    const referencePapers = this.referencePdfs
+      .filter(({ id, referenceId }) => referenceId === publication.id && !localArtifactIds.has(id))
+      .map((pdf) => ({ kind: "reference" as const, pdf }));
+    const papers: readonly PublicationPaperOption[] = [...libraryPapers, ...referencePapers, ...projectPapers];
     const page = citationPageFromLocator(citation.locator);
-    if (page && pdf) void this.openProjectPdf(pdf, page);
+    if (papers.length === 1) void this.openPublicationPaper(papers[0]!, page ?? undefined);
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
@@ -669,6 +690,16 @@ export class ContextResourcePresenter extends LightDomController {
     });
     this.element("open-paper-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     this.element("open-library-pdf-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
+    const referenceDetailsPanel = this.element("pdf-reference-details-panel", PdfReferenceDetailsPanel);
+    const referenceDetailsButtons = [
+      this.element("open-paper-details", HTMLElement),
+      this.element("open-library-pdf-details", HTMLElement),
+    ].filter((button): button is HTMLElement => button !== null);
+    for (const button of referenceDetailsButtons) button.addEventListener("click", () => referenceDetailsPanel?.show());
+    referenceDetailsPanel?.addEventListener(pdfReferenceDetailsVisibilityEvent, (event) => {
+      const open = (event as CustomEvent<{ readonly open: boolean }>).detail.open;
+      for (const button of referenceDetailsButtons) button.setAttribute("aria-expanded", String(open));
+    });
     if (typeof this.ownerDocument.addEventListener === "function") {
       this.ownerDocument.addEventListener("keydown", (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "f" && this.currentActiveTab?.kind.endsWith("pdf")) {
@@ -1561,6 +1592,7 @@ export class ContextResourcePresenter extends LightDomController {
     const activeLibraryArtifact = this.activeLibraryArtifact(sources);
     this.currentLibraryPdf = activeLibraryArtifact;
     this.syncPdfPanels(sources, activeLibraryArtifact);
+    this.presentPdfReferenceDetails(sources, activeLibraryArtifact);
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
     const privateHighlights = this.presentLibraryPdf(sources, activeLibraryArtifact);
@@ -1612,6 +1644,36 @@ export class ContextResourcePresenter extends LightDomController {
     );
   }
 
+  private presentPdfReferenceDetails(sources: ContextResourceSources, artifact: LibraryPdfArtifact | undefined): void {
+    const panel = this.element("pdf-reference-details-panel", PdfReferenceDetailsPanel);
+    const tab = sources.activeTab;
+    if (tab?.kind === "pdf") {
+      const pdf = sources.snapshot?.pdfs.find(({ id }) => id === tab.id);
+      if (!pdf) return panel?.setContext(null);
+      const publicationIds = new Set(
+        sources.snapshot?.publicationPdfLinks.filter(({ pdfId }) => pdfId === pdf.id).map(({ publicationId }) => publicationId) ?? [],
+      );
+      const references = sources.snapshot?.publications.filter(({ id }) => publicationIds.has(id)).map(projectPdfReferenceDetails) ?? [];
+      panel?.setContext({ pdfId: pdf.id, pdfName: pdf.name, references });
+      return;
+    }
+    if (tab?.kind !== "library-pdf") return panel?.setContext(null);
+    const referencePdf = artifact ? undefined : sources.referencePdfs.find(({ id }) => id === tab.id);
+    const pdf = artifact ?? referencePdf;
+    if (!pdf) return panel?.setContext(null);
+    const libraryReference = artifact?.referenceId ? sources.library?.references.find(({ id }) => id === artifact.referenceId) : undefined;
+    const projectReference = !libraryReference ? sources.snapshot?.publications.find(({ id }) => id === pdf.referenceId) : undefined;
+    panel?.setContext({
+      pdfId: pdf.id,
+      pdfName: pdf.name,
+      references: libraryReference
+        ? [libraryPdfReferenceDetails(libraryReference)]
+        : projectReference
+          ? [projectPdfReferenceDetails(projectReference)]
+          : [],
+    });
+  }
+
   private activeLibraryArtifact(sources: ContextResourceSources): LibraryPdfArtifact | undefined {
     const tab = sources.activeTab;
     return tab?.kind === "library-pdf" ? sources.library?.artifacts.find(({ id }) => id === tab.id) : undefined;
@@ -1651,6 +1713,36 @@ export class ContextResourcePresenter extends LightDomController {
     const tab = sources.activeTab;
     return tab?.kind === "library-pdf" && !activeLibraryArtifact && sources.referencePdfs.some(({ id }) => id === tab.id);
   }
+}
+
+function projectPdfReferenceDetails(publication: PublicationResource): PdfReferenceDetails {
+  return {
+    abstract: publication.abstract,
+    authors: publication.authors,
+    citationKey: publication.citationKey,
+    doi: publication.doi,
+    id: publication.id,
+    origin: "Project reference",
+    title: publication.title,
+    type: publication.type,
+    venue: publication.venue,
+    year: publication.year,
+  };
+}
+
+function libraryPdfReferenceDetails(reference: BibliographicRecord): PdfReferenceDetails {
+  return {
+    abstract: reference.abstract,
+    authors: reference.authors,
+    citationKey: reference.referenceKey,
+    doi: reference.doi,
+    id: reference.id,
+    origin: "Library reference",
+    title: reference.title,
+    type: reference.type,
+    venue: reference.venue,
+    year: reference.year,
+  };
 }
 
 interface LibraryPdfDrawingAdoption {

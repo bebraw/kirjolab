@@ -75,7 +75,15 @@ describe("assistant task panel", () => {
     const panel = new TestAssistantTaskPanel();
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
-    for (const operation of ["draft-claim", "phrase-passage", "build-table", "clarity-drill", "ideate", "find-references"]) {
+    for (const operation of [
+      "draft-claim",
+      "stress-test-claim",
+      "phrase-passage",
+      "build-table",
+      "clarity-drill",
+      "ideate",
+      "find-references",
+    ]) {
       panel.operationForTest(operation);
       expect(panel.renderForTest()).toBeDefined();
     }

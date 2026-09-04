@@ -1,0 +1,10 @@
+{
+  "id": "2026-09-04-bound-npm-audit-retries",
+  "title": "Back npm audit outages with dependency review",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-236-use-dependency-review-for-audit-outages.md"],
+  "touches": [".github/workflows/ci.yml", "package.json", "scripts/", "docs/", "specs/"],
+  "checks": ["npm run test:tooling", "npm run security:audit", "npm run ci:local"]
+}

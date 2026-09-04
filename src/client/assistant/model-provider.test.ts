@@ -3,6 +3,7 @@ import {
   discoverOpenAICompatibleModels,
   explainLocalModelNetworkError,
   OpenAICompatibleBrowserProvider,
+  type ClaimStressTestRequest,
   type DraftClaimRequest,
   type ClarityDrillRequest,
   type IdeationRequest,
@@ -32,6 +33,11 @@ const clarityOperation = {
   instruction: "Make the claim concrete.",
   evidence: [],
 } as const satisfies ClarityDrillRequest;
+const stressTestOperation = {
+  selectedPassage: "Visible evidence reduces review time.",
+  instruction: "Test whether the claim follows without overstating its scope.",
+  evidence: [{ kind: "annotation", id: "annotation-1", label: "Page 4", content: "Editors completed review in less time." }],
+} as const satisfies ClaimStressTestRequest;
 const ideationOperation = clarityOperation satisfies IdeationRequest;
 const phrasingOperation = {
   ...clarityOperation,
@@ -544,6 +550,155 @@ describe("OpenAICompatibleBrowserProvider", () => {
     });
   });
 
+  it("questions a claim's reasoning, scope, and exceptions before returning revisions", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({
+            reasoning: {
+              assessment: "The mechanism connecting visible evidence to review time is implicit.",
+              question: "Why would showing evidence at the point of review reduce elapsed time?",
+            },
+            scope: {
+              assessment: "The population and review conditions are not stated.",
+              question: "For which reviewers and review tasks does the observation apply?",
+            },
+            exceptions: {
+              assessment: "No condition that could defeat the inference is named.",
+              question: "When would visible evidence fail to reduce review time?",
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({
+            rewrites: [
+              {
+                text: "For evidence-heavy editorial checks, visible evidence may reduce review time by avoiding separate source lookup.",
+                rationale: "States the mechanism and bounds the claim.",
+              },
+              {
+                text: "Visible evidence may shorten evidence-heavy reviews when source interpretation does not require broader context.",
+                rationale: "Adds the researcher's exception.",
+              },
+            ],
+          }),
+        ),
+      );
+    const provider = createProvider({ fetcher });
+
+    const stressTest = await provider.startClaimStressTest(stressTestOperation);
+    expect(stressTest).toMatchObject({
+      reasoning: { question: "Why would showing evidence at the point of review reduce elapsed time?" },
+      scope: { question: "For which reviewers and review tasks does the observation apply?" },
+      exceptions: { question: "When would visible evidence fail to reduce review time?" },
+    });
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: {
+          reasoning: stressTest.reasoning,
+          scope: stressTest.scope,
+          exceptions: stressTest.exceptions,
+        },
+        answers: {
+          reasoning: "It avoids a separate source lookup.",
+          scope: "Evidence-heavy editorial checks.",
+          exceptions: "Not when interpretation requires broader source context.",
+        },
+      }),
+    ).resolves.toMatchObject({
+      rewrites: [
+        expect.objectContaining({ text: expect.stringContaining("evidence-heavy editorial checks") }),
+        expect.objectContaining({ text: expect.stringContaining("broader context") }),
+      ],
+    });
+
+    const firstBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    const secondBody = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(firstBody.response_format.json_schema.name).toBe("kirjolab_claim_stress_test");
+    expect(JSON.parse(firstBody.messages[1]?.content ?? "")).toEqual({
+      instruction: stressTestOperation.instruction,
+      selectedPassage: stressTestOperation.selectedPassage,
+      orderedEvidence: [{ order: 1, ...stressTestOperation.evidence[0] }],
+    });
+    expect(secondBody.response_format.json_schema.name).toBe("kirjolab_claim_stress_rewrites");
+    expect(JSON.parse(secondBody.messages[1]?.content ?? "")).toMatchObject({
+      researcherAnswers: {
+        reasoning: "It avoids a separate source lookup.",
+        scope: "Evidence-heavy editorial checks.",
+        exceptions: "Not when interpretation requires broader source context.",
+      },
+    });
+    expect(secondBody.messages[0]?.content).toContain("Do not invent facts, reasoning, or counterevidence");
+  });
+
+  it("rejects ungrounded or malformed claim stress tests before they can become revisions", async () => {
+    const idle = vi.fn<typeof fetch>();
+    const provider = createProvider({ fetcher: idle });
+    const questions = {
+      reasoning: { assessment: "Implicit.", question: "Why?" },
+      scope: { assessment: "Broad.", question: "Where?" },
+      exceptions: { assessment: "Missing.", question: "Unless what?" },
+    };
+    await expect(provider.startClaimStressTest({ ...stressTestOperation, evidence: [] })).rejects.toThrow(
+      "Evidence must contain between 1 and 12 items",
+    );
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: questions,
+        answers: { reasoning: "", scope: "Observed reviews.", exceptions: "None identified." },
+      }),
+    ).rejects.toThrow("Reasoning answer is required");
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: questions,
+        answers: { reasoning: "Because.", scope: "x".repeat(4_001), exceptions: "None identified." },
+      }),
+    ).rejects.toThrow("Scope answer exceeds 4000 characters");
+    expect(idle).not.toHaveBeenCalled();
+
+    const invalidStressTests = [
+      "not json",
+      "{}",
+      JSON.stringify({ ...questions, score: 0.8 }),
+      JSON.stringify({ ...questions, reasoning: null }),
+      JSON.stringify({ ...questions, scope: { assessment: "", question: "Where?" } }),
+      JSON.stringify({ ...questions, exceptions: { assessment: "Missing.", question: "", answer: "Invented" } }),
+    ];
+    for (const content of invalidStressTests) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).startClaimStressTest(
+          stressTestOperation,
+        ),
+      ).rejects.toThrow();
+    }
+
+    for (const content of [
+      '{"rewrites":[]}',
+      '{"rewrites":[{"text":"Only one","rationale":"Bounded"}]}',
+      '{"rewrites":[{"text":"One","rationale":"Why","score":1},{"text":"Two","rationale":"Why"}]}',
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).continueClaimStressTest({
+          ...stressTestOperation,
+          stressTest: questions,
+          answers: { reasoning: "Because.", scope: "Observed reviews.", exceptions: "None identified." },
+        }),
+      ).rejects.toThrow();
+    }
+  });
+
   it("rejects malformed contextual-operation requests and structured outputs", async () => {
     const idle = vi.fn<typeof fetch>();
     const provider = createProvider({ fetcher: idle });
@@ -619,10 +774,10 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(idle).not.toHaveBeenCalled();
 
     const invalidQuestions = [
-      ["not json", "Local model returned malformed clarity question"],
-      ["{}", "Local model returned invalid clarity question"],
+      ["not json", "Writing model returned malformed clarity question"],
+      ["{}", "Writing model returned invalid clarity question"],
       ['{"issue":"","question":"Why?"}', "Clarity issue is required"],
-      ['{"issue":"Issue","question":"","extra":true}', "Local model returned invalid clarity question"],
+      ['{"issue":"Issue","question":"","extra":true}', "Writing model returned invalid clarity question"],
     ] as const;
     for (const [content, message] of invalidQuestions) {
       await expect(
@@ -643,7 +798,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
       ['{"rewrites":[{"text":"One","rationale":""},{"text":"Two","rationale":"Why"}]}', "Clarity rationale is required"],
       [
         '{"rewrites":[{"text":"One","rationale":"Why","extra":true},{"text":"Two","rationale":"Why"}]}',
-        "Local model returned invalid clarity rewrite",
+        "Writing model returned invalid clarity rewrite",
       ],
     ] as const;
     for (const [content, message] of invalidRewrites) {
@@ -659,7 +814,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
 
     const validIdeas = Array.from({ length: 3 }, (_, index) => ({ title: `Idea ${index}`, direction: "Direction", draft: "Draft" }));
     for (const [content, message] of [
-      ["not json", "Local model returned malformed ideas"],
+      ["not json", "Writing model returned malformed ideas"],
       ['{"ideas":[]}', "Ideation must return between 3 and 5 ideas"],
       [JSON.stringify({ ideas: validIdeas.slice(0, 2) }), "Ideation must return between 3 and 5 ideas"],
       [JSON.stringify({ ideas: [...validIdeas, ...validIdeas] }), "Ideation must return between 3 and 5 ideas"],
@@ -668,7 +823,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
       [JSON.stringify({ ideas: [{ ...validIdeas[0], direction: "" }, ...validIdeas.slice(1)] }), "Idea direction is required"],
       [
         JSON.stringify({ ideas: [{ ...validIdeas[0], draft: "", extra: true }, ...validIdeas.slice(1)] }),
-        "Local model returned invalid idea",
+        "Writing model returned invalid idea",
       ],
     ] as const) {
       await expect(
@@ -938,6 +1093,30 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toHaveProperty("reasoning_effort", reasoningEffort);
   });
 
+  it("authenticates Codex companion requests and uses its deterministic temperature", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"replacement":"Codex revision"}'));
+    const provider = createProvider({
+      endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+      bearerToken: "codex-token-with-at-least-24-chars",
+      temperature: 0,
+      fetcher,
+    });
+
+    await expect(provider.reviseSelection(operation)).resolves.toMatchObject({ replacement: "Codex revision" });
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      authorization: "Bearer codex-token-with-at-least-24-chars",
+      "content-type": "application/json",
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toMatchObject({ temperature: 0 });
+  });
+
+  it.each(["short", "contains spaces but is definitely long enough", "x".repeat(513)])(
+    "rejects an unsafe companion bearer token %j",
+    (bearerToken) => {
+      expect(() => createProvider({ bearerToken })).toThrow("bearer token");
+    },
+  );
+
   it("invokes the browser fetch function without binding the provider as its receiver", async () => {
     const browserFetch = vi.fn(function (this: unknown) {
       if (this !== undefined) throw new TypeError("Illegal invocation");
@@ -1052,7 +1231,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
 
   it("rejects non-successful and malformed provider responses", async () => {
     for (const [response, message] of [
-      [new Response("unavailable", { status: 503 }), "Local model request failed (503)"],
+      [new Response("unavailable", { status: 503 }), "Writing model request failed (503)"],
       [new Response("not json"), "malformed JSON"],
       [new Response(new Uint8Array([0xc3, 0x28])), "malformed JSON"],
       [new Response(null), "empty response"],
@@ -1089,12 +1268,12 @@ describe("OpenAICompatibleBrowserProvider", () => {
       createProvider({
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_000) }), { status: 400 })),
       }).reviseSelection(operation),
-    ).rejects.toThrow(`Local model request failed (400): ${"x".repeat(1_000)}`);
+    ).rejects.toThrow(`Writing model request failed (400): ${"x".repeat(1_000)}`);
     await expect(
       createProvider({
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_001) }), { status: 400 })),
       }).reviseSelection(operation),
-    ).rejects.toThrow("Local model request failed (400).");
+    ).rejects.toThrow("Writing model request failed (400).");
 
     for (const body of [
       "not json",
@@ -1106,7 +1285,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
         createProvider({
           fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 400 })),
         }).reviseSelection(operation),
-      ).rejects.toThrow("Local model request failed (400).");
+      ).rejects.toThrow("Writing model request failed (400).");
     }
   });
 
@@ -1252,6 +1431,21 @@ describe("OpenAI-compatible model discovery", () => {
       redirect: "error",
       headers: { accept: "application/json" },
     });
+  });
+
+  it("authenticates Codex companion model discovery without browser credentials", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: [{ id: "gpt-5.6-terra" }] }));
+    await expect(
+      discoverOpenAICompatibleModels("http://127.0.0.1:8790/v1/chat/completions", {
+        bearerToken: "codex-token-with-at-least-24-chars",
+        fetcher,
+      }),
+    ).resolves.toEqual(["gpt-5.6-terra"]);
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      accept: "application/json",
+      authorization: "Bearer codex-token-with-at-least-24-chars",
+    });
+    expect(fetcher.mock.calls[0]?.[1]?.credentials).toBe("omit");
   });
 
   it("normalizes bounded identifiers and strips completion endpoint query data", async () => {

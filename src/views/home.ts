@@ -293,7 +293,7 @@ export function renderHomePage(
               </details>
             </editor-insert-menu>
             <source-citation-control class="contents" id="source-citation-control">
-              <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
+              <button class="button-secondary hidden" id="open-source-citation" type="button" title="Open the citation at the caret in Context. Command-click a citation for the same action." disabled>Open cited paper</button>
             </source-citation-control>
             <editor-status class="contents" id="editor-status">
               <p class="editor-target-status" id="editor-target-status" title="main.md · line 1 · caret">main.md · line 1 · caret</p>
@@ -602,6 +602,9 @@ export function renderHomePage(
             ${renderLibraryPdfRail()}
             <pdf-search-panel id="pdf-search-panel"></pdf-search-panel>
             <pdf-navigation-panel id="pdf-navigation-panel"></pdf-navigation-panel>
+            <pdf-reference-details-panel id="pdf-reference-details-panel">
+              <aside class="pdf-reference-details-panel" aria-label="About this paper" hidden></aside>
+            </pdf-reference-details-panel>
             <span class="pdf-reader-status" id="paper-status" role="status" aria-live="polite" data-state="busy">Loading PDF…</span>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">

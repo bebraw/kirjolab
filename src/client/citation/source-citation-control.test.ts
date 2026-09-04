@@ -30,6 +30,17 @@ describe("source citation control", () => {
     expect(control.rootForTest()).toBe(control);
   });
 
+  it("opens a citation directly from an editor pointer position", () => {
+    const control = new TestSourceCitationControl();
+    const contexts: CitationContext[] = [];
+    control.bindWorkflow({ openCitation: (context) => contexts.push(context) }, { completeCitationInsertion: () => undefined });
+
+    expect(control.openCitationAtPosition('See :cite[merton1942]{locator="p. 4"}.', 12)).toBe(true);
+    expect(control.openCitationAtPosition("Plain prose", 5)).toBe(false);
+
+    expect(contexts).toEqual([{ keys: ["merton1942"], locator: "p. 4" }]);
+  });
+
   it("does not open outside a citation", () => {
     const control = new TestSourceCitationControl();
     let opened = false;

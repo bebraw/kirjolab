@@ -273,9 +273,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rail joins the simultaneous layout only when all three panes meet their
   minimum useful widths. Keep the project-view control available from the
   tablet-landscape breakpoint so `Editor + navigation` can restore the rail
-  without creating an undersized three-pane layout. PDF search, navigation, and
-  annotation inspectors are bounded overlays and must never participate in the
-  reader grid or resize the rendered page.
+  without creating an undersized three-pane layout. PDF search, navigation,
+  reference-metadata, and annotation inspectors are bounded overlays and must
+  never participate in the reader grid or resize the rendered page.
 - Let the workspace surface switcher's route binding own Write/Map route
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;
@@ -873,9 +873,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   time, and digest; resolve `::review-artifact[...]` identically in preview and
   publication. Never let background review changes rewrite manuscript files or
   ordinary edits mutate a pinned artifact.
-- Keep local-model review assistance browser-to-loopback. Store the operation,
-  provider, model, prompt version, authorized source scope, result, and human
-  disposition; model candidates remain inert until explicit acceptance.
+- Keep model review assistance browser-to-loopback and out of the hosted
+  Worker. Direct and forwarded local-model paths stay credential-free. An
+  authenticated remote-model adapter must terminate in the explicitly started
+  loopback companion, use an isolated provider-specific runtime, and require a
+  separate high-entropy browser bearer retained only in tab-scoped session
+  storage. Store the operation, provider, model, prompt version, authorized
+  source scope, result, and human disposition; model candidates remain inert
+  until explicit acceptance.
 - Keep each transient assistant result's captured passage, source revision,
   evidence, and continuation authority inside its Lit result owner. Emit that
   complete typed context with table, clarity, or revision intents. Let the same
@@ -2031,6 +2036,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Stryker's exit status and keep bounded affected runs capable of emitting
   individual mutant details.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
+- Keep `npm audit` as the full-tree runtime dependency gate and fail closed
+  locally and on pushes to `main`. Pull-request CI may accept only an exhausted,
+  recognized npm registry transport failure after the same job has passed
+  GitHub Dependency Review for newly introduced high-severity runtime
+  vulnerabilities. Keep the repository dependency graph enabled for that
+  comparison. Never apply the fallback to a completed audit report or an
+  unrecognized command failure.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.
 - Optional container Local CI must explicitly prewarm through one deterministic install step

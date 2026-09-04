@@ -1,8 +1,11 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { LightDomElement } from "../platform/light-dom-controller";
 import type {
+  ClaimStressTestAnswers,
   ModelClarityQuestion,
   ModelClarityRewrites,
+  ModelClaimStressRewrites,
+  ModelClaimStressTest,
   ModelEvidenceItem,
   ModelIdeas,
   ModelPhrasingAlternatives,
@@ -37,6 +40,11 @@ export interface AssistantClarityContext extends AssistantRevisionContext {
   readonly question: ModelClarityQuestion;
 }
 
+export interface AssistantClaimStressContext extends AssistantRevisionContext {
+  readonly provider: Pick<ModelProvider, "continueClaimStressTest">;
+  readonly stressTest: ModelClaimStressTest;
+}
+
 export interface AssistantTableContext {
   readonly sourceRevision: number;
   readonly target: AssistantAuthoringPassage;
@@ -52,6 +60,7 @@ export interface AssistantRevisionChoice {
 }
 
 export type AssistantResultActionDetail =
+  | { readonly action: "continue-claim-stress"; readonly answers: ClaimStressTestAnswers; readonly context: AssistantClaimStressContext }
   | { readonly action: "continue-clarity"; readonly answer: string; readonly context: AssistantClarityContext }
   | { readonly action: "insert-table"; readonly context: AssistantTableContext; readonly markdown: string }
   | { readonly action: "choose-revision"; readonly choice: AssistantRevisionChoice; readonly context: AssistantRevisionContext };
@@ -76,6 +85,7 @@ interface RevisionOption {
 type AssistantResultView =
   | { readonly kind: "empty" }
   | { readonly context: AssistantTableContext; readonly kind: "table"; readonly markdown: string }
+  | { readonly context: AssistantClaimStressContext; readonly kind: "claim-stress-questions" }
   | { readonly context: AssistantClarityContext; readonly kind: "clarity-question" }
   | { readonly context: AssistantRevisionContext; readonly kind: "ideas"; readonly options: readonly RevisionOption[] }
   | {
@@ -93,11 +103,13 @@ type AssistantResultView =
 
 export class AssistantResultPanel extends LightDomElement {
   static override properties = {
+    claimStressAnswers: { state: true },
     referenceSaveState: { state: true },
     referenceStatus: { state: true },
     view: { state: true },
   };
 
+  declare private claimStressAnswers: ClaimStressTestAnswers;
   declare private referenceSaveState: ReadonlyMap<number, "saving" | "saved">;
   declare private referenceStatus: string;
   declare private view: AssistantResultView;
@@ -106,12 +118,14 @@ export class AssistantResultPanel extends LightDomElement {
 
   constructor() {
     super();
+    this.claimStressAnswers = { reasoning: "", scope: "", exceptions: "" };
     this.referenceSaveState = new Map();
     this.referenceStatus = "";
     this.view = { kind: "empty" };
   }
 
   clear(): void {
+    this.claimStressAnswers = { reasoning: "", scope: "", exceptions: "" };
     this.referenceSaveState = new Map();
     this.referenceRequestIds.clear();
     this.referenceStatus = "";
@@ -129,7 +143,7 @@ export class AssistantResultPanel extends LightDomElement {
   ): Promise<void> {
     const table = await provider.buildTable(request);
     if (table.columns.length !== request.columns.length || table.rows.length !== request.rows.length) {
-      throw new Error("Local model changed the requested table shape");
+      throw new Error("Writing model changed the requested table shape");
     }
     this.showTable(tableMarkdown(table), context);
   }
@@ -151,6 +165,26 @@ export class AssistantResultPanel extends LightDomElement {
       evidence: context.evidence.items,
     });
     this.showClarityQuestion({ ...context, provider, question });
+  }
+
+  showClaimStressTest(context: AssistantClaimStressContext): void {
+    this.claimStressAnswers = { reasoning: "", scope: "", exceptions: "" };
+    this.view = { context, kind: "claim-stress-questions" };
+    void this.updateComplete.then(() => {
+      if (typeof this.querySelector === "function") this.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+    });
+  }
+
+  async startClaimStressTest(
+    provider: Pick<ModelProvider, "startClaimStressTest" | "continueClaimStressTest">,
+    context: AssistantRevisionContext,
+  ): Promise<void> {
+    const stressTest = await provider.startClaimStressTest({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+    });
+    this.showClaimStressTest({ ...context, provider, stressTest });
   }
 
   showIdeas(context: AssistantRevisionContext, result: ModelIdeas): void {
@@ -251,6 +285,50 @@ export class AssistantResultPanel extends LightDomElement {
     this.showClarityRewrites(context, answer, result);
   }
 
+  showClaimStressRewrites(context: AssistantRevisionContext, answers: ClaimStressTestAnswers, result: ModelClaimStressRewrites): void {
+    const instruction = [
+      context.instruction,
+      `Reasoning: ${answers.reasoning}`,
+      `Scope and strength: ${answers.scope}`,
+      `Exceptions: ${answers.exceptions}`,
+    ]
+      .join("\n")
+      .slice(0, 4_000);
+    this.view = {
+      actionLabel: "Review this revision",
+      context,
+      kind: "revision-options",
+      options: result.rewrites.map((rewrite, index) => ({
+        choice: {
+          failureMessage: "Could not save the stress-tested revision",
+          instruction,
+          model: result.model,
+          providerLabel: result.providerLabel,
+          replacement: rewrite.text,
+          successMessage: "Stress-tested revision ready for exact before-and-after review.",
+        },
+        eyebrow: `Stress-tested option ${index + 1}`,
+        rationale: rewrite.rationale,
+        text: rewrite.text,
+      })),
+    };
+  }
+
+  async completeClaimStressTest(context: AssistantClaimStressContext, answers: ClaimStressTestAnswers): Promise<void> {
+    const result = await context.provider.continueClaimStressTest({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+      stressTest: {
+        reasoning: context.stressTest.reasoning,
+        scope: context.stressTest.scope,
+        exceptions: context.stressTest.exceptions,
+      },
+      answers,
+    });
+    this.showClaimStressRewrites(context, answers, result);
+  }
+
   showReferences(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
     this.referenceSaveState = new Map();
     this.referenceRequestIds.clear();
@@ -305,6 +383,45 @@ export class AssistantResultPanel extends LightDomElement {
         </section>
       `;
     }
+    if (this.view.kind === "claim-stress-questions") {
+      return html`
+        <section class="resource-card">
+          <p class="eyebrow">Toulmin-inspired claim check</p>
+          <h3 class="mt-2 text-base font-semibold">Make the inferential bridge explicit</h3>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft">
+            The model has surfaced questions, not answers. Record the reasoning and limits you can defend from the selected evidence.
+          </p>
+          <div class="mt-4 grid gap-4">
+            ${this.renderClaimStressPrompt(
+              "reasoning",
+              "Reasoning",
+              this.view.context.stressTest.reasoning.assessment,
+              this.view.context.stressTest.reasoning.question,
+            )}
+            ${this.renderClaimStressPrompt(
+              "scope",
+              "Scope and strength",
+              this.view.context.stressTest.scope.assessment,
+              this.view.context.stressTest.scope.question,
+            )}
+            ${this.renderClaimStressPrompt(
+              "exceptions",
+              "Exceptions",
+              this.view.context.stressTest.exceptions.assessment,
+              this.view.context.stressTest.exceptions.question,
+            )}
+          </div>
+          <button
+            class="button-primary mt-4"
+            type="button"
+            ?disabled=${!this.claimStressAnswersComplete}
+            @click=${this.continueClaimStressTest}
+          >
+            Show bounded rewrites
+          </button>
+        </section>
+      `;
+    }
     if (this.view.kind === "ideas") {
       return html`<div class="grid gap-3">
         ${this.view.options.map(
@@ -346,6 +463,26 @@ export class AssistantResultPanel extends LightDomElement {
     if (this.view.kind !== "clarity-question") return;
     const answer = typeof this.querySelector === "function" ? (this.querySelector<HTMLTextAreaElement>("textarea")?.value ?? "") : "";
     this.dispatchAction({ action: "continue-clarity", answer, context: this.view.context });
+  }
+
+  protected changeClaimStressAnswer(event: Event): void {
+    const input = event.currentTarget as HTMLTextAreaElement;
+    const dimension = input.dataset.stressAnswer;
+    if (dimension !== "reasoning" && dimension !== "scope" && dimension !== "exceptions") return;
+    this.claimStressAnswers = { ...this.claimStressAnswers, [dimension]: input.value };
+  }
+
+  protected continueClaimStressTest(): void {
+    if (this.view.kind !== "claim-stress-questions" || !this.claimStressAnswersComplete) return;
+    this.dispatchAction({
+      action: "continue-claim-stress",
+      answers: {
+        reasoning: this.claimStressAnswers.reasoning.trim(),
+        scope: this.claimStressAnswers.scope.trim(),
+        exceptions: this.claimStressAnswers.exceptions.trim(),
+      },
+      context: this.view.context,
+    });
   }
 
   protected insertTable(): void {
@@ -403,6 +540,38 @@ export class AssistantResultPanel extends LightDomElement {
       })}
       <p class="status-line" role="status" ?hidden=${!this.referenceStatus}>${this.referenceStatus}</p>
     </div>`;
+  }
+
+  private get claimStressAnswersComplete(): boolean {
+    return (
+      Boolean(this.claimStressAnswers.reasoning.trim()) &&
+      Boolean(this.claimStressAnswers.scope.trim()) &&
+      Boolean(this.claimStressAnswers.exceptions.trim())
+    );
+  }
+
+  private renderClaimStressPrompt(
+    dimension: keyof ClaimStressTestAnswers,
+    label: string,
+    assessment: string,
+    question: string,
+  ): TemplateResult {
+    return html`
+      <label class="field-label">
+        ${label}
+        <span class="mt-1 block font-normal leading-5 tracking-normal text-app-text-soft normal-case">${assessment}</span>
+        <span class="mt-1 block text-sm font-semibold leading-5 tracking-normal text-app-text normal-case">${question}</span>
+        <textarea
+          class="field mt-2 w-full"
+          rows="3"
+          maxlength="4000"
+          data-stress-answer=${dimension}
+          placeholder=${dimension === "exceptions" ? "Name a condition or write “None identified.”" : "State what you can defend…"}
+          .value=${this.claimStressAnswers[dimension]}
+          @input=${this.changeClaimStressAnswer}
+        ></textarea>
+      </label>
+    `;
   }
 
   private dispatchAction(detail: AssistantResultActionDetail): void {

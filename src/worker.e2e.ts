@@ -373,6 +373,34 @@ function localModelFixtureContent(schemaName: unknown): string {
     return JSON.stringify({ query: "visible evidence review time", rationale: "Names the mechanism and outcome." });
   if (schemaName === "kirjolab_clarity_question")
     return JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" });
+  if (schemaName === "kirjolab_claim_stress_test")
+    return JSON.stringify({
+      reasoning: {
+        assessment: "The evidence-to-claim mechanism is implicit.",
+        question: "Why would visible evidence reduce review time?",
+      },
+      scope: {
+        assessment: "The affected reviewers and task are not bounded.",
+        question: "For which reviewers and review tasks does the claim hold?",
+      },
+      exceptions: {
+        assessment: "No condition that defeats the inference is named.",
+        question: "When would visible evidence fail to reduce review time?",
+      },
+    });
+  if (schemaName === "kirjolab_claim_stress_rewrites")
+    return JSON.stringify({
+      rewrites: [
+        {
+          text: "For evidence-heavy editorial checks, visible evidence may reduce review time by avoiding separate source lookup.",
+          rationale: "States the mechanism and bounds the claim.",
+        },
+        {
+          text: "Visible evidence may shorten evidence-heavy reviews when interpretation does not require broader source context.",
+          rationale: "Includes the stated exception.",
+        },
+      ],
+    });
   if (schemaName === "kirjolab_table")
     return JSON.stringify({
       caption: "Review outcomes",
@@ -786,7 +814,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
   await page.locator("#library-pdf-more-actions").click();
-  await page.getByRole("button", { name: "References", exact: true }).click();
+  await page.getByRole("button", { name: "Bibliography", exact: true }).click();
   await expect(page.locator("#open-library-pdf-references")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
@@ -6304,9 +6332,29 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   await collaborator.close();
 });
 
-test("turns one clarity answer into a reviewable targeted revision", async ({ page }) => {
+test("turns researcher answers into reviewable clarity and claim stress-test revisions", async ({ page }) => {
+  const origin = "http://127.0.0.1:8788";
   const workspaceId = await createWorkspace(page, "Clarity drill");
   const api = `/api/workspaces/${workspaceId}`;
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "claim-stress-evidence.pdf" },
+    data: createEvidencePdf("Visible evidence kept the source available during review."),
+  });
+  const pdf: unknown = await pdfResponse.json();
+  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const annotationResponse = await page.request.post(`${api}/annotations`, {
+    headers: { origin },
+    data: {
+      pdfId: pdf.id,
+      page: 1,
+      quote: "Visible evidence kept the source available during review.",
+      prefix: "",
+      suffix: "",
+      comment: "Stress-test grounding",
+      rects: [],
+    },
+  });
+  expect(annotationResponse.status()).toBe(201);
   const requests: unknown[] = [];
   await page.route("**/api/library/discovery", async (route) => {
     const input: unknown = route.request().postDataJSON();
@@ -6369,13 +6417,32 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   expect((await readWorkspaceSnapshot(page, api)).candidates).toContainEqual(expect.objectContaining({ evidence: [], status: "pending" }));
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("stress-test-claim");
+  await page.getByRole("button", { name: "Choose evidence" }).click();
+  await page.locator('[data-model-evidence-key^="annotation:"]').first().check();
+  await openWritingAssistant(page, true);
+  await page.locator("#model-operation").selectOption("stress-test-claim");
+  await page.getByRole("button", { name: "Start stress test" }).click();
+  await expect(page.getByText("Why would visible evidence reduce review time?")).toBeVisible();
+  await page.locator('[data-stress-answer="reasoning"]').fill("It avoids a separate source lookup.");
+  await page.locator('[data-stress-answer="scope"]').fill("Evidence-heavy editorial checks.");
+  await page.locator('[data-stress-answer="exceptions"]').fill("Not when interpretation requires broader source context.");
+  await page.getByRole("button", { name: "Show bounded rewrites" }).click();
+  await expect(page.getByText(/For evidence-heavy editorial checks/)).toBeVisible();
+  await page.getByRole("button", { name: "Review this revision" }).first().click();
+  await expect(page.locator("#context-candidate-before")).toHaveText("This workflow is better for everyone.");
+  await expect(page.locator("#context-candidate-after")).toContainText("evidence-heavy editorial checks");
+  await expect(editor).toHaveValue(source);
+  expect(requests).toHaveLength(4);
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("ideate");
   await page.getByRole("button", { name: "Generate ideas" }).click();
   await expect(page.getByText("Measure review time")).toBeVisible();
   await page.getByRole("button", { name: "Review this direction" }).first().click();
   await expect(page.locator("#context-candidate-after")).toHaveText("The workflow reduces review time for editors.");
   await expect(editor).toHaveValue(source);
-  expect(requests).toHaveLength(3);
+  expect(requests).toHaveLength(5);
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("phrase-passage");
@@ -6383,7 +6450,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await page.locator("#assistant-phrasing-purpose").selectOption("qualify-claim");
   await page.getByRole("button", { name: "Suggest alternatives" }).click();
   await expect(page.getByText("The findings suggest that this workflow may reduce review time.")).toBeVisible();
-  const phrasingRequest = requests[3];
+  const phrasingRequest = requests[5];
   expect(phrasingRequest).toMatchObject({
     messages: [
       expect.any(Object),
@@ -6396,7 +6463,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await page.getByRole("button", { name: "Review this alternative" }).first().click();
   await expect(page.locator("#context-candidate-after")).toHaveText("The findings suggest that this workflow may reduce review time.");
   await expect(editor).toHaveValue(source);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(6);
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("build-table");
@@ -6407,7 +6474,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.locator("#assistant-interactive-result pre")).toContainText("| Workflow | Review time |");
   await page.getByRole("button", { name: "Insert table" }).click();
   await expect(editor).toHaveValue(/\| Kirjolab \| 8 min \|/u);
-  expect(requests).toHaveLength(5);
+  expect(requests).toHaveLength(7);
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("find-references");
@@ -6416,7 +6483,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.getByRole("link", { name: "Verify DOI" })).toHaveAttribute("href", "https://doi.org/10.5555/discovery");
   await page.getByRole("button", { name: "Save to library" }).click();
   await expect(page.getByRole("button", { name: "Saved to library" })).toBeDisabled();
-  expect(requests).toHaveLength(6);
+  expect(requests).toHaveLength(8);
 
   await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-discovery").getByText("Discover scholarly works").click();

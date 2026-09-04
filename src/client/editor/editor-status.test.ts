@@ -55,7 +55,7 @@ const authoringBinding = ({
   authoringModeTabs: { navigate: vi.fn() },
   bibliography,
   assistantGenerationPresenter: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
-  sourceCitationControl: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
+  sourceCitationControl: { bindWorkflow: vi.fn(), openCitationAtPosition: vi.fn(), setCaret: vi.fn() },
   contextResourcePresenter: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
   editorInsertMenu: { bind: vi.fn() },
   sourceHighlight: htmlElement(),
@@ -208,6 +208,25 @@ describe("editor status", () => {
     expect(binding.authoringModeTabs.navigate).toHaveBeenCalledOnce();
     expect(binding.toast.show).toHaveBeenNthCalledWith(1, "Citation inserted.");
     expect(binding.toast.show).toHaveBeenNthCalledWith(2, "Citation unavailable.");
+  });
+
+  it("opens a citation from a Command-click without changing the manuscript", () => {
+    const documentModel = new Y.Doc();
+    const text = documentModel.getText("source");
+    text.insert(0, 'See :cite[source2026]{locator="p. 7"}.');
+    const source = textareaElement(new FakeTextarea());
+    const status = new TestEditorStatus();
+    const binding = authoringBinding();
+    status.bindAuthoring(documentModel, source, binding, authoringSocket());
+    status.setAuthoringContext("main.md", "main", text, true);
+    source.setSelectionRange(12, 12);
+
+    source.dispatchEvent(Object.assign(new Event("click"), { metaKey: true }));
+    source.dispatchEvent(Object.assign(new Event("click"), { metaKey: false }));
+
+    expect(binding.sourceCitationControl.openCitationAtPosition).toHaveBeenCalledOnce();
+    expect(binding.sourceCitationControl.openCitationAtPosition).toHaveBeenCalledWith(text.toString(), 12);
+    expect(status.manuscript).toBe(text.toString());
   });
 
   it("preserves a live insertion point across collaborative edits", () => {

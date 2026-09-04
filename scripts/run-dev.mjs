@@ -36,11 +36,14 @@ for (const [signal, exitCode] of [
   process.once(signal, () => shutdown(exitCode));
 }
 
-const workerEnvironment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("KIRJOLAB_MODEL_")));
+const workerEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith("KIRJOLAB_MODEL_") && !name.startsWith("KIRJOLAB_CODEX_")),
+);
 start("local Worker", "npm", ["run", "dev:worker"], workerEnvironment);
 
-if (process.env.KIRJOLAB_MODEL_UPSTREAM) {
+const modelProvider = process.env.KIRJOLAB_MODEL_PROVIDER ?? "openai-compatible";
+if (modelProvider !== "openai-compatible" || process.env.KIRJOLAB_MODEL_UPSTREAM) {
   start("model companion", "npm", ["run", "model:companion"], process.env);
 } else {
-  console.log("[dev] Model companion skipped: KIRJOLAB_MODEL_UPSTREAM is not configured.");
+  console.log("[dev] Model companion skipped: no provider is configured.");
 }

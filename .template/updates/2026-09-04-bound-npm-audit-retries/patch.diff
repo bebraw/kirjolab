@@ -1,0 +1,341 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index e78d3af0..d1e97698 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -20,6 +20,15 @@ jobs:
+     steps:
+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+-
++
++      - name: Review dependency changes
++        id: dependency-review
++        if: ${{ github.event_name == 'pull_request' }}
++        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
++        with:
++          fail-on-severity: high
++          fail-on-scopes: runtime
++          license-check: false
++
+       - name: Restore npm cache
+         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+         with:
+@@ -59,6 +68,8 @@ jobs:
+-
++
+       - name: Run fast quality gate
+         shell: bash
++        env:
++          NPM_AUDIT_TRANSPORT_FALLBACK: ${{ steps.dependency-review.outcome == 'success' && 'github-dependency-review' || '' }}
+         run: npm run quality:gate:fast
+-
++
+   quality-browser:
+diff --git a/docs/development.md b/docs/development.md
+index a39cb8a0..dfcdf339 100644
+--- a/docs/development.md
++++ b/docs/development.md
+@@ -181,7 +181,12 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
+   `npm run diagnostics:citation-providers` (`-- --doi <doi>` to replace the
+   versioned seed and `-- --json` for machine-readable output). This live command
+   is advisory and spends provider quota.
+-- Run the shipped runtime dependency audit with `npm run security:audit`.
++- Run the shipped runtime dependency audit with `npm run security:audit`. The
++  command retries only npm registry transport failures, using three bounded
++  60-second attempts with short backoff. Local and post-merge audits remain
++  fail-closed. Pull-request CI may accept exhausted transport failures only
++  after its independent GitHub Dependency Review step has passed; completed
++  vulnerability reports and other failures remain blocking.
+ - Start the local Worker and configured model companion with `npm run dev`.
+   The command explicitly selects loopback-only local authentication; it does
+   not require a Cloudflare Access assertion or a `.dev.vars` file.
+@@ -626,7 +631,13 @@ Kirjolab keeps secret handling lightweight and explicit:
+ 
+ - Keep local secrets in untracked files such as `.dev.vars`.
+ - Commit example files such as `.dev.vars.example` with placeholder values only.
+-- Treat `npm run security:audit` as part of the baseline gate for shipped runtime dependencies.
++- Treat `npm run security:audit` as part of the baseline gate for shipped
++  runtime dependencies. Retry only transient registry transport failures;
++  completed vulnerability reports and unrecognized failures must remain
++  blocking. Only pull-request CI may accept exhausted transport retries, and
++  only after GitHub Dependency Review has passed for introduced high-severity
++  runtime vulnerabilities. Keep the repository dependency graph enabled for
++  that comparison. Local CI and pushes to `main` stay fail-closed.
+ 
+ ## Quality Gate
+ 
+@@ -653,8 +664,11 @@ is still running, while preserving each child command's live output. The fast
+ gate includes both Node coverage and `npm run test:workers`, so the baseline
+ cannot omit real Durable Object persistence verification. GitHub Actions runs
+ separate fast, browser, and affected mutation jobs, with repository-shape
+-validation included in the fast job. Native local CI runs the same fast and
+-browser package scripts sequentially on the supported macOS host. The optional
++validation and pull-request dependency review included in the fast job. The
++dependency review must pass before an exhausted npm audit transport outage can
++use the pull-request-only fallback. Native local CI runs the same fast and
++browser package scripts sequentially on the supported macOS host and never
++enables that fallback. The optional
+ `npm run ci:local:container` path executes the complete workflow with Local CI
+ when its orchestration or Linux container environment is the subject under
+ test. Local browser installation should go through the pinned
+diff --git a/package.json b/package.json
+index cea9f9fe..bfa7aad3 100644
+--- a/package.json
++++ b/package.json
+@@ -77,7 +77,8 @@
+       "2026-08-17-bound-instrumented-mutation-fixtures",
+       "2026-08-18-replace-pr-mutation-with-dry-run",
+       "2026-08-31-compact-agent-skills",
+-      "2026-09-03-actionable-mutation-reporting"
++      "2026-09-03-actionable-mutation-reporting",
++      "2026-09-04-bound-npm-audit-retries"
+     ]
+   },
+   "scripts": {
+@@ -126,7 +126,7 @@
+     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
+     "quality:gate": "node ./scripts/run-quality-gate.mjs",
+     "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run worker:types:corpus:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+-    "security:audit": "npm audit --omit=dev --audit-level high",
++    "security:audit": "node ./scripts/run-security-audit.mjs",
+     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
+     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",
+     "test": "vitest run --passWithNoTests",
+diff --git a/scripts/run-security-audit.mjs b/scripts/run-security-audit.mjs
+new file mode 100644
+index 00000000..2dd1e816
+--- /dev/null
++++ b/scripts/run-security-audit.mjs
+@@ -0,0 +1,124 @@
++import { spawn } from "node:child_process";
++import process from "node:process";
++
++const defaultFetchTimeoutMs = 60_000;
++const defaultRetryDelaysMs = [5_000, 15_000];
++const independentReviewFallback = "github-dependency-review";
++const completedAuditReportPattern = /(?:^|\r?\n)# npm audit report(?:\r?\n|$)/u;
++const retryableRegistryFailurePatterns = [
++  /\bnpm warn audit network timeout at:/iu,
++  /\bnpm warn audit (?:429|5\d{2})\b/iu,
++  /\bnpm error code E(?:429|5\d{2})\b/iu,
++  /\b(?:EAI_AGAIN|ECONNRESET|ECONNREFUSED|ENETUNREACH|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT)\b/u,
++];
++
++export async function runSecurityAudit({
++  allowUnavailableAfterIndependentReview = process.env.NPM_AUDIT_TRANSPORT_FALLBACK === independentReviewFallback,
++  fetchTimeoutMs = defaultFetchTimeoutMs,
++  log = console.error,
++  retryDelaysMs = defaultRetryDelaysMs,
++  run = runNpmAudit,
++  wait = waitFor,
++} = {}) {
++  const totalAttempts = retryDelaysMs.length + 1;
++
++  for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
++    const result = await run({ fetchTimeoutMs });
++
++    if (result.exitCode === 0) {
++      if (attempt > 1) {
++        log(`[security:audit] npm audit recovered on attempt ${attempt}/${totalAttempts}.`);
++      }
++
++      return 0;
++    }
++
++    const disposition = auditFailureDisposition({
++      allowUnavailableAfterIndependentReview,
++      finalAttempt: attempt === totalAttempts,
++      output: result.output,
++    });
++
++    if (disposition === "fail") {
++      return result.exitCode || 1;
++    }
++
++    if (disposition === "accept-independent-review") {
++      log(
++        "[security:audit] npm registry remained unavailable; accepting the completed independent dependency review for this pull request.",
++      );
++      return 0;
++    }
++
++    const retryDelayMs = retryDelaysMs[attempt - 1];
++    log(
++      `[security:audit] npm registry transport failure on attempt ${attempt}/${totalAttempts}; retrying in ${formatSeconds(retryDelayMs)}.`,
++    );
++    await wait(retryDelayMs);
++  }
++
++  return 1;
++}
++
++export function isRetryableRegistryFailure(output) {
++  return retryableRegistryFailurePatterns.some((pattern) => pattern.test(output));
++}
++
++function auditFailureDisposition({ allowUnavailableAfterIndependentReview, finalAttempt, output }) {
++  if (completedAuditReportPattern.test(output) || !isRetryableRegistryFailure(output)) {
++    return "fail";
++  }
++
++  if (!finalAttempt) {
++    return "retry";
++  }
++
++  return allowUnavailableAfterIndependentReview ? "accept-independent-review" : "fail";
++}
++
++function runNpmAudit({ fetchTimeoutMs }) {
++  return new Promise((resolve) => {
++    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
++    const child = spawn(npm, ["audit", "--omit=dev", "--audit-level=high", `--fetch-timeout=${fetchTimeoutMs}`], {
++      env: process.env,
++      stdio: ["inherit", "pipe", "pipe"],
++    });
++    let output = "";
++    let settled = false;
++
++    const finish = (result) => {
++      if (settled) {
++        return;
++      }
++
++      settled = true;
++      resolve(result);
++    };
++
++    child.stdout.on("data", (chunk) => {
++      output += chunk;
++      process.stdout.write(chunk);
++    });
++    child.stderr.on("data", (chunk) => {
++      output += chunk;
++      process.stderr.write(chunk);
++    });
++    child.once("error", (error) => {
++      console.error(`[security:audit] Could not start npm audit: ${error.message}`);
++      finish({ exitCode: 1, output });
++    });
++    child.once("close", (code) => finish({ exitCode: code ?? 1, output }));
++  });
++}
++
++function waitFor(delayMs) {
++  return new Promise((resolve) => setTimeout(resolve, delayMs));
++}
++
++function formatSeconds(milliseconds) {
++  return `${milliseconds / 1_000}s`;
++}
++
++if (import.meta.url === `file://${process.argv[1]}`) {
++  process.exitCode = await runSecurityAudit();
++}
+diff --git a/scripts/run-security-audit.test.mjs b/scripts/run-security-audit.test.mjs
+new file mode 100644
+index 00000000..f3ac9f6a
+--- /dev/null
++++ b/scripts/run-security-audit.test.mjs
+@@ -0,0 +1,103 @@
++import assert from "node:assert/strict";
++import { readFile } from "node:fs/promises";
++import test from "node:test";
++
++import { runSecurityAudit } from "./run-security-audit.mjs";
++
++test("retries transient npm audit failures with a bounded fetch timeout", async () => {
++  const attempts = [];
++  const waits = [];
++  const results = [
++    {
++      exitCode: 1,
++      output: "npm warn audit 503 Service Unavailable - POST https://registry.npmjs.org/-/npm/v1/security/advisories/bulk",
++    },
++    {
++      exitCode: 1,
++      output: "npm warn audit network timeout at: https://registry.npmjs.org/-/npm/v1/security/advisories/bulk",
++    },
++    { exitCode: 0, output: "found 0 vulnerabilities" },
++  ];
++
++  const exitCode = await runSecurityAudit({
++    log: () => {},
++    retryDelaysMs: [5_000, 15_000],
++    run: async ({ fetchTimeoutMs }) => {
++      attempts.push(fetchTimeoutMs);
++      return results.shift();
++    },
++    wait: async (delayMs) => waits.push(delayMs),
++  });
++
++  assert.equal(exitCode, 0);
++  assert.deepEqual(attempts, [60_000, 60_000, 60_000]);
++  assert.deepEqual(waits, [5_000, 15_000]);
++});
++
++test("fails closed after the final transient npm audit failure", async () => {
++  let attempts = 0;
++
++  const exitCode = await runSecurityAudit({
++    allowUnavailableAfterIndependentReview: false,
++    log: () => {},
++    retryDelaysMs: [0, 0],
++    run: async () => {
++      attempts += 1;
++      return { exitCode: 1, output: "npm warn audit 503 Service Unavailable" };
++    },
++    wait: async () => {},
++  });
++
++  assert.equal(exitCode, 1);
++  assert.equal(attempts, 3);
++});
++
++test("allows an exhausted transport failure after independent dependency review", async () => {
++  const messages = [];
++
++  const exitCode = await runSecurityAudit({
++    allowUnavailableAfterIndependentReview: true,
++    log: (message) => messages.push(message),
++    retryDelaysMs: [],
++    run: async () => ({ exitCode: 1, output: "npm warn audit 503 Service Unavailable" }),
++  });
++
++  assert.equal(exitCode, 0);
++  assert.deepEqual(messages, [
++    "[security:audit] npm registry remained unavailable; accepting the completed independent dependency review for this pull request.",
++  ]);
++});
++
++test("does not retry a completed audit that reports vulnerabilities", async () => {
++  let attempts = 0;
++
++  const exitCode = await runSecurityAudit({
++    allowUnavailableAfterIndependentReview: true,
++    log: () => {},
++    retryDelaysMs: [0, 0],
++    run: async () => {
++      attempts += 1;
++      return {
++        exitCode: 1,
++        output: "npm warn audit 503 Service Unavailable\n# npm audit report\nexample-package high severity vulnerability",
++      };
++    },
++    wait: async () => {},
++  });
++
++  assert.equal(exitCode, 1);
++  assert.equal(attempts, 1);
++});
++
++test("PR CI enables the fallback only after GitHub dependency review succeeds", async () => {
++  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
++
++  assert.match(workflow, /id: dependency-review/u);
++  assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40} # v5\.0\.0/u);
++  assert.match(workflow, /fail-on-severity: high/u);
++  assert.match(workflow, /fail-on-scopes: runtime/u);
++  assert.match(
++    workflow,
++    /NPM_AUDIT_TRANSPORT_FALLBACK: \$\{\{ steps\.dependency-review\.outcome == 'success' && 'github-dependency-review' \|\| '' \}\}/u,
++  );
++});

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   latestExtractionValue,
@@ -9,6 +9,9 @@ import {
   reviewSynthesisPublicationPath,
   reviewSynthesisPublicationRequest,
 } from "./review-study-contracts";
+import { reviewModelProvider } from "./review-study-ui";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const questions = [
   { id: "rq_internal_first", text: "What changed?" },
@@ -82,6 +85,59 @@ describe("review-study extraction state", () => {
     expect(latestExtractionValue(values, "effect")?.id).toBe("second");
     expect(latestExtractionValue(values, "missing")).toBeNull();
     expect(latestExtractionValue(values.slice(0, 1), "effect")?.id).toBe("first");
+  });
+});
+
+describe("review-study writing model", () => {
+  it("uses the shared tab-scoped Codex companion authentication", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                decision: "include",
+                criterion: "Empirical",
+                rationale: "Reports a study.",
+                evidence: "survey",
+              }),
+            },
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          connection: "codex",
+          endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+          model: "gpt-5.6-terra",
+          reasoningEffort: "none",
+        }),
+      ),
+      removeItem: vi.fn(),
+      setItem: vi.fn(),
+    });
+    vi.stubGlobal("sessionStorage", {
+      getItem: vi.fn(() => "tab-only-token-with-at-least-24-chars"),
+      removeItem: vi.fn(),
+      setItem: vi.fn(),
+    });
+    vi.stubGlobal("fetch", fetcher);
+
+    await expect(
+      reviewModelProvider().screenReviewRecord({
+        title: "A survey",
+        abstract: "We report a survey.",
+        inclusionCriteria: ["Empirical"],
+        exclusionCriteria: [],
+      }),
+    ).resolves.toMatchObject({ providerLabel: "Codex via local companion", model: "gpt-5.6-terra" });
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      authorization: "Bearer tab-only-token-with-at-least-24-chars",
+      "content-type": "application/json",
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toMatchObject({ temperature: 0 });
   });
 });
 

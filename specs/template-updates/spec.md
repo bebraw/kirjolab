@@ -35,7 +35,8 @@ copying unrelated starter structure.
   `2026-08-17-dependency-toolchain-refresh` (including Kirjolab's measured
   Stryker 10 floor under ADR-233) and
   `2026-08-31-compact-agent-skills`, followed by the reusable local
-  `2026-09-03-actionable-mutation-reporting` refinement
+  `2026-09-03-actionable-mutation-reporting` refinement and the
+  `2026-09-04-bound-npm-audit-retries` dependency-audit fallback
 - **Current backfilled update registry:** directories containing
   `.template/updates/*/update.json`
 

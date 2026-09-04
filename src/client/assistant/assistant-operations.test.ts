@@ -13,6 +13,7 @@ describe("assistant operation registry", () => {
     expect(definitions.map(({ id }) => id)).toEqual([
       "revise-selection",
       "draft-claim",
+      "stress-test-claim",
       "clarity-drill",
       "ideate",
       "phrase-passage",
@@ -36,6 +37,13 @@ describe("assistant operation registry", () => {
         enabled: true,
       },
       { id: "draft-claim", defaultScope: null, scopes: [], evidence: "annotations", enabled: true },
+      {
+        id: "stress-test-claim",
+        defaultScope: "sentence",
+        scopes: ["sentence", "selection", "paragraph"],
+        evidence: "required",
+        enabled: true,
+      },
       { id: "clarity-drill", defaultScope: "sentence", scopes: ["sentence", "paragraph", "section"], evidence: "optional", enabled: true },
       { id: "ideate", defaultScope: "section", scopes: ["selection", "paragraph", "section"], evidence: "optional", enabled: true },
       {
@@ -76,6 +84,15 @@ describe("assistant operation registry", () => {
         "Research instruction",
         "Draft one precise claim supported by the selected annotations.",
         "Draft claim",
+      ],
+      [
+        "Stress-test a claim",
+        "Argument reasoning",
+        "Test the claim’s inferential bridge",
+        "Uses the visible claim and chosen evidence to question its reasoning, scope, and exceptions before proposing reviewable revisions.",
+        "Stress-test focus",
+        "Test whether this claim follows from the selected evidence without overstating its scope.",
+        "Start stress test",
       ],
       [
         "Drill unclear writing",

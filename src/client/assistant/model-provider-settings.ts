@@ -1,35 +1,25 @@
-import * as v from "valibot";
 import { html, type TemplateResult } from "lit";
 
 import { LightDomElement } from "../platform/light-dom-controller";
-import { discoverOpenAICompatibleModels, OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./model-provider";
+import {
+  companionModelEndpoint,
+  directModelEndpoint,
+  initialModelProviderPreferences,
+  persistModelProviderPreferences,
+  readStoredModelProviderPreferences,
+  type ModelProviderConnection,
+  type ModelProviderPreferences,
+} from "./model-provider-preferences";
+import {
+  discoverOpenAICompatibleModels,
+  OpenAICompatibleBrowserProvider,
+  type ModelDiscoveryOptions,
+  type ModelReasoningEffort,
+} from "./model-provider";
+
+export type { ModelProviderPreferences } from "./model-provider-preferences";
 
 export const modelProviderChangeEvent = "model-provider-change";
-
-export interface ModelProviderPreferences {
-  readonly connection: "companion" | "direct";
-  readonly endpoint: string;
-  readonly model: string;
-  readonly reasoningEffort: ModelReasoningEffort;
-}
-
-const directEndpoint = "http://127.0.0.1:1234/v1/chat/completions";
-const companionEndpoint = "http://127.0.0.1:8790/v1/chat/completions";
-const preferencesStorageKey = "kirjolab:model-preferences";
-
-const initialPreferences: ModelProviderPreferences = {
-  connection: "direct",
-  endpoint: directEndpoint,
-  model: "",
-  reasoningEffort: "none",
-};
-
-const storedPreferencesSchema = v.object({
-  connection: v.fallback(v.picklist(["companion", "direct"]), initialPreferences.connection),
-  endpoint: v.fallback(v.pipe(v.string(), v.maxLength(2_048)), initialPreferences.endpoint),
-  model: v.fallback(v.pipe(v.string(), v.maxLength(256)), initialPreferences.model),
-  reasoningEffort: v.fallback(v.picklist(["provider-default", "none", "low", "medium", "high"]), initialPreferences.reasoningEffort),
-});
 
 export class ModelProviderSettings extends LightDomElement {
   static override properties = {
@@ -51,7 +41,7 @@ export class ModelProviderSettings extends LightDomElement {
     this.busy = false;
     this.discoveryAvailable = true;
     this.models = [];
-    this.preferences = initialPreferences;
+    this.preferences = initialModelProviderPreferences;
     this.status = "Connection details stay on this device.";
   }
 
@@ -64,12 +54,18 @@ export class ModelProviderSettings extends LightDomElement {
   }
 
   provider(): OpenAICompatibleBrowserProvider {
+    const usesCodex = this.preferences.connection === "codex";
     return new OpenAICompatibleBrowserProvider({
       endpoint: this.preferences.endpoint,
       model: this.preferences.model,
       providerLabel:
-        this.preferences.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
+        this.preferences.connection === "codex"
+          ? "Codex via local companion"
+          : this.preferences.connection === "companion"
+            ? "Local companion · OpenAI-compatible"
+            : "Browser-local OpenAI-compatible",
       reasoningEffort: this.preferences.reasoningEffort,
+      ...(usesCodex ? { bearerToken: this.preferences.codexToken, temperature: 0 } : {}),
     });
   }
 
@@ -77,14 +73,19 @@ export class ModelProviderSettings extends LightDomElement {
     this.discoveryAvailable = available;
   }
 
-  async discoverModels(discover: (endpoint: string) => Promise<readonly string[]> = discoverOpenAICompatibleModels): Promise<void> {
+  async discoverModels(
+    discover: (endpoint: string, options?: ModelDiscoveryOptions) => Promise<readonly string[]> = discoverOpenAICompatibleModels,
+  ): Promise<void> {
     if (this.busy || !this.discoveryAvailable) return;
     this.busy = true;
     this.status = "Checking the local provider for loaded models…";
     this.emitChange(this.status);
     try {
       const selectedModel = this.preferences.model.trim();
-      const models = await discover(this.preferences.endpoint);
+      const models = await discover(
+        this.preferences.endpoint,
+        this.preferences.connection === "codex" ? { bearerToken: this.preferences.codexToken } : {},
+      );
       this.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
       this.status = models.length
         ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.preferences.model}.`
@@ -130,7 +131,7 @@ export class ModelProviderSettings extends LightDomElement {
     return html`
       <section class="preferences-model" aria-labelledby="model-preference-heading">
         <div>
-          <h3 id="model-preference-heading">Local model</h3>
+          <h3 id="model-preference-heading">Writing model</h3>
           <p>Configure the OpenAI-compatible connection used by Writing assistant.</p>
         </div>
         <div class="preferences-model-grid">
@@ -139,8 +140,25 @@ export class ModelProviderSettings extends LightDomElement {
             <select class="field" id="llm-connection" .value=${this.preferences.connection} @change=${this.changeConnection}>
               <option value="direct">Direct browser connection</option>
               <option value="companion">Local companion</option>
+              <option value="codex">Codex via local companion</option>
             </select>
           </label>
+          ${
+            this.preferences.connection === "codex"
+              ? html`<label class="field-label preferences-endpoint"
+                  >Companion token
+                  <input
+                    class="field"
+                    id="llm-codex-token"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    .value=${this.preferences.codexToken}
+                    @input=${this.changeCodexToken}
+                  />
+                </label>`
+              : null
+          }
           <label class="field-label preferences-endpoint"
             >Endpoint
             <input class="field" id="llm-endpoint" type="url" .value=${this.preferences.endpoint} @input=${this.changeEndpoint} />
@@ -180,22 +198,32 @@ export class ModelProviderSettings extends LightDomElement {
             ${this.busy ? "Finding models…" : "Find loaded models"}
           </button>
         </div>
+        ${
+          this.preferences.connection === "codex"
+            ? html`<p class="preferences-model-status">
+                Codex authentication stays local, but the selected passage, instruction, and evidence are sent to OpenAI. The companion
+                token stays only in this tab session.
+              </p>`
+            : null
+        }
         <p class="preferences-model-status ui-status" id="preferences-model-status" role="status" aria-live="polite">${this.status}</p>
       </section>
     `;
   }
 
   protected changeConnection(event: Event): void {
-    const connection = controlValue(event) === "companion" ? "companion" : "direct";
+    const connection = readConnection(controlValue(event));
     this.preferences = {
       ...this.preferences,
       connection,
-      endpoint: connection === "companion" ? companionEndpoint : directEndpoint,
+      endpoint: connection === "direct" ? directModelEndpoint : companionModelEndpoint,
     };
     const status =
-      connection === "companion"
-        ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
-        : "The browser will contact the configured loopback provider directly.";
+      connection === "codex"
+        ? "Codex uses the local companion; selected writing inputs will be sent to OpenAI."
+        : connection === "companion"
+          ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
+          : "The browser will contact the configured loopback provider directly.";
     this.status = status;
     this.emitChange(status);
   }
@@ -218,6 +246,11 @@ export class ModelProviderSettings extends LightDomElement {
     this.emitChange();
   }
 
+  protected changeCodexToken(event: Event): void {
+    this.preferences = { ...this.preferences, codexToken: controlValue(event).slice(0, 512) };
+    this.emitChange();
+  }
+
   protected discover(): void {
     void this.discoverModels();
   }
@@ -228,22 +261,13 @@ export class ModelProviderSettings extends LightDomElement {
   }
 
   protected restoreStoredPreferences(): void {
-    try {
-      const stored = v.safeParse(storedPreferencesSchema, JSON.parse(localStorage.getItem(preferencesStorageKey) ?? "null"));
-      if (!stored.success) return;
-      this.preferences = stored.output;
-      this.setModels([], stored.output.model);
-    } catch {
-      localStorage.removeItem(preferencesStorageKey);
-    }
+    const stored = readStoredModelProviderPreferences();
+    this.preferences = stored;
+    this.setModels([], stored.model);
   }
 
   private persistPreferences(): void {
-    try {
-      localStorage.setItem(preferencesStorageKey, JSON.stringify(this.preferences));
-    } catch {
-      // Local preferences remain usable for this page when storage is unavailable.
-    }
+    persistModelProviderPreferences(this.preferences);
   }
 
   private modelOptions(selected: string): readonly string[] {
@@ -255,6 +279,11 @@ export class ModelProviderSettings extends LightDomElement {
     if (!select) throw new Error(`Model provider select ${id} is unavailable`);
     return select;
   }
+}
+
+function readConnection(value: string): ModelProviderConnection {
+  if (value === "codex" || value === "companion") return value;
+  return "direct";
 }
 
 function controlValue(event: Event): string {

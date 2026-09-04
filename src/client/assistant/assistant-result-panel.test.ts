@@ -4,6 +4,7 @@ import {
   assistantReferenceRefreshEvent,
   assistantResultActionEvent,
   type AssistantReferenceRefresh,
+  type AssistantClaimStressContext,
   type AssistantClarityContext,
   type AssistantResultActionDetail,
   type AssistantRevisionContext,
@@ -22,6 +23,16 @@ class TestAssistantResultPanel extends AssistantResultPanel {
 
   continueForTest(): void {
     this.continueClarity();
+  }
+
+  answerStressForTest(dimension: string, value: string): void {
+    const event = new Event("input");
+    Object.defineProperty(event, "currentTarget", { value: { dataset: { stressAnswer: dimension }, value } });
+    this.changeClaimStressAnswer(event);
+  }
+
+  continueStressForTest(): void {
+    this.continueClaimStressTest();
   }
 
   insertForTest(): void {
@@ -55,6 +66,18 @@ const clarityContext: AssistantClarityContext = {
     continueClarityDrill: async () => ({ ...provenance, rewrites: [] }),
   },
   question: { ...provenance, issue: "The subject is vague.", question: "Who performs the review?" },
+};
+const claimStressContext: AssistantClaimStressContext = {
+  ...revisionContext,
+  provider: {
+    continueClaimStressTest: async () => ({ ...provenance, rewrites: [] }),
+  },
+  stressTest: {
+    ...provenance,
+    reasoning: { assessment: "The inference is implicit.", question: "Why does the evidence support the claim?" },
+    scope: { assessment: "The scope is broad.", question: "Under which conditions does it hold?" },
+    exceptions: { assessment: "No exception is named.", question: "When would the claim not hold?" },
+  },
 };
 const tableContext: AssistantTableContext = { sourceRevision: 3, target: passage };
 const reference: ReferenceDiscoveryResult = {
@@ -111,7 +134,7 @@ describe("assistant result panel", () => {
 
     buildTable.mockResolvedValueOnce({ ...provenance, caption: request.caption, columns: ["Only one"], rows: request.rows });
     await expect(panel.generateTable({ buildTable }, request, tableContext)).rejects.toThrow(
-      "Local model changed the requested table shape",
+      "Writing model changed the requested table shape",
     );
   });
 
@@ -190,6 +213,39 @@ describe("assistant result panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
+  it("owns claim stress-test questions and researcher-grounded rewrite requests", async () => {
+    const panel = new TestAssistantResultPanel();
+    const startClaimStressTest = vi.fn().mockResolvedValue(claimStressContext.stressTest);
+    const continueClaimStressTest = vi.fn().mockResolvedValue({
+      ...provenance,
+      rewrites: [{ rationale: "Adds the stated bounds.", text: "The bounded claim follows from the evidence." }],
+    });
+    const provider = { startClaimStressTest, continueClaimStressTest };
+
+    await panel.startClaimStressTest(provider, revisionContext);
+    expect(startClaimStressTest).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: revisionContext.instruction,
+      evidence: [],
+    });
+    await panel.completeClaimStressTest(
+      { ...claimStressContext, provider },
+      { reasoning: "The mechanism is direct.", scope: "In the observed setting.", exceptions: "Not outside that setting." },
+    );
+    expect(continueClaimStressTest).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: revisionContext.instruction,
+      evidence: [],
+      stressTest: {
+        reasoning: claimStressContext.stressTest.reasoning,
+        scope: claimStressContext.stressTest.scope,
+        exceptions: claimStressContext.stressTest.exceptions,
+      },
+      answers: { reasoning: "The mechanism is direct.", scope: "In the observed setting.", exceptions: "Not outside that setting." },
+    });
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
   it("renders reference results and verification links", () => {
     const panel = new TestAssistantResultPanel();
     panel.showReferences("review time", "Find direct measurements.", [reference]);
@@ -258,6 +314,12 @@ describe("assistant result panel", () => {
     panel.continueForTest();
     panel.showClarityQuestion(clarityContext);
     panel.continueForTest();
+    panel.showClaimStressTest(claimStressContext);
+    panel.continueStressForTest();
+    panel.answerStressForTest("reasoning", "The evidence shows the mechanism.");
+    panel.answerStressForTest("scope", "Within the observed editorial task.");
+    panel.answerStressForTest("exceptions", "Not when broader source context is required.");
+    panel.continueStressForTest();
     expect(actions).toEqual([
       { action: "insert-table", context: tableContext, markdown: "| A |" },
       {
@@ -273,6 +335,15 @@ describe("assistant result panel", () => {
         context: revisionContext,
       },
       { action: "continue-clarity", answer: "", context: clarityContext },
+      {
+        action: "continue-claim-stress",
+        answers: {
+          reasoning: "The evidence shows the mechanism.",
+          scope: "Within the observed editorial task.",
+          exceptions: "Not when broader source context is required.",
+        },
+        context: claimStressContext,
+      },
     ]);
   });
 
