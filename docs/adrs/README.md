@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No ADRs are currently accepted and awaiting implementation.
+| ADR                                                                    | Status   | Summary                                                                                                   |
+| ---------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| [ADR-234](./accepted/ADR-234-run-codex-through-the-local-companion.md) | Accepted | Run bounded Codex SDK generations through the authenticated local companion without involving the Worker. |
 
 ## Implemented ADRs
 
