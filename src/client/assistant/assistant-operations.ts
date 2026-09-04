@@ -1,5 +1,12 @@
 export type AssistantOperationId =
-  "revise-selection" | "draft-claim" | "clarity-drill" | "ideate" | "phrase-passage" | "find-references" | "build-table";
+  | "revise-selection"
+  | "draft-claim"
+  | "stress-test-claim"
+  | "clarity-drill"
+  | "ideate"
+  | "phrase-passage"
+  | "find-references"
+  | "build-table";
 
 export type AssistantTargetScope = "caret" | "selection" | "sentence" | "paragraph" | "section";
 
@@ -52,6 +59,21 @@ const definitions: readonly AssistantOperationDefinition[] = [
     scopes: [],
     defaultScope: null,
     evidence: "annotations",
+    enabled: true,
+  },
+  {
+    id: "stress-test-claim",
+    label: "Stress-test a claim",
+    eyebrow: "Argument reasoning",
+    title: "Test the claim’s inferential bridge",
+    description:
+      "Uses the visible claim and chosen evidence to question its reasoning, scope, and exceptions before proposing reviewable revisions.",
+    instructionLabel: "Stress-test focus",
+    defaultInstruction: "Test whether this claim follows from the selected evidence without overstating its scope.",
+    actionLabel: "Start stress test",
+    scopes: ["sentence", "selection", "paragraph"],
+    defaultScope: "sentence",
+    evidence: "required",
     enabled: true,
   },
   {

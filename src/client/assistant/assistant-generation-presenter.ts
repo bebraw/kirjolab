@@ -43,12 +43,14 @@ import type {
 type InteractiveProvider = Pick<
   ModelProvider,
   | "buildTable"
+  | "continueClaimStressTest"
   | "continueClarityDrill"
   | "draftClaim"
   | "formulateReferenceQuery"
   | "ideate"
   | "phrasePassage"
   | "reviseSelection"
+  | "startClaimStressTest"
   | "startClarityDrill"
 >;
 
@@ -77,6 +79,23 @@ export interface AssistantGenerationPresentation {
   readonly candidate?: ModelCandidate;
   readonly status: string;
   readonly workflow: "AWAIT_INPUT" | "COMPLETE" | "REVIEW";
+}
+
+interface AssistantResearcherContinuation {
+  readonly ready: boolean;
+  readonly missingStatus: string;
+  readonly staleStatus: string;
+  readonly progressStatus: string;
+  readonly successStatus: string;
+  readonly run: () => Promise<void>;
+}
+
+function setAssistantStatus(status: AssistantWorkflowStatus | null, message: string): void {
+  if (status) status.status = message;
+}
+
+function writingModelErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Writing model request failed";
 }
 
 export interface AssistantAvailabilityInput {
@@ -307,7 +326,9 @@ export class AssistantGenerationPresenter extends LightDomController {
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     result?.addEventListener(assistantResultActionEvent, (event) => {
       const detail = (event as CustomEvent<AssistantResultActionDetail>).detail;
-      if (detail.action === "continue-clarity") {
+      if (detail.action === "continue-claim-stress") {
+        void this.continueClaimStressTest(result, status, detail);
+      } else if (detail.action === "continue-clarity") {
         void this.continueClarity(result, status, detail);
       } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown);
       else void this.chooseRevision(status, detail);
@@ -381,27 +402,60 @@ export class AssistantGenerationPresenter extends LightDomController {
     detail: Extract<AssistantResultActionDetail, { readonly action: "continue-clarity" }>,
   ): Promise<void> {
     const answer = detail.answer.trim();
+    await this.continueAfterResearcherInput(status, {
+      ready: Boolean(answer),
+      missingStatus: "Answer the clarity question first.",
+      staleStatus: "The manuscript changed. Start the clarity drill again for the current target.",
+      progressStatus: "Turning that meaning into a few precise alternatives…",
+      successStatus: "Choose the wording that best matches your meaning; it will still open for review.",
+      run: () => result.completeClarityDrill(detail.context, answer),
+    });
+  }
+
+  private async continueClaimStressTest(
+    result: AssistantResultPanel,
+    status: AssistantWorkflowStatus | null,
+    detail: Extract<AssistantResultActionDetail, { readonly action: "continue-claim-stress" }>,
+  ): Promise<void> {
+    const answers = {
+      reasoning: detail.answers.reasoning.trim(),
+      scope: detail.answers.scope.trim(),
+      exceptions: detail.answers.exceptions.trim(),
+    };
+    const complete = Boolean(answers.reasoning && answers.scope && answers.exceptions);
+    await this.continueAfterResearcherInput(status, {
+      ready: complete,
+      missingStatus: "Answer all three claim questions first.",
+      staleStatus: "The manuscript changed. Start the claim stress test again for the current target.",
+      progressStatus: "Turning your reasoning and limits into a few bounded alternatives…",
+      successStatus: "Choose the revision that best matches your reasoning; it will still open for review.",
+      run: () => result.completeClaimStressTest(detail.context, answers),
+    });
+  }
+
+  private async continueAfterResearcherInput(
+    status: AssistantWorkflowStatus | null,
+    continuation: AssistantResearcherContinuation,
+  ): Promise<void> {
     const workflow = this.workflow.getSnapshot();
-    if (!answer || !workflow.matches("awaitingInput")) {
-      if (status) {
-        status.status = !answer
-          ? "Answer the clarity question first."
-          : workflow.matches("stale")
-            ? "The manuscript changed. Start the clarity drill again for the current target."
-            : "The writing model is already working.";
-      }
+    if (!continuation.ready) {
+      setAssistantStatus(status, continuation.missingStatus);
+      return;
+    }
+    if (!workflow.matches("awaitingInput")) {
+      setAssistantStatus(status, workflow.matches("stale") ? continuation.staleStatus : "The writing model is already working.");
       return;
     }
     this.workflow.send({ type: "CONTINUE" });
     this.refreshAvailability();
-    if (status) status.status = "Turning that meaning into a few precise alternatives…";
+    setAssistantStatus(status, continuation.progressStatus);
     try {
-      await result.completeClarityDrill(detail.context, answer);
-      if (status) status.status = "Choose the wording that best matches your meaning; it will still open for review.";
+      await continuation.run();
+      setAssistantStatus(status, continuation.successStatus);
       this.workflow.send({ type: "REVIEW" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Writing model request failed";
-      if (status) status.status = message;
+      const message = writingModelErrorMessage(error);
+      setAssistantStatus(status, message);
       this.workflow.send({ type: "FAIL", message });
     } finally {
       this.refreshAvailability();
@@ -467,8 +521,8 @@ export class AssistantGenerationPresenter extends LightDomController {
       if (status) status.status = presentation.status;
       this.workflow.send({ type: presentation.workflow });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Writing model request failed";
-      if (status) status.status = message;
+      const message = writingModelErrorMessage(error);
+      setAssistantStatus(status, message);
       this.workflow.send({ type: "FAIL", message });
     } finally {
       this.refreshAvailability();
@@ -639,6 +693,10 @@ export class AssistantGenerationPresenter extends LightDomController {
     if (input.operation.id === "clarity-drill") {
       await result.startClarityDrill(input.provider, context);
       return { status: "Answer one focused question to make the intended meaning explicit.", workflow: "AWAIT_INPUT" };
+    }
+    if (input.operation.id === "stress-test-claim") {
+      await result.startClaimStressTest(input.provider, context);
+      return { status: "Answer the reasoning, scope, and exception questions in your own words.", workflow: "AWAIT_INPUT" };
     }
     return null;
   }

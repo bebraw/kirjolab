@@ -104,6 +104,8 @@ describe("assistant workflow status", () => {
     expect(panel.status).toBe("Choose a rhetorical purpose, then compare contextual alternatives before opening exact review.");
     panel.setOperation("draft-claim");
     expect(panel.status).toBe("Select at least one annotation to ground the claim draft.");
+    panel.setOperation("stress-test-claim");
+    expect(panel.status).toBe("Select a manuscript claim and at least one evidence resource to inspect its reasoning and limits.");
     panel.setOperation("build-table");
     expect(panel.status).toBe("Choose a target and the required evidence, then generate a reviewable draft.");
 
@@ -111,6 +113,8 @@ describe("assistant workflow status", () => {
     expect(panel.status).toBe("Asking the writing model for one grounded claim draft…");
     panel.generationStarted("clarity-drill");
     expect(panel.status).toBe("Finding the single ambiguity that matters most…");
+    panel.generationStarted("stress-test-claim");
+    expect(panel.status).toBe("Inspecting the claim’s reasoning, scope, and exceptions…");
     panel.generationStarted("revise-selection");
     expect(panel.status).toBe("Asking the writing model for a grounded candidate…");
   });

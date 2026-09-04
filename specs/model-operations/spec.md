@@ -5,10 +5,11 @@
 ### Context
 
 Kirjolab uses local-capable language models to propose inspectable scholarly
-changes. Typed capabilities cover passage revision and evidence-backed claim
-drafting, with clarity drilling, ideation, reference discovery, and structured
-syntax exposed through the same operation framework as their contracts land.
-All mutation operations preserve a human review boundary.
+changes. Typed capabilities cover passage revision, evidence-backed claim
+drafting, and researcher-guided claim stress testing, with clarity drilling,
+ideation, reference discovery, and structured syntax exposed through the same
+operation framework as their contracts land. All mutation operations preserve
+a human review boundary.
 
 ### Architecture
 
@@ -59,6 +60,15 @@ All mutation operations preserve a human review boundary.
   Clarity candidates may have no research evidence because the researcher's
   answer and captured prose are their provenance; ordinary grounded revision
   continues to require selected evidence in the UI.
+- `stress-test-claim` applies a Toulmin-inspired lens to one exact visible
+  manuscript target and one to twelve selected evidence resources. Its first
+  request returns one bounded assessment and question for each of reasoning,
+  scope and strength, and exceptions. The model identifies what to examine but
+  does not answer the questions, invent a warrant or counterevidence, or score
+  argument quality. After the researcher answers all three, a second request
+  returns two to four complete bounded replacements. Choosing one creates an
+  ordinary evidence-bearing targeted revision candidate; all questions,
+  answers, and unchosen alternatives remain transient.
 - `ideate` returns three to five distinct direction cards for the visible
   selection, paragraph, or Markdown section. Each card contains a bounded title,
   rationale, and complete target replacement draft. Ideas remain transient;
@@ -255,6 +265,9 @@ All mutation operations preserve a human review boundary.
   in this slice.
 - Do not retrieve corpus or Academic Phrasebank content at runtime or expose
   model alternatives as direct insertion actions.
+- Do not persist a mandatory Toulmin form, treat contradictory evidence as an
+  exception condition, or let a model author the reasoning and limits that the
+  claim stress test asks the researcher to supply.
 
 ## Contract
 
@@ -284,6 +297,9 @@ All mutation operations preserve a human review boundary.
       answer in their own words, and choose among two to four precise rewrites.
 - [x] A chosen clarity rewrite enters the ordinary exact before/after candidate
       review and cannot bypass stale-target validation or explicit apply.
+- [x] A researcher can stress-test a visible claim against selected evidence,
+      answer separate reasoning, scope, and exception questions, and promote
+      one of two to four bounded rewrites into ordinary exact review.
 - [x] A researcher can compare three to five distinct directions for the current
       manuscript context and promote one complete draft into exact review.
 - [x] A researcher can describe a 2–8-column, 1–100-row table through structured
@@ -343,6 +359,11 @@ All mutation operations preserve a human review boundary.
 - Clarity diagnosis must ask exactly one question and produce no rewrite. The
   follow-up must contain the captured target, question, and bounded researcher
   answer and return only two to four typed rewrites.
+- Claim stress testing requires one to twelve evidence resources. Its first
+  response contains exactly three bounded assessments and questions and no
+  rewrite; its follow-up requires three bounded researcher answers and returns
+  only two to four typed rewrites. The model must not supply missing reasoning,
+  invent counterevidence, or emit an argument-quality score.
 - Ideation must return three to five typed ideas, each with a title, concrete
   direction, and complete bounded replacement. An unchosen idea is never
   persisted and a chosen draft never writes directly to canonical prose.
@@ -414,6 +435,16 @@ All mutation operations preserve a human review boundary.
   chooses one proposed wording
 - Then: Kirjolab opens an ordinary targeted candidate with the original passage,
   chosen replacement, captured provenance, and no canonical source change
+
+**Scenario: Researcher stress-tests an evidence-backed manuscript claim**
+
+- Given: a current visible claim and one or more selected annotation or claim
+  evidence resources
+- When: the researcher answers the reasoning, scope, and exception questions
+  and chooses one proposed replacement
+- Then: Kirjolab opens an ordinary evidence-bearing targeted candidate while
+  the questions, answers, unchosen alternatives, and canonical Markdown remain
+  unchanged
 
 **Scenario: One direction advances from ideation**
 

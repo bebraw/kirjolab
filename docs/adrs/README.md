@@ -33,6 +33,7 @@ No ADRs are currently accepted but unimplemented.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-235](./implemented/ADR-235-stress-test-claims-with-researcher-questions.md)          | Implemented          | Question claim reasoning, scope, and exceptions before proposing an ordinary reviewed passage revision.         |
 | [ADR-234](./implemented/ADR-234-run-codex-through-the-local-companion.md)                 | Implemented          | Run bounded Codex SDK generations through the authenticated local companion without involving the Worker.       |
 | [ADR-233](./implemented/ADR-233-adopt-stryker-10-with-a-temporary-score-floor.md)         | Implemented          | Adopt Stryker 10 with a measured temporary floor and concise hotspot-oriented reporting.                        |
 | [ADR-232](./implemented/ADR-232-adopt-local-ci-canonical-interface.md)                    | Implemented          | Use Local CI's canonical package and names for optional container parity while retaining native CI by default.  |

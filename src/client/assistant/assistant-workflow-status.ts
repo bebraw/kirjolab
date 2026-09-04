@@ -47,18 +47,22 @@ export class AssistantWorkflowStatus extends LightDomElement {
     this.status =
       operationId === "draft-claim"
         ? "Select at least one annotation to ground the claim draft."
-        : operationId === "phrase-passage"
-          ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
-          : "Choose a target and the required evidence, then generate a reviewable draft.";
+        : operationId === "stress-test-claim"
+          ? "Select a manuscript claim and at least one evidence resource to inspect its reasoning and limits."
+          : operationId === "phrase-passage"
+            ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
+            : "Choose a target and the required evidence, then generate a reviewable draft.";
   }
 
   generationStarted(operationId: AssistantOperationId): void {
     this.status =
       operationId === "draft-claim"
         ? "Asking the writing model for one grounded claim draft…"
-        : operationId === "clarity-drill"
-          ? "Finding the single ambiguity that matters most…"
-          : "Asking the writing model for a grounded candidate…";
+        : operationId === "stress-test-claim"
+          ? "Inspecting the claim’s reasoning, scope, and exceptions…"
+          : operationId === "clarity-drill"
+            ? "Finding the single ambiguity that matters most…"
+            : "Asking the writing model for a grounded candidate…";
   }
 
   validateGeneration(requirements: AssistantGenerationRequirements): boolean {
