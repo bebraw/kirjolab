@@ -181,7 +181,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
   `npm run diagnostics:citation-providers` (`-- --doi <doi>` to replace the
   versioned seed and `-- --json` for machine-readable output). This live command
   is advisory and spends provider quota.
-- Run the shipped runtime dependency audit with `npm run security:audit`.
+- Run the shipped runtime dependency audit with `npm run security:audit`. The
+  command retries only npm registry transport failures, using three bounded
+  60-second attempts with short backoff, and remains fail-closed when the
+  registry stays unavailable or the completed audit reports a vulnerability.
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
   not require a Cloudflare Access assertion or a `.dev.vars` file.
@@ -626,7 +629,9 @@ Kirjolab keeps secret handling lightweight and explicit:
 
 - Keep local secrets in untracked files such as `.dev.vars`.
 - Commit example files such as `.dev.vars.example` with placeholder values only.
-- Treat `npm run security:audit` as part of the baseline gate for shipped runtime dependencies.
+- Treat `npm run security:audit` as part of the baseline gate for shipped
+  runtime dependencies. Retry only transient registry transport failures;
+  completed vulnerability reports and exhausted retries must remain blocking.
 
 ## Quality Gate
 

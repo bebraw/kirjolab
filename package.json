@@ -126,7 +126,7 @@
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
     "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run worker:types:corpus:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
-    "security:audit": "npm audit --omit=dev --audit-level high",
+    "security:audit": "node ./scripts/run-security-audit.mjs",
     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",
     "test": "vitest run --passWithNoTests",
