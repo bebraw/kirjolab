@@ -137,7 +137,7 @@ Set `KIRJOLAB_MODEL_PROVIDER=codex`, the absolute
 `KIRJOLAB_CODEX_TOKEN` in `.env`. Restart `npm run dev`, choose **Codex via
 local companion**, and enter the same token in **Model connection**. The
 browser keeps it only for the current tab session; it is never saved to the
-workspace or local storage. The companion uses one read-only, tool-free,
+workspace or `localStorage`. The companion uses one read-only, tool-free,
 network-disabled Codex thread at a time and exposes only the configured model.
 
 The deployed app can use a model on the same computer. Set

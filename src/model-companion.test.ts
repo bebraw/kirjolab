@@ -313,7 +313,7 @@ describe("local model companion", () => {
     const backend = createCodexModelBackend(codexConfig, {
       run: vi.fn(
         (request) =>
-          new Promise((_resolve, reject) => {
+          new Promise<never>((_resolve, reject) => {
             signal = request.signal;
             request.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
           }),

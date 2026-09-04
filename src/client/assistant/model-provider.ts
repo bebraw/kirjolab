@@ -230,11 +230,14 @@ export interface OpenAICompatibleBrowserProviderOptions {
   readonly providerLabel: string;
   readonly model: string;
   readonly reasoningEffort?: ModelReasoningEffort;
+  readonly bearerToken?: string;
+  readonly temperature?: number;
   readonly fetcher?: Fetch;
 }
 
 export interface ModelDiscoveryOptions {
   readonly signal?: AbortSignal;
+  readonly bearerToken?: string;
   readonly fetcher?: Fetch;
 }
 
@@ -243,6 +246,8 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
   readonly #providerLabel: string;
   readonly #model: string;
   readonly #reasoningEffort: ModelReasoningEffort;
+  readonly #bearerToken: string | null;
+  readonly #temperature: number;
   readonly #fetch: Fetch;
 
   constructor(options: OpenAICompatibleBrowserProviderOptions) {
@@ -250,6 +255,8 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
     this.#providerLabel = boundedRequiredString(options.providerLabel, maximumProviderLabelLength, "Provider label");
     this.#model = boundedRequiredString(options.model, maximumModelLength, "Model");
     this.#reasoningEffort = validateReasoningEffort(options.reasoningEffort ?? "provider-default");
+    this.#bearerToken = validateBearerToken(options.bearerToken);
+    this.#temperature = validateTemperature(options.temperature ?? 0.2);
     this.#fetch = options.fetcher ?? ((input, init) => fetch(input, init));
   }
 
@@ -350,11 +357,14 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
         method: "POST",
         credentials: "omit",
         redirect: "error",
-        headers: { "content-type": "application/json" },
+        headers: {
+          ...(this.#bearerToken ? { authorization: `Bearer ${this.#bearerToken}` } : {}),
+          "content-type": "application/json",
+        },
         signal: controller.signal,
         body: JSON.stringify({
           model: this.#model,
-          temperature: 0.2,
+          temperature: this.#temperature,
           stream: false,
           ...(this.#reasoningEffort === "provider-default" ? {} : { reasoning_effort: this.#reasoningEffort }),
           response_format: responseFormat,
@@ -364,7 +374,7 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
       if (!response.ok) throw await localModelHttpError(response, "request");
       return completionContent(await readBoundedJson(response));
     } catch (error) {
-      if (timedOut) throw new DOMException("Local model request timed out after 120 seconds", "TimeoutError");
+      if (timedOut) throw new DOMException("Writing model request timed out after 120 seconds", "TimeoutError");
       if (options.signal?.aborted) throw abortError(options.signal.reason);
       throw explainLocalModelNetworkError(error, this.#endpoint, "request");
     } finally {
@@ -379,6 +389,7 @@ export async function discoverOpenAICompatibleModels(
   options: ModelDiscoveryOptions = {},
 ): Promise<readonly string[]> {
   const endpoint = modelListEndpoint(parseLoopbackEndpoint(endpointValue));
+  const bearerToken = validateBearerToken(options.bearerToken);
   const fetcher = options.fetcher ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
   const controller = new AbortController();
   let timedOut = false;
@@ -395,13 +406,13 @@ export async function discoverOpenAICompatibleModels(
       method: "GET",
       credentials: "omit",
       redirect: "error",
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", ...(bearerToken ? { authorization: `Bearer ${bearerToken}` } : {}) },
       signal: controller.signal,
     });
     if (!response.ok) throw await localModelHttpError(response, "discovery");
     return modelIdsFromResponse(await readBoundedJson(response));
   } catch (error) {
-    if (timedOut) throw new DOMException("Local model discovery timed out after 10 seconds", "TimeoutError");
+    if (timedOut) throw new DOMException("Writing model discovery timed out after 10 seconds", "TimeoutError");
     if (options.signal?.aborted) throw abortError(options.signal.reason);
     throw explainLocalModelNetworkError(error, endpoint, "discovery");
   } finally {
@@ -941,7 +952,7 @@ async function localModelHttpError(response: Response, action: "request" | "disc
       : response.status === 403
         ? " Check the companion's allowed Kirjolab origin."
         : "";
-  return new Error(`Local model ${label} failed (${response.status})${detail ? `: ${detail}` : "."}${guidance}`);
+  return new Error(`Writing model ${label} failed (${response.status})${detail ? `: ${detail}` : "."}${guidance}`);
 }
 
 export function explainLocalModelNetworkError(error: unknown, endpoint: URL, action: "request" | "discovery"): unknown {
@@ -949,7 +960,7 @@ export function explainLocalModelNetworkError(error: unknown, endpoint: URL, act
   const task = action === "request" ? "send a request" : "discover models";
   return endpoint.port === "8790"
     ? new TypeError(
-        `Could not ${task} through the local companion. Start it with npm run dev, then verify its allowed Kirjolab origin and full upstream /v1/chat/completions URL.`,
+        `Could not ${task} through the local companion. Start it with npm run dev, then verify its allowed Kirjolab origin and selected provider configuration.`,
       )
     : new TypeError(
         `The browser could not ${task} from the local provider. If the provider is running, switch to Local companion because browser CORS may be blocking access.`,
@@ -962,7 +973,7 @@ function isLoopbackHostname(hostname: string): boolean {
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {
-  if (!response.body) throw new Error("Local model returned an empty response");
+  if (!response.body) throw new Error("Writing model returned an empty response");
   return await readBoundedResponseJson(response, maximumResponseBytes, responseTooLargeError, malformedModelJsonError, {
     decoder: new TextDecoder("utf-8", { fatal: true }),
   });
@@ -977,8 +988,8 @@ function completionContent(value: unknown): string {
   if (!choice.message.content.trim() && typeof choice.message.reasoning_content === "string" && choice.message.reasoning_content.trim()) {
     throw new Error(
       choice.finish_reason === "length"
-        ? "Local model exhausted its output budget in reasoning. Lower reasoning effort and try again."
-        : "Local model returned reasoning without a final answer. Lower reasoning effort and try again.",
+        ? "Writing model exhausted its output budget in reasoning. Lower reasoning effort and try again."
+        : "Writing model returned reasoning without a final answer. Lower reasoning effort and try again.",
     );
   }
   return choice.message.content;
@@ -1002,9 +1013,9 @@ function modelIdsFromResponse(value: unknown): readonly string[] {
 function revisionFromContent(content: string): string {
   const normalized = stripOuterMarkdownFence(content);
   const replacement = structuredRevision(normalized) ?? normalized;
-  if (!replacement.trim()) throw new Error("Local model returned a blank replacement");
+  if (!replacement.trim()) throw new Error("Writing model returned a blank replacement");
   if (replacement.length > maximumReplacementLength) {
-    throw new RangeError(`Local model replacement exceeds ${maximumReplacementLength} characters`);
+    throw new RangeError(`Writing model replacement exceeds ${maximumReplacementLength} characters`);
   }
   return replacement;
 }
@@ -1016,10 +1027,10 @@ function structuredRevision(content: string): string | null {
   try {
     value = JSON.parse(normalized);
   } catch {
-    throw new Error("Local model returned a malformed structured revision");
+    throw new Error("Writing model returned a malformed structured revision");
   }
   if (!isRecord(value) || Object.keys(value).some((key) => key !== "replacement") || typeof value.replacement !== "string") {
-    throw new Error("Local model returned an invalid structured revision");
+    throw new Error("Writing model returned an invalid structured revision");
   }
   return value.replacement;
 }
@@ -1030,10 +1041,10 @@ function claimDraftFromContent(content: string): { readonly text: string; readon
   try {
     value = JSON.parse(normalized);
   } catch {
-    throw new Error("Local model returned a malformed claim draft");
+    throw new Error("Writing model returned a malformed claim draft");
   }
   if (!isRecord(value) || Object.keys(value).some((key) => key !== "text" && key !== "note")) {
-    throw new Error("Local model returned an invalid claim draft");
+    throw new Error("Writing model returned an invalid claim draft");
   }
   const text = boundedRequiredString(value.text, 2_000, "Draft claim").trim();
   if (typeof value.note !== "string") throw new TypeError("Draft claim note must be a string");
@@ -1110,7 +1121,7 @@ function tableFromContent(content: string): Pick<ModelTable, "caption" | "column
   const value = parsedObject(content, "table");
   exactKeys(value, ["caption", "columns", "rows"], "table");
   if (typeof value.caption !== "string" || value.caption.length > 500) throw new RangeError("Table caption exceeds 500 characters");
-  if (!Array.isArray(value.columns) || !Array.isArray(value.rows)) throw new TypeError("Local model returned invalid table");
+  if (!Array.isArray(value.columns) || !Array.isArray(value.rows)) throw new TypeError("Writing model returned invalid table");
   validateTableShape(value.columns as readonly string[], value.rows as readonly (readonly string[])[]);
   return { caption: value.caption.trim(), columns: value.columns as string[], rows: value.rows as string[][] };
 }
@@ -1195,7 +1206,7 @@ function reviewExtractionFromContent(
 }
 
 function invalidModelField(): never {
-  throw new TypeError("Local model returned an invalid field");
+  throw new TypeError("Writing model returned an invalid field");
 }
 
 function parsedObject(content: string, label: string): Record<string, unknown> {
@@ -1203,15 +1214,15 @@ function parsedObject(content: string, label: string): Record<string, unknown> {
   try {
     value = JSON.parse(stripOuterJsonFence(content));
   } catch {
-    throw new Error(`Local model returned malformed ${label}`);
+    throw new Error(`Writing model returned malformed ${label}`);
   }
-  if (!isRecord(value)) throw new Error(`Local model returned invalid ${label}`);
+  if (!isRecord(value)) throw new Error(`Writing model returned invalid ${label}`);
   return value;
 }
 
 function exactKeys(value: Record<string, unknown>, keys: readonly string[], label: string): void {
   if (Object.keys(value).some((key) => !keys.includes(key)) || keys.some((key) => !(key in value))) {
-    throw new Error(`Local model returned invalid ${label}`);
+    throw new Error(`Writing model returned invalid ${label}`);
   }
 }
 
@@ -1248,18 +1259,31 @@ function validateReasoningEffort(value: ModelReasoningEffort): ModelReasoningEff
   return value;
 }
 
+function validateBearerToken(value: string | undefined): string | null {
+  if (value === undefined) return null;
+  if (value.length < 24 || value.length > 512 || !/^[\x21-\x7e]+$/u.test(value)) {
+    throw new TypeError("Companion bearer token must be 24-512 printable characters without spaces");
+  }
+  return value;
+}
+
+function validateTemperature(value: number): number {
+  if (!Number.isFinite(value) || value < 0 || value > 2) throw new TypeError("Model temperature is invalid");
+  return value;
+}
+
 function abortError(reason: unknown): Error {
-  return reason instanceof Error ? reason : new DOMException("Local model request was aborted", "AbortError");
+  return reason instanceof Error ? reason : new DOMException("Writing model request was aborted", "AbortError");
 }
 
 function responseTooLargeError(): RangeError {
-  return new RangeError(`Local model response exceeds ${maximumResponseBytes} bytes`);
+  return new RangeError(`Writing model response exceeds ${maximumResponseBytes} bytes`);
 }
 
 function malformedCompletionError(): Error {
-  return new Error("Local model returned no replacement text");
+  return new Error("Writing model returned no replacement text");
 }
 
 function malformedModelJsonError(): Error {
-  return new Error("Local model returned malformed JSON");
+  return new Error("Writing model returned malformed JSON");
 }

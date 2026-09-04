@@ -285,7 +285,7 @@ export class AssistantGenerationPresenter extends LightDomController {
         sourceRevision: input.sourceRevision,
       };
     } catch (error) {
-      status.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
+      status.status = error instanceof Error ? error.message : "Enter a valid writing model endpoint.";
       return null;
     }
   }
@@ -388,7 +388,7 @@ export class AssistantGenerationPresenter extends LightDomController {
           ? "Answer the clarity question first."
           : workflow.matches("stale")
             ? "The manuscript changed. Start the clarity drill again for the current target."
-            : "The local model is already working.";
+            : "The writing model is already working.";
       }
       return;
     }
@@ -400,7 +400,7 @@ export class AssistantGenerationPresenter extends LightDomController {
       if (status) status.status = "Choose the wording that best matches your meaning; it will still open for review.";
       this.workflow.send({ type: "REVIEW" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Local model request failed";
+      const message = error instanceof Error ? error.message : "Writing model request failed";
       if (status) status.status = message;
       this.workflow.send({ type: "FAIL", message });
     } finally {
@@ -467,7 +467,7 @@ export class AssistantGenerationPresenter extends LightDomController {
       if (status) status.status = presentation.status;
       this.workflow.send({ type: presentation.workflow });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Local model request failed";
+      const message = error instanceof Error ? error.message : "Writing model request failed";
       if (status) status.status = message;
       this.workflow.send({ type: "FAIL", message });
     } finally {

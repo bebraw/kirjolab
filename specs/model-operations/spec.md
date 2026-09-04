@@ -132,10 +132,12 @@ All mutation operations preserve a human review boundary.
 - Reasoning effort is an explicit transient model setting. Focused writing
   operations default to `none` for responsive local inference, while low,
   medium, high, and provider-default behavior remain selectable.
-- The initial adapter permits credential-free HTTP(S) loopback endpoints only,
-  omits browser credentials, rejects redirects, aborts after 120 seconds, and
-  reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
-  IPv4, localhost, and IPv6 loopback boundary.
+- The browser adapter permits HTTP(S) loopback endpoints only, omits browser
+  cookies, rejects redirects, aborts after 120 seconds, and reads at most 256
+  KiB of OpenAI-compatible JSON. Requests remain credential-free except when
+  the explicit Codex connection supplies its tab-scoped bearer Authorization
+  header. The page CSP exposes the same IPv4, localhost, and IPv6 loopback
+  boundary.
 - The adapter uses the shared request-local bounded response reader with fatal
   UTF-8 decoding while retaining distinct empty-body, malformed-JSON, and
   oversized-response errors.
