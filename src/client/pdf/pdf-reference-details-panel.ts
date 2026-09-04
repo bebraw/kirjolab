@@ -56,10 +56,6 @@ export class PdfReferenceDetailsPanel extends LightDomElement {
     this.emitVisibility();
   }
 
-  get isOpen(): boolean {
-    return this.open;
-  }
-
   protected override render(): TemplateResult {
     const context = this.context;
     return html`

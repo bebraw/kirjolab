@@ -7,7 +7,7 @@ class TestPdfReferenceDetailsPanel extends PdfReferenceDetailsPanel {
   }
 
   get openForTest(): boolean {
-    return this.isOpen;
+    return Reflect.get(this, "open") === true;
   }
 }
 
