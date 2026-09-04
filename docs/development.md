@@ -337,24 +337,24 @@ forces production mode so an inherited local development setting cannot enter
 deployed assets. Each Lit-bearing browser entry validates its resolved esbuild
 inputs before output is accepted.
 
-### Local Model Companion
+### Writing Model Companion
 
-Use the companion only when the configured local provider cannot accept the
-browser request directly. Starting it is the explicit permission boundary.
-Create the ignored local configuration once:
+The companion supports either a credential-free OpenAI-compatible loopback
+provider or an authenticated Codex process. Starting it is the explicit
+permission boundary. Create the ignored local configuration once:
 
 ```sh
 cp .env.example .env
 npm run dev
 ```
 
-The development supervisor loads `.env`, starts the companion only when
-`KIRJOLAB_MODEL_UPSTREAM` is configured, and removes all `KIRJOLAB_MODEL_*`
-values from the Worker child environment. It also disables Wrangler's automatic
-`.env` discovery for Worker development and tests, keeping `.dev.vars` as the
-Worker-local configuration path. The standalone companion command loads the
-same file for troubleshooting. Explicit shell variables take precedence over
-matching `.env` entries.
+The development supervisor loads `.env`, starts the companion when a loopback
+upstream or non-default provider is configured, and removes all
+`KIRJOLAB_MODEL_*` and `KIRJOLAB_CODEX_*` values from the Worker child
+environment. It also disables Wrangler's automatic `.env` discovery for Worker
+development and tests, keeping `.dev.vars` as the Worker-local configuration
+path. The standalone companion command loads the same file for troubleshooting.
+Explicit shell variables take precedence over matching `.env` entries.
 
 It listens on `127.0.0.1:8790` unless
 `KIRJOLAB_MODEL_COMPANION_PORT` selects another valid port. The upstream is
@@ -370,6 +370,45 @@ The companion also exposes bounded `GET /v1/models` discovery derived from the
 fixed upstream completion route; it cannot select another upstream.
 Stopping the Worker or companion stops the supervised development session so a
 half-running local stack is not left behind.
+
+#### Use Codex Through the Companion
+
+The Codex backend uses the pinned official `@openai/codex-sdk` package. It is a
+local process and authentication boundary, not a local model: bounded writing
+inputs are sent to OpenAI and consume the authenticated account's usage.
+
+Create a dedicated file-authenticated home outside the repository. Do not use
+your ordinary Codex home because its instructions, skills, plugins, MCP
+servers, hooks, and rules are intentionally rejected by this integration:
+
+```sh
+mkdir -p "$HOME/.kirjolab-codex"
+chmod 700 "$HOME/.kirjolab-codex"
+CODEX_HOME="$HOME/.kirjolab-codex" ./node_modules/.bin/codex login --device-auth
+```
+
+Generate an independent high-entropy browser-to-companion token with `openssl
+rand -hex 32`, then configure `.env`:
+
+```dotenv
+KIRJOLAB_MODEL_PROVIDER=codex
+KIRJOLAB_CODEX_HOME=/absolute/path/to/.kirjolab-codex
+KIRJOLAB_CODEX_MODEL=gpt-5.6-terra
+KIRJOLAB_CODEX_TOKEN=replace-with-the-generated-token
+KIRJOLAB_MODEL_COMPANION_ORIGIN=http://127.0.0.1:8787
+```
+
+The home must contain a regular `auth.json`; custom `config.toml`, agent
+instructions, skills other than Codex's `.system` skills, plugins, hooks, and
+rules fail startup. Each request receives a new empty temporary directory and
+thread with read-only sandboxing, approvals and history disabled, no tool or
+network access, and only the configured model. Requests are serialized and
+bounded by the companion's existing 120-second and 256 KiB limits.
+
+Restart `npm run dev`, select **Codex via local companion**, and enter the same
+token in **Model connection**. Kirjolab keeps it in tab-scoped session storage,
+sends it only as the companion Authorization header, and never writes it to the
+workspace, local storage, logs, or Worker configuration.
 
 #### Connect the Deployed App to a Local Model
 

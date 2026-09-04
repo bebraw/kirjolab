@@ -95,16 +95,21 @@ All mutation operations preserve a human review boundary.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route and populate an explicit model selector
   instead of hardcoding a catalog. Discovery is explicit, bounded,
-  credential-free, loopback-only, and available through the same optional
-  companion when provider CORS blocks direct browser access. A saved local
-  choice remains visible before refresh; successful discovery replaces stale
-  choices with identifiers reported by the configured endpoint.
+  loopback-only, and available through the same optional companion when
+  provider CORS blocks direct browser access. Direct and forwarded local-model
+  discovery is credential-free; Codex companion discovery requires its bearer
+  token and exposes only the configured model. A saved local choice remains
+  visible before refresh; successful discovery replaces stale choices with
+  identifiers reported by the configured endpoint.
 - One bounded model-provider settings component owns connection, endpoint,
-  model, and reasoning values, saved-value validation, live option
-  presentation, discovery progress, opening its enclosing preferences menu,
-  connection-control focus, provider construction, and typed change and
-  discovery intents. The workspace coordinator retains generation workflows,
-  provider failure presentation, and assistant status policy.
+  model, reasoning, and tab-scoped Codex companion token values, saved-value
+  validation, live option presentation, discovery progress, opening its
+  enclosing preferences menu, connection-control focus, provider construction,
+  and typed change and discovery intents. Only connection, endpoint, model, and
+  reasoning persist in local storage; the Codex token persists only in session
+  storage and is sent only to the loopback companion. The workspace coordinator
+  retains generation workflows, provider failure presentation, and assistant
+  status policy.
 - One bounded assistant workflow status component owns operation-specific
   attribution and initial status copy, subsequent live status presentation,
   selected evidence keys and their count or limit status, reconciliation
@@ -141,14 +146,26 @@ All mutation operations preserve a human review boundary.
   `localhost`, `127.0.0.1`, and `::1` as browser aliases only at the configured
   scheme and port, validates task shape, permits bounded CORS/private-network
   preflight, rejects redirects, and caps request and response bodies at 256 KiB.
-- `npm run dev` supervises the Worker and, when an upstream is configured, the
-  companion as one local session. It loads local operator configuration from
-  the ignored project-root `.env`, strips every `KIRJOLAB_MODEL_*` value from
-  the Worker child, disables Wrangler's automatic `.env` discovery, and shuts
-  the sibling down when either process exits. Worker-local values remain in
-  `.dev.vars`. A checked-in `.env.example` documents the supported variables,
-  explicit process variables take precedence, and `npm run model:companion`
-  remains a standalone troubleshooting path.
+- The companion selects exactly one startup backend. Its default
+  `openai-compatible` backend retains credential-free forwarding to a fixed
+  loopback provider. Its `codex` backend requires a fixed model, a high-entropy
+  bearer token, and a separate regular-file-authenticated Codex home that
+  rejects caller instructions, custom configuration, skills, plugins, MCP
+  servers, hooks, and rules. It forces a synthetic environment and creates one
+  fresh empty request directory and read-only SDK thread at a time with tools,
+  network, web search, approvals, and history disabled. Structured results are
+  returned through the existing OpenAI-compatible envelope; all errors and
+  responses remain bounded. Codex authentication stays local, but the selected
+  writing inputs are sent to OpenAI under the active account's policy and usage.
+- `npm run dev` supervises the Worker and, when an upstream or Codex provider is
+  configured, the companion as one local session. It loads local operator
+  configuration from the ignored project-root `.env`, strips every
+  `KIRJOLAB_MODEL_*` and `KIRJOLAB_CODEX_*` value from the Worker child,
+  disables Wrangler's automatic `.env` discovery, and shuts the sibling down
+  when either process exits. Worker-local values remain in `.dev.vars`. A
+  checked-in `.env.example` documents the supported variables, explicit process
+  variables take precedence, and `npm run model:companion` remains a standalone
+  troubleshooting path.
 - Only the resolved passage, instruction, and chosen evidence snapshots enter
   the operation prompt; the adapter also sends the configured model identifier.
   No unrelated manuscript text is transmitted.

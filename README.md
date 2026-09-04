@@ -97,12 +97,12 @@ checks for affected Node-testable sources. Mutation configuration changes add
 the stable canary source. Generated browser assets are written to the ignored
 `.generated/` directory.
 
-## Use a Local Writing Model
+## Configure a Writing Model
 
 Kirjolab does not require a model API key. A revision request contains only the
 selected passage, your instruction, the evidence you selected, and the model
-identifier. It is sent directly from the browser to a credential-free,
-OpenAI-compatible service running on your computer.
+identifier. The default path sends it directly from the browser to a
+credential-free, OpenAI-compatible service running on your computer.
 
 If the browser cannot reach that service directly, use the optional local
 companion. Configure it once, then restart the ordinary development command:
@@ -116,8 +116,29 @@ Then choose **Local companion** in Writing assistant. The companion listens on
 `127.0.0.1:8790` by default and never sends model requests through the hosted
 Worker. Edit the ignored `.env` to set `KIRJOLAB_MODEL_UPSTREAM` and
 `KIRJOLAB_MODEL_COMPANION_ORIGIN`; explicit shell variables override the file.
-When no upstream is configured, `npm run dev` starts only the Worker.
+When no companion provider is configured, `npm run dev` starts only the Worker.
 `npm run model:companion` remains available for standalone troubleshooting.
+
+The same companion can instead use Codex through its official TypeScript SDK.
+Codex authentication stays on this computer, while the selected text,
+instruction, and evidence are sent to OpenAI and consume the active account's
+usage. Create a dedicated Codex home so normal agent instructions, skills,
+plugins, and tools cannot enter writing requests:
+
+```bash
+mkdir -p "$HOME/.kirjolab-codex"
+chmod 700 "$HOME/.kirjolab-codex"
+CODEX_HOME="$HOME/.kirjolab-codex" ./node_modules/.bin/codex login --device-auth
+openssl rand -hex 32
+```
+
+Set `KIRJOLAB_MODEL_PROVIDER=codex`, the absolute
+`KIRJOLAB_CODEX_HOME`, one `KIRJOLAB_CODEX_MODEL`, and the generated value as
+`KIRJOLAB_CODEX_TOKEN` in `.env`. Restart `npm run dev`, choose **Codex via
+local companion**, and enter the same token in **Model connection**. The
+browser keeps it only for the current tab session; it is never saved to the
+workspace or local storage. The companion uses one read-only, tool-free,
+network-disabled Codex thread at a time and exposes only the configured model.
 
 The deployed app can use a model on the same computer. Set
 `KIRJOLAB_MODEL_COMPANION_ORIGIN` to the deployed app's exact origin, such as

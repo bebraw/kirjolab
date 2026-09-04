@@ -873,9 +873,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   time, and digest; resolve `::review-artifact[...]` identically in preview and
   publication. Never let background review changes rewrite manuscript files or
   ordinary edits mutate a pinned artifact.
-- Keep local-model review assistance browser-to-loopback. Store the operation,
-  provider, model, prompt version, authorized source scope, result, and human
-  disposition; model candidates remain inert until explicit acceptance.
+- Keep model review assistance browser-to-loopback and out of the hosted
+  Worker. Direct and forwarded local-model paths stay credential-free. An
+  authenticated remote-model adapter must terminate in the explicitly started
+  loopback companion, use an isolated provider-specific runtime, and require a
+  separate high-entropy browser bearer retained only in tab-scoped session
+  storage. Store the operation, provider, model, prompt version, authorized
+  source scope, result, and human disposition; model candidates remain inert
+  until explicit acceptance.
 - Keep each transient assistant result's captured passage, source revision,
   evidence, and continuation authority inside its Lit result owner. Emit that
   complete typed context with table, clarity, or revision intents. Let the same
