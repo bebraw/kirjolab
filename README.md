@@ -41,6 +41,8 @@ local source development is supported on macOS.
   discovery provenance.
 - Ask a local model to revise a selected passage using selected evidence, then
   accept or reject the proposed change.
+- Stress-test a manuscript claim's reasoning, scope, and exceptions against
+  selected evidence before reviewing a bounded rewrite.
 - Export portable Markdown and BibTeX files.
 
 ## Try It with Docker Compose

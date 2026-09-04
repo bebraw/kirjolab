@@ -292,12 +292,13 @@ describe("assistant generation presenter", () => {
     );
   });
 
-  it("routes phrasing, ideas, and clarity generation", async () => {
+  it("routes phrasing, ideas, clarity, and claim stress-test generation", async () => {
     const { elements, presenter } = setup();
     const result = elements["assistant-interactive-result"];
     const generatePhrasing = vi.spyOn(result, "generatePhrasing").mockResolvedValue();
     const generateIdeas = vi.spyOn(result, "generateIdeas").mockResolvedValue();
     const startClarityDrill = vi.spyOn(result, "startClarityDrill").mockResolvedValue();
+    const startClaimStressTest = vi.spyOn(result, "startClaimStressTest").mockResolvedValue();
 
     await expect(presenter.generate(input("phrase-passage"))).resolves.toMatchObject({ workflow: "REVIEW" });
     await expect(presenter.generate(input("ideate"))).resolves.toMatchObject({ workflow: "REVIEW" });
@@ -305,9 +306,14 @@ describe("assistant generation presenter", () => {
       status: "Answer one focused question to make the intended meaning explicit.",
       workflow: "AWAIT_INPUT",
     });
+    await expect(presenter.generate(input("stress-test-claim"))).resolves.toEqual({
+      status: "Answer the reasoning, scope, and exception questions in your own words.",
+      workflow: "AWAIT_INPUT",
+    });
     expect(generatePhrasing).toHaveBeenCalledOnce();
     expect(generateIdeas).toHaveBeenCalledOnce();
     expect(startClarityDrill).toHaveBeenCalledOnce();
+    expect(startClaimStressTest).toHaveBeenCalledOnce();
   });
 
   it("projects reference discovery counts", async () => {
@@ -642,6 +648,60 @@ describe("assistant generation presenter", () => {
     );
     expect(elements["assistant-workflow-status"].status).toBe(
       "The manuscript changed. Start the clarity drill again for the current target.",
+    );
+  });
+
+  it("owns claim stress-test continuation and status presentation", async () => {
+    const { elements, presenter } = setup();
+    await enterWorkflow(presenter, elements, "AWAIT_INPUT");
+    const result = elements["assistant-interactive-result"];
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
+    const completeClaimStressTest = vi.spyOn(result, "completeClaimStressTest").mockResolvedValue();
+    bindTestWorkflow(presenter, resultCallbacks());
+    const context = {
+      evidence: { items: [], references: [] },
+      instruction: "Stress test",
+      passage,
+      provider,
+      stressTest: {
+        adapter: "openai-compatible",
+        providerLabel: "Local",
+        model: "local-model",
+        reasoning: { assessment: "Implicit.", question: "Why?" },
+        scope: { assessment: "Broad.", question: "Where?" },
+        exceptions: { assessment: "Missing.", question: "Unless what?" },
+      },
+      sourceRevision: 7,
+    };
+
+    result.dispatchEvent(
+      new CustomEvent(assistantResultActionEvent, {
+        detail: {
+          action: "continue-claim-stress",
+          answers: { reasoning: " ", scope: "Observed reviews", exceptions: "None identified" },
+          context,
+        },
+      }),
+    );
+    expect(elements["assistant-workflow-status"].status).toBe("Answer all three claim questions first.");
+
+    const answers = {
+      reasoning: "Visible evidence avoids a separate lookup.",
+      scope: "Evidence-heavy editorial reviews.",
+      exceptions: "Not when interpretation requires broader source context.",
+    };
+    result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: { action: "continue-claim-stress", answers, context } }));
+    await vi.waitFor(() => expect(completeClaimStressTest).toHaveBeenCalledOnce());
+    expect(completeClaimStressTest).toHaveBeenCalledWith(context, answers);
+    expect(elements["assistant-workflow-status"].status).toBe(
+      "Choose the revision that best matches your reasoning; it will still open for review.",
+    );
+    expect(refreshAvailability).toHaveBeenCalledTimes(2);
+
+    presenter.sourceChanged();
+    result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: { action: "continue-claim-stress", answers, context } }));
+    expect(elements["assistant-workflow-status"].status).toBe(
+      "The manuscript changed. Start the claim stress test again for the current target.",
     );
   });
 

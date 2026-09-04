@@ -3,6 +3,7 @@ import {
   discoverOpenAICompatibleModels,
   explainLocalModelNetworkError,
   OpenAICompatibleBrowserProvider,
+  type ClaimStressTestRequest,
   type DraftClaimRequest,
   type ClarityDrillRequest,
   type IdeationRequest,
@@ -32,6 +33,11 @@ const clarityOperation = {
   instruction: "Make the claim concrete.",
   evidence: [],
 } as const satisfies ClarityDrillRequest;
+const stressTestOperation = {
+  selectedPassage: "Visible evidence reduces review time.",
+  instruction: "Test whether the claim follows without overstating its scope.",
+  evidence: [{ kind: "annotation", id: "annotation-1", label: "Page 4", content: "Editors completed review in less time." }],
+} as const satisfies ClaimStressTestRequest;
 const ideationOperation = clarityOperation satisfies IdeationRequest;
 const phrasingOperation = {
   ...clarityOperation,
@@ -542,6 +548,155 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(JSON.parse(secondBody.messages[1]?.content ?? "")).toMatchObject({
       researcherAnswer: "It reduces review time for editors.",
     });
+  });
+
+  it("questions a claim's reasoning, scope, and exceptions before returning revisions", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({
+            reasoning: {
+              assessment: "The mechanism connecting visible evidence to review time is implicit.",
+              question: "Why would showing evidence at the point of review reduce elapsed time?",
+            },
+            scope: {
+              assessment: "The population and review conditions are not stated.",
+              question: "For which reviewers and review tasks does the observation apply?",
+            },
+            exceptions: {
+              assessment: "No condition that could defeat the inference is named.",
+              question: "When would visible evidence fail to reduce review time?",
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({
+            rewrites: [
+              {
+                text: "For evidence-heavy editorial checks, visible evidence may reduce review time by avoiding separate source lookup.",
+                rationale: "States the mechanism and bounds the claim.",
+              },
+              {
+                text: "Visible evidence may shorten evidence-heavy reviews when source interpretation does not require broader context.",
+                rationale: "Adds the researcher's exception.",
+              },
+            ],
+          }),
+        ),
+      );
+    const provider = createProvider({ fetcher });
+
+    const stressTest = await provider.startClaimStressTest(stressTestOperation);
+    expect(stressTest).toMatchObject({
+      reasoning: { question: "Why would showing evidence at the point of review reduce elapsed time?" },
+      scope: { question: "For which reviewers and review tasks does the observation apply?" },
+      exceptions: { question: "When would visible evidence fail to reduce review time?" },
+    });
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: {
+          reasoning: stressTest.reasoning,
+          scope: stressTest.scope,
+          exceptions: stressTest.exceptions,
+        },
+        answers: {
+          reasoning: "It avoids a separate source lookup.",
+          scope: "Evidence-heavy editorial checks.",
+          exceptions: "Not when interpretation requires broader source context.",
+        },
+      }),
+    ).resolves.toMatchObject({
+      rewrites: [
+        expect.objectContaining({ text: expect.stringContaining("evidence-heavy editorial checks") }),
+        expect.objectContaining({ text: expect.stringContaining("broader context") }),
+      ],
+    });
+
+    const firstBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    const secondBody = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(firstBody.response_format.json_schema.name).toBe("kirjolab_claim_stress_test");
+    expect(JSON.parse(firstBody.messages[1]?.content ?? "")).toEqual({
+      instruction: stressTestOperation.instruction,
+      selectedPassage: stressTestOperation.selectedPassage,
+      orderedEvidence: [{ order: 1, ...stressTestOperation.evidence[0] }],
+    });
+    expect(secondBody.response_format.json_schema.name).toBe("kirjolab_claim_stress_rewrites");
+    expect(JSON.parse(secondBody.messages[1]?.content ?? "")).toMatchObject({
+      researcherAnswers: {
+        reasoning: "It avoids a separate source lookup.",
+        scope: "Evidence-heavy editorial checks.",
+        exceptions: "Not when interpretation requires broader source context.",
+      },
+    });
+    expect(secondBody.messages[0]?.content).toContain("Do not invent facts, reasoning, or counterevidence");
+  });
+
+  it("rejects ungrounded or malformed claim stress tests before they can become revisions", async () => {
+    const idle = vi.fn<typeof fetch>();
+    const provider = createProvider({ fetcher: idle });
+    const questions = {
+      reasoning: { assessment: "Implicit.", question: "Why?" },
+      scope: { assessment: "Broad.", question: "Where?" },
+      exceptions: { assessment: "Missing.", question: "Unless what?" },
+    };
+    await expect(provider.startClaimStressTest({ ...stressTestOperation, evidence: [] })).rejects.toThrow(
+      "Evidence must contain between 1 and 12 items",
+    );
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: questions,
+        answers: { reasoning: "", scope: "Observed reviews.", exceptions: "None identified." },
+      }),
+    ).rejects.toThrow("Reasoning answer is required");
+    await expect(
+      provider.continueClaimStressTest({
+        ...stressTestOperation,
+        stressTest: questions,
+        answers: { reasoning: "Because.", scope: "x".repeat(4_001), exceptions: "None identified." },
+      }),
+    ).rejects.toThrow("Scope answer exceeds 4000 characters");
+    expect(idle).not.toHaveBeenCalled();
+
+    const invalidStressTests = [
+      "not json",
+      "{}",
+      JSON.stringify({ ...questions, score: 0.8 }),
+      JSON.stringify({ ...questions, reasoning: null }),
+      JSON.stringify({ ...questions, scope: { assessment: "", question: "Where?" } }),
+      JSON.stringify({ ...questions, exceptions: { assessment: "Missing.", question: "", answer: "Invented" } }),
+    ];
+    for (const content of invalidStressTests) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).startClaimStressTest(
+          stressTestOperation,
+        ),
+      ).rejects.toThrow();
+    }
+
+    for (const content of [
+      '{"rewrites":[]}',
+      '{"rewrites":[{"text":"Only one","rationale":"Bounded"}]}',
+      '{"rewrites":[{"text":"One","rationale":"Why","score":1},{"text":"Two","rationale":"Why"}]}',
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).continueClaimStressTest({
+          ...stressTestOperation,
+          stressTest: questions,
+          answers: { reasoning: "Because.", scope: "Observed reviews.", exceptions: "None identified." },
+        }),
+      ).rejects.toThrow();
+    }
   });
 
   it("rejects malformed contextual-operation requests and structured outputs", async () => {
