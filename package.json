@@ -178,6 +178,7 @@
     "@cloudflare/puppeteer": "1.2.0",
     "@modelcontextprotocol/server": "2.0.0",
     "@octokit/auth-app": "8.2.0",
+    "@openai/codex-sdk": "0.153.2",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
     "agents": "0.21.0",
     "cytoscape": "3.34.0",
