@@ -58,6 +58,7 @@ export interface EditorAuthoringOwners {
   };
   readonly sourceCitationControl: {
     bindWorkflow(navigation: { openCitation(context: CitationContext): void }, editor: EditorStatus): void;
+    openCitationAtPosition(source: string, position: number): boolean;
     setCaret(source: string, position: number | null): void;
   };
   readonly contextResourcePresenter: { openCitation(context: CitationContext): void; setCitationAvailable(available: boolean): void };
@@ -99,9 +100,12 @@ export class EditorStatus extends LightDomElement {
   private readonly sourceChanged = (): void => this.owners?.assistantGenerationPresenter.sourceChanged();
   private text: Y.Text | null = null;
   private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
-  private readonly updateAuthoringTarget = (): void => {
+  private readonly updateAuthoringTarget = (event?: Event): void => {
     if (document.activeElement === this.source) this.rememberSelection();
     else this.renderEditorHighlight();
+    if (event?.type === "click" && (event as MouseEvent).metaKey && this.source) {
+      this.owners?.sourceCitationControl.openCitationAtPosition(this.manuscript, this.source.selectionEnd);
+    }
     this.collaborationSocket?.scheduleSelection();
     this.owners?.assistantGenerationPresenter.refreshAvailability();
   };

@@ -1410,6 +1410,79 @@ describe("context resource presenter", () => {
     });
   });
 
+  it("opens an unambiguous private-Library paper at the citation locator", () => {
+    const { pdfRoutes, presenter } = setup();
+    const publication = {
+      abstract: "",
+      authors: ["Jane Doe"],
+      citationKey: "Doe2026",
+      createdAt: "created",
+      doi: "",
+      id: libraryPdf.referenceId!,
+      metadataSource: "manual" as const,
+      title: "Library source",
+      type: "article",
+      updatedAt: "updated",
+      url: "",
+      venue: "",
+      year: "2026",
+    };
+    const project = { ...workspaceSnapshotFixture, publications: [publication] };
+    presenter.bindContext(
+      ...contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), library, snapshot: project, standaloneLibrary: false }),
+        syncRoute: vi.fn(),
+      }),
+    );
+
+    presenter.openCitation({ keys: ["doe2026"], locator: "p. 11" });
+
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 11);
+  });
+
+  it("opens an unambiguous shared-reference paper at the citation locator", () => {
+    const { pdfRoutes, presenter } = setup();
+    const publication = {
+      abstract: "",
+      authors: ["Jane Doe"],
+      citationKey: "Doe2026",
+      createdAt: "created",
+      doi: "",
+      id: referencePdf.referenceId,
+      metadataSource: "manual" as const,
+      title: "Shared source",
+      type: "article",
+      updatedAt: "updated",
+      url: "",
+      venue: "",
+      year: "2026",
+    };
+    const project = { ...workspaceSnapshotFixture, publications: [publication] };
+    presenter.bindContext(
+      ...contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), library: null, snapshot: project, standaloneLibrary: false }),
+        syncRoute: vi.fn(),
+      }),
+    );
+    vi.spyOn(presenter, "referencePdfs", "get").mockReturnValue([referencePdf]);
+
+    presenter.openCitation({ keys: ["doe2026"], locator: "pages 5–6" });
+
+    expect(pdfRoutes.openReferencePdf).toHaveBeenCalledWith(referencePdf, 5);
+  });
+
   it("restores resource routes through canonical lookups and typed effects", async () => {
     const { elements, pdfRoutes, presenter } = setup();
     const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);

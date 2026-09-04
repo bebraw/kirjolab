@@ -577,11 +577,14 @@ export class ContextResourcePresenter extends LightDomController {
     void this.openProjectPdf(pdf, annotation.page, annotation.id);
   }
 
-  async openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
+  async openPublicationPaper(paper: PublicationPaperOption, page?: number): Promise<void> {
     if (!this.routeBinding) return;
-    if (paper.kind === "project") return await this.openProjectPdf(paper.pdf);
-    if (paper.kind === "library") return await this.openLibraryPdf(paper.artifact);
-    await this.openReferencePdf(paper.pdf);
+    if (paper.kind === "project")
+      return page === undefined ? await this.openProjectPdf(paper.pdf) : await this.openProjectPdf(paper.pdf, page);
+    if (paper.kind === "library")
+      return page === undefined ? await this.openLibraryPdf(paper.artifact) : await this.openLibraryPdf(paper.artifact, page);
+    if (page === undefined) await this.openReferencePdf(paper.pdf);
+    else await this.openReferencePdf(paper.pdf, page);
   }
 
   openProjectNote(id: string): void {
@@ -626,9 +629,20 @@ export class ContextResourcePresenter extends LightDomController {
       return;
     }
     const links = project.publicationPdfLinks.filter(({ publicationId }) => publicationId === publication.id);
-    const pdf = links.length === 1 ? project.pdfs.find(({ id }) => id === links[0]?.pdfId) : undefined;
+    const projectPapers = links.flatMap((link) => {
+      const pdf = project.pdfs.find(({ id }) => id === link.pdfId);
+      return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
+    });
+    const libraryPapers = (this.boundLibrary()?.artifacts ?? [])
+      .filter(({ referenceId }) => referenceId === publication.id)
+      .map((artifact) => ({ kind: "library" as const, artifact }));
+    const localArtifactIds = new Set(libraryPapers.map(({ artifact }) => artifact.id));
+    const referencePapers = this.referencePdfs
+      .filter(({ id, referenceId }) => referenceId === publication.id && !localArtifactIds.has(id))
+      .map((pdf) => ({ kind: "reference" as const, pdf }));
+    const papers: readonly PublicationPaperOption[] = [...libraryPapers, ...referencePapers, ...projectPapers];
     const page = citationPageFromLocator(citation.locator);
-    if (page && pdf) void this.openProjectPdf(pdf, page);
+    if (papers.length === 1) void this.openPublicationPaper(papers[0]!, page ?? undefined);
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 

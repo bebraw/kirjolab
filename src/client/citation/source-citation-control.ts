@@ -1,7 +1,13 @@
 import { html, type TemplateResult } from "lit";
 
 import { LightDomElement } from "../platform/light-dom-controller";
-import { citationContextAtPosition, createCitationInsertion, type CitationContext, type CitationInsertion } from "./citations";
+import {
+  citationContextAtPosition,
+  citationPageFromLocator,
+  createCitationInsertion,
+  type CitationContext,
+  type CitationInsertion,
+} from "./citations";
 
 export interface SourceCitationNavigation {
   openCitation(context: CitationContext): void;
@@ -30,6 +36,13 @@ export class SourceCitationControl extends LightDomElement {
     this.requestUpdate();
   }
 
+  openCitationAtPosition(source: string, position: number): boolean {
+    const context = citationContextAtPosition(source, position);
+    if (!context) return false;
+    this.#navigation?.openCitation(context);
+    return true;
+  }
+
   insertCitation(citationKey: string, locator?: string): void {
     if (this.#position === null) {
       this.#editor?.completeCitationInsertion(null, "Place the manuscript caret before inserting a citation.");
@@ -53,17 +66,19 @@ export class SourceCitationControl extends LightDomElement {
 
   protected override render(): TemplateResult {
     const available = this.#context !== null;
+    const page = citationPageFromLocator(this.#context?.locator);
+    const label = `Open cited paper${page ? ` · p. ${page}` : ""}`;
     return html`
       <button
         class="button-secondary"
         id="open-source-citation"
         type="button"
-        title="View the citation at the caret"
+        title="Open the citation at the caret in Context. Command-click a citation for the same action."
         ?disabled=${!available}
         ?hidden=${!available}
         @click=${this.openCitation}
       >
-        View cited source
+        ${label}
       </button>
     `;
   }
