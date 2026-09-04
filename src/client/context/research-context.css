@@ -74,6 +74,14 @@
     line-height: 1.25;
   }
 
+  .pdf-reference-citation-key {
+    display: block;
+    width: fit-content;
+    margin-top: 0.3rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.72rem;
+  }
+
   .pdf-reference-details-meta,
   .pdf-reference-details-abstract {
     margin-top: 0.55rem;

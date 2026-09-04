@@ -90,12 +90,12 @@ export class PdfReferenceDetailsPanel extends LightDomElement {
       return html`<p class="empty-state pdf-reference-empty">No reference is connected to this PDF yet.</p>`;
     }
     return html`<div class="pdf-reference-details-list">
-      ${references.map(
-        (reference) => html`
+      ${references.map((reference) => {
+        const citationSyntax = reference.citationKey ? `:cite[${reference.citationKey}]` : "";
+        return html`
           <article class="pdf-reference-details-record">
-            <p class="eyebrow">
-              ${reference.origin} · ${reference.type}${reference.citationKey ? ` · :cite[${reference.citationKey}]` : ""}
-            </p>
+            <p class="eyebrow">${reference.origin} · ${reference.type}</p>
+            ${citationSyntax ? html`<code class="pdf-reference-citation-key">${citationSyntax}</code>` : nothing}
             <h3>${bibTeXDisplayText(reference.title) || "Untitled reference"}</h3>
             <p class="pdf-reference-details-meta">
               ${[
@@ -111,8 +111,8 @@ export class PdfReferenceDetailsPanel extends LightDomElement {
               ${bibTeXDisplayText(reference.abstract) || "No abstract is stored for this reference yet."}
             </p>
           </article>
-        `,
-      )}
+        `;
+      })}
     </div>`;
   }
 
