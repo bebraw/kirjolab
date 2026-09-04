@@ -38,6 +38,7 @@ test("fails closed after the final transient npm audit failure", async () => {
   let attempts = 0;
 
   const exitCode = await runSecurityAudit({
+    allowUnavailableAfterIndependentReview: false,
     log: () => {},
     retryDelaysMs: [0, 0],
     run: async () => {
