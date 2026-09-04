@@ -20,6 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Review dependency changes
+        id: dependency-review
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime
+          license-check: false
+
       - name: Restore npm cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -59,6 +68,8 @@ jobs:
 
       - name: Run fast quality gate
         shell: bash
+        env:
+          NPM_AUDIT_TRANSPORT_FALLBACK: ${{ steps.dependency-review.outcome == 'success' && 'github-dependency-review' || '' }}
         run: npm run quality:gate:fast
 
   quality-browser:

@@ -76,7 +76,8 @@
       "2026-08-17-bound-instrumented-mutation-fixtures",
       "2026-08-18-replace-pr-mutation-with-dry-run",
       "2026-08-31-compact-agent-skills",
-      "2026-09-03-actionable-mutation-reporting"
+      "2026-09-03-actionable-mutation-reporting",
+      "2026-09-04-bound-npm-audit-retries"
     ]
   },
   "scripts": {

@@ -2036,6 +2036,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Stryker's exit status and keep bounded affected runs capable of emitting
   individual mutant details.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
+- Keep `npm audit` as the full-tree runtime dependency gate and fail closed
+  locally and on pushes to `main`. Pull-request CI may accept only an exhausted,
+  recognized npm registry transport failure after the same job has passed
+  GitHub Dependency Review for newly introduced high-severity runtime
+  vulnerabilities. Keep the repository dependency graph enabled for that
+  comparison. Never apply the fallback to a completed audit report or an
+  unrecognized command failure.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.
 - Optional container Local CI must explicitly prewarm through one deterministic install step

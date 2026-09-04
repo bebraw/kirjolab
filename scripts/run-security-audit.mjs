@@ -3,6 +3,7 @@ import process from "node:process";
 
 const defaultFetchTimeoutMs = 60_000;
 const defaultRetryDelaysMs = [5_000, 15_000];
+const independentReviewFallback = "github-dependency-review";
 const completedAuditReportPattern = /(?:^|\r?\n)# npm audit report(?:\r?\n|$)/u;
 const retryableRegistryFailurePatterns = [
   /\bnpm warn audit network timeout at:/iu,
@@ -12,6 +13,7 @@ const retryableRegistryFailurePatterns = [
 ];
 
 export async function runSecurityAudit({
+  allowUnavailableAfterIndependentReview = process.env.NPM_AUDIT_TRANSPORT_FALLBACK === independentReviewFallback,
   fetchTimeoutMs = defaultFetchTimeoutMs,
   log = console.error,
   retryDelaysMs = defaultRetryDelaysMs,
@@ -31,8 +33,21 @@ export async function runSecurityAudit({
       return 0;
     }
 
-    if (completedAuditReportPattern.test(result.output) || !isRetryableRegistryFailure(result.output) || attempt === totalAttempts) {
+    const disposition = auditFailureDisposition({
+      allowUnavailableAfterIndependentReview,
+      finalAttempt: attempt === totalAttempts,
+      output: result.output,
+    });
+
+    if (disposition === "fail") {
       return result.exitCode || 1;
+    }
+
+    if (disposition === "accept-independent-review") {
+      log(
+        "[security:audit] npm registry remained unavailable; accepting the completed independent dependency review for this pull request.",
+      );
+      return 0;
     }
 
     const retryDelayMs = retryDelaysMs[attempt - 1];
@@ -47,6 +62,18 @@ export async function runSecurityAudit({
 
 export function isRetryableRegistryFailure(output) {
   return retryableRegistryFailurePatterns.some((pattern) => pattern.test(output));
+}
+
+function auditFailureDisposition({ allowUnavailableAfterIndependentReview, finalAttempt, output }) {
+  if (completedAuditReportPattern.test(output) || !isRetryableRegistryFailure(output)) {
+    return "fail";
+  }
+
+  if (!finalAttempt) {
+    return "retry";
+  }
+
+  return allowUnavailableAfterIndependentReview ? "accept-independent-review" : "fail";
 }
 
 function runNpmAudit({ fetchTimeoutMs }) {

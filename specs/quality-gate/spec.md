@@ -68,6 +68,15 @@ failures quickly during normal development.
 - **Container retry:** `npm run ci:local:container:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
 - **Remote recovery trigger:** GitHub Actions `workflow_dispatch`
+- **Runtime dependency audit:** three bounded npm audit attempts against shipped
+  dependencies, failing at high severity
+- **Pull-request dependency review:** GitHub Dependency Review, pinned to a full
+  commit SHA, backed by the enabled repository dependency graph, and blocking
+  newly introduced high-severity runtime vulnerabilities
+- **Pull-request audit outage fallback:** an exhausted recognized npm registry
+  transport failure may pass only when the preceding dependency-review step in
+  the same job succeeded; completed reports and non-pull-request audits remain
+  fail-closed
 - **Protected branch:** `main`
 - **Required remote checks:** `quality-fast`, `quality-browser`, and
   `quality-mutation` from the GitHub Actions App
@@ -151,6 +160,9 @@ failures quickly during normal development.
 ### Definition of Done
 
 - [ ] The fast gate covers formatting, type checking, Worker client-code guardrails, runtime audit, unit coverage, and real Workers-runtime tests.
+- [ ] Pull-request CI reviews introduced runtime dependencies independently
+      before allowing exhausted npm audit transport failures, while completed
+      audit reports, local CI, and pushes to `main` remain fail-closed.
 - [ ] Worker-runtime tests run without Cloudflare preview sessions, account credentials, or remote binding availability.
 - [ ] The ADR registry guard rejects duplicate identifiers, mismatched headings,
       missing lifecycle metadata, absent index entries, and broken local ADR links.
@@ -376,6 +388,17 @@ failures quickly during normal development.
   a separate quality-gate decision.
 - The CI workflow must read the pinned Node version from `package.json` instead of a separate version file.
 - The CI workflow must keep using npm for install and verification steps without depending on one exact npm patch release.
+- The npm audit wrapper must retry only recognized registry transport failures,
+  must never bypass a completed vulnerability report or unrecognized command
+  failure, and must fail after exhausted retries unless the current
+  pull-request job already passed its independent dependency review.
+- GitHub Dependency Review must run before the pull-request fast gate, block
+  newly introduced high-severity runtime vulnerabilities, and be the only CI
+  step capable of enabling the exhausted-transport fallback.
+- The repository dependency graph must remain enabled so pull-request
+  dependency comparisons are available to the review action.
+- Local CI, manual workflow dispatch, and pushes to `main` must not enable the
+  npm audit transport fallback.
 - The npm release used by CI must stay inside the supported npm range declared in `package.json`.
 - CI jobs must install dependencies with plain `npm ci`.
 - Optional container Local CI must rely on its built-in warm-cache serialization instead of repo-local install locking.
@@ -523,6 +546,24 @@ failures quickly during normal development.
 - When: they open a pull request targeting `main`
 - Then: GitHub permits merge only after the branch is current, all three
   authoritative CI checks pass, and review conversations are resolved
+
+**Scenario: npm audit is unavailable during pull-request CI**
+
+- Given: GitHub Dependency Review has passed for the pull request's introduced
+  runtime dependencies
+- And: all bounded npm audit attempts fail with a recognized registry transport
+  error
+- When: the fast quality gate reaches the final audit attempt
+- Then: it records the degraded fallback and continues, while a completed
+  vulnerability report or any non-transport failure still fails the job
+
+**Scenario: npm audit is unavailable outside pull-request CI**
+
+- Given: local CI, manual CI, or a push to `main` exhausts its bounded npm audit
+  attempts
+- When: the registry remains unavailable
+- Then: the audit fails closed because no successful pull-request dependency
+  review authorized the fallback
 
 **Scenario: Contributor monitors the full quality gate**
 

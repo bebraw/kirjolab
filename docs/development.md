@@ -183,8 +183,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
   is advisory and spends provider quota.
 - Run the shipped runtime dependency audit with `npm run security:audit`. The
   command retries only npm registry transport failures, using three bounded
-  60-second attempts with short backoff, and remains fail-closed when the
-  registry stays unavailable or the completed audit reports a vulnerability.
+  60-second attempts with short backoff. Local and post-merge audits remain
+  fail-closed. Pull-request CI may accept exhausted transport failures only
+  after its independent GitHub Dependency Review step has passed; completed
+  vulnerability reports and other failures remain blocking.
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
   not require a Cloudflare Access assertion or a `.dev.vars` file.
@@ -631,7 +633,11 @@ Kirjolab keeps secret handling lightweight and explicit:
 - Commit example files such as `.dev.vars.example` with placeholder values only.
 - Treat `npm run security:audit` as part of the baseline gate for shipped
   runtime dependencies. Retry only transient registry transport failures;
-  completed vulnerability reports and exhausted retries must remain blocking.
+  completed vulnerability reports and unrecognized failures must remain
+  blocking. Only pull-request CI may accept exhausted transport retries, and
+  only after GitHub Dependency Review has passed for introduced high-severity
+  runtime vulnerabilities. Keep the repository dependency graph enabled for
+  that comparison. Local CI and pushes to `main` stay fail-closed.
 
 ## Quality Gate
 
@@ -658,8 +664,11 @@ is still running, while preserving each child command's live output. The fast
 gate includes both Node coverage and `npm run test:workers`, so the baseline
 cannot omit real Durable Object persistence verification. GitHub Actions runs
 separate fast, browser, and affected mutation jobs, with repository-shape
-validation included in the fast job. Native local CI runs the same fast and
-browser package scripts sequentially on the supported macOS host. The optional
+validation and pull-request dependency review included in the fast job. The
+dependency review must pass before an exhausted npm audit transport outage can
+use the pull-request-only fallback. Native local CI runs the same fast and
+browser package scripts sequentially on the supported macOS host and never
+enables that fallback. The optional
 `npm run ci:local:container` path executes the complete workflow with Local CI
 when its orchestration or Linux container environment is the subject under
 test. Local browser installation should go through the pinned
