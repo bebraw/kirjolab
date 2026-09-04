@@ -600,12 +600,18 @@ the precise route, validation, persistence, and regression requirements.
   and Yjs authority without caching candidates, visible options, completion
   kind, or completion-local loading state.
 - **Source citation action:** One bounded light-DOM control derives the citation
-  context at the current source caret, owns action availability, and emits the
-  resolved citation keys and locator. The enclosing context-resource presenter
-  resolves one key against the canonical project, chooses a unique linked PDF
-  and locator page or publication context, and owns grouped and missing-citation
-  notices. The workspace coordinator retains canonical snapshot authority and
-  context navigation effects.
+  context at the current source caret or Command-click position, owns action
+  availability, and emits the resolved citation keys and locator. The enclosing
+  context-resource presenter resolves one key against the canonical project,
+  chooses one unambiguous project, private-Library, or shared-reference PDF and
+  optional locator page, or falls back to publication context. It owns grouped
+  and missing-citation notices. The workspace coordinator retains canonical
+  snapshot authority and context navigation effects.
+- **PDF reference details:** One bounded light-DOM overlay projects the active
+  artifact's canonical project or Library reference metadata inside the PDF
+  reader. The context-resource presenter derives that read-only projection from
+  its existing snapshots and shared-reference catalog; opening or closing it
+  does not route away from the PDF or mutate reader state.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized canonical editor navigation. IndexedDB
   stores the current Yjs document, last acknowledged server vector, and last

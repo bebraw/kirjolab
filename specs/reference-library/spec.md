@@ -333,8 +333,9 @@ memory and makes citation aliases compete with stable source identity.
   heading. It returns at most 128 numbered or author-year entries with their
   bounded raw citation, source page, and best-effort title, authors, year, DOI,
   URL, and confidence. The reader presents those candidates in a dedicated
-  PDF references panel, opened independently from PDF annotations, with
-  DOI/source links and an explicit rerun control
+  PDF bibliography panel, opened independently from PDF annotations and the
+  current paper's canonical reference-metadata overlay, with DOI/source links
+  and an explicit rerun control
   after ready or failed analysis. One explicit bulk control accepts every
   pending candidate in a bounded fingerprint-qualified request, reuses exact or
   suggested Library matches, and commits all references and extracted citation

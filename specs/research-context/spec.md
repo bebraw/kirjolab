@@ -304,13 +304,20 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - `PublicationPdfLink` is a stable, durable, workspace-scoped many-to-many
   association with a unique publication/PDF pair. It projects `has-artifact`
   from publication to PDF in workspace knowledge navigation.
-- Opening a citation with a supported numeric page locator and exactly one
-  explicitly linked PDF opens or focuses that PDF at the locator's first page.
-  Other citations and direct publication navigation focus publication context.
+- Opening or Command-clicking a source citation with exactly one available
+  explicitly linked project, private-Library, or shared-reference PDF opens or
+  focuses that PDF in Context. A supported numeric page locator opens its first
+  page; a citation without a locator resumes the PDF's retained reading page.
+  Citations with zero or several available PDFs and direct publication
+  navigation focus publication context instead of guessing an artifact.
   That view lists zero, one, or several explicitly linked PDFs; selecting one
   opens its resource-keyed PDF tab. With no link, publication metadata remains
   useful and the view presents an honest unlinked state rather than a broken
   viewer.
+- Every active project, private-Library, or shared-reference PDF exposes an
+  in-reader **About this paper** overlay. It projects canonical connected
+  reference metadata without changing the PDF resource tab, page, zoom, scroll,
+  selection, or canonical state. An unlinked PDF presents an honest empty state.
 - An imported PDF with no publication link remains a usable standalone PDF
   context. Linking or unlinking it is explicit and never deletes the PDF,
   publication, or annotations.

@@ -175,7 +175,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
               aria-controls="library-highlight-composer"
               @click=${() => this.emitAction({ action: "open-references" })}
             >
-              ${icon("research")}<span>References</span>
+              ${icon("research")}<span>Bibliography</span>
             </button>
             <button
               class="library-pdf-menu-action"

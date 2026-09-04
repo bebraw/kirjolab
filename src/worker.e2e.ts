@@ -786,7 +786,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
   await page.locator("#library-pdf-more-actions").click();
-  await page.getByRole("button", { name: "References", exact: true }).click();
+  await page.getByRole("button", { name: "Bibliography", exact: true }).click();
   await expect(page.locator("#open-library-pdf-references")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
