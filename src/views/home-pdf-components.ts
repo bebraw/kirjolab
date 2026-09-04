@@ -12,6 +12,9 @@ export function renderLibraryPdfRail(): string {
                 </button>
               </div>
               <div class="library-pdf-reading-tools" role="toolbar" aria-label="PDF reading tools">
+                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-details" type="button" aria-label="About this paper" aria-controls="pdf-reference-details-panel" aria-expanded="false" title="About this paper" data-touch-target="true">
+                  ${renderIcon("guide")}<span class="sr-only">About this paper</span>
+                </button>
                 <button class="library-pdf-rail-button button-icon" id="open-library-pdf-search" type="button" aria-label="Search this PDF" title="Search this PDF" data-touch-target="true">
                   ${renderIcon("search")}<span class="sr-only">Search PDF</span>
                 </button>
@@ -65,7 +68,7 @@ export function renderLibraryPdfRail(): string {
                   <summary class="library-pdf-rail-button button-icon" id="library-pdf-more-actions" role="button" aria-label="More PDF actions" aria-haspopup="menu" title="More PDF actions" data-touch-target="true">${renderIcon("more")}</summary>
                   <div class="library-pdf-rail-menu-panel" role="group" aria-label="PDF actions">
                     <p class="library-pdf-menu-heading">Document</p>
-                    <button class="library-pdf-menu-action" id="open-library-pdf-references" type="button" aria-expanded="false" aria-controls="library-highlight-composer">${renderIcon("research")}<span>References</span></button>
+                    <button class="library-pdf-menu-action" id="open-library-pdf-references" type="button" aria-expanded="false" aria-controls="library-highlight-composer">${renderIcon("research")}<span>Bibliography</span></button>
                     <button class="library-pdf-menu-action" id="download-library-original-pdf" type="button" disabled>${renderIcon("guide")}<span>Download original</span></button>
                     <button class="library-pdf-menu-action" id="export-library-annotated-pdf" type="button" disabled>${renderIcon("download")}<span>Export annotated copy</span></button>
                   </div>

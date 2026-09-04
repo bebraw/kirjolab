@@ -37,6 +37,7 @@ import { ProjectEvidencePanel } from "../assistant/project-evidence-panel";
 import { ProjectMapWorkspace } from "../project/project-map-workspace";
 import { PublicationContextPanel } from "../publication/publication-context-panel";
 import { PublicationListPanel } from "../publication/publication-list-panel";
+import { PdfReferenceDetailsPanel } from "../pdf/pdf-reference-details-panel";
 import type { ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "../workspace/workspace-rail-tabs";
 
@@ -343,6 +344,7 @@ function setup() {
     "library-pdf-annotation-toolbar": new LibraryPdfAnnotationToolbar(),
     "library-pdf-inspector": new LibraryPdfInspector(),
     "paper-markups": new LibraryPdfMarkupLayer(),
+    "pdf-reference-details-panel": new PdfReferenceDetailsPanel(),
     "manuscript-comment-list-panel": new ManuscriptCommentList(),
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
@@ -1410,6 +1412,62 @@ describe("context resource presenter", () => {
     });
   });
 
+  it("projects canonical metadata for project, private-Library, and shared-reference PDFs", () => {
+    const { elements, presenter } = setup();
+    const setContext = vi.spyOn(elements["pdf-reference-details-panel"], "setContext");
+    const publication = {
+      abstract: "Project abstract",
+      authors: ["Jane Doe"],
+      citationKey: "Doe2026",
+      createdAt: "created",
+      doi: "10.1234/project",
+      id: reference.id,
+      metadataSource: "crossref" as const,
+      title: "Project source",
+      type: "article",
+      updatedAt: "updated",
+      url: "",
+      venue: "Project Journal",
+      year: "2026",
+    };
+    const projectPdf = {
+      contentType: "application/pdf" as const,
+      createdAt: "created",
+      fingerprint: "project-fingerprint",
+      id: "project-pdf",
+      name: "project.pdf",
+      objectKey: "pdfs/project.pdf",
+      size: 1024,
+    };
+    const project = {
+      ...workspaceSnapshotFixture,
+      pdfs: [projectPdf],
+      publicationPdfLinks: [{ createdAt: "created", id: "link-1", pdfId: projectPdf.id, publicationId: publication.id }],
+      publications: [publication],
+    };
+    const libraryWithReference = { ...library, references: [reference] };
+
+    presenter.present({ ...sources(resourceTab("pdf", projectPdf.id)), snapshot: project });
+    presenter.present({ ...sources(resourceTab("library-pdf", libraryPdf.id)), library: libraryWithReference, snapshot: project });
+    presenter.present({ ...sources(resourceTab("library-pdf", referencePdf.id)), library: null, snapshot: project });
+
+    expect(setContext).toHaveBeenNthCalledWith(1, {
+      pdfId: projectPdf.id,
+      pdfName: projectPdf.name,
+      references: [expect.objectContaining({ citationKey: publication.citationKey, id: publication.id, origin: "Project reference" })],
+    });
+    expect(setContext).toHaveBeenNthCalledWith(2, {
+      pdfId: libraryPdf.id,
+      pdfName: libraryPdf.name,
+      references: [expect.objectContaining({ citationKey: reference.referenceKey, id: reference.id, origin: "Library reference" })],
+    });
+    expect(setContext).toHaveBeenNthCalledWith(3, {
+      pdfId: referencePdf.id,
+      pdfName: referencePdf.name,
+      references: [expect.objectContaining({ citationKey: publication.citationKey, id: publication.id, origin: "Project reference" })],
+    });
+  });
+
   it("opens an unambiguous private-Library paper at the citation locator", () => {
     const { pdfRoutes, presenter } = setup();
     const publication = {
@@ -1419,7 +1477,7 @@ describe("context resource presenter", () => {
       createdAt: "created",
       doi: "",
       id: libraryPdf.referenceId!,
-      metadataSource: "manual" as const,
+      metadataSource: "crossref" as const,
       title: "Library source",
       type: "article",
       updatedAt: "updated",
@@ -1455,7 +1513,7 @@ describe("context resource presenter", () => {
       createdAt: "created",
       doi: "",
       id: referencePdf.referenceId,
-      metadataSource: "manual" as const,
+      metadataSource: "crossref" as const,
       title: "Shared source",
       type: "article",
       updatedAt: "updated",

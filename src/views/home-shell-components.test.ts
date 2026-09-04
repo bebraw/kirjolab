@@ -54,6 +54,7 @@ describe("renderContextTabs", () => {
     expect(html.indexOf('id="toggle-preview-navigation"')).toBeGreaterThan(html.indexOf('id="pdf-context-controls"'));
     expect(html).toContain('id="preview-navigation-toggle-label">Hide nav</span>');
     expect(html).toContain('id="pdf-context-controls" hidden');
+    expect(html).toContain('id="open-paper-details" type="button" aria-label="About this paper"');
     expect(html).toContain('id="toggle-paper-continuous" type="button" aria-pressed="false"');
     expect(html).toContain('id="paper-page-indicator"');
     expect(html).toContain('aria-label="PDF page number"');

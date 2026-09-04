@@ -273,9 +273,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rail joins the simultaneous layout only when all three panes meet their
   minimum useful widths. Keep the project-view control available from the
   tablet-landscape breakpoint so `Editor + navigation` can restore the rail
-  without creating an undersized three-pane layout. PDF search, navigation, and
-  annotation inspectors are bounded overlays and must never participate in the
-  reader grid or resize the rendered page.
+  without creating an undersized three-pane layout. PDF search, navigation,
+  reference-metadata, and annotation inspectors are bounded overlays and must
+  never participate in the reader grid or resize the rendered page.
 - Let the workspace surface switcher's route binding own Write/Map route
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;
