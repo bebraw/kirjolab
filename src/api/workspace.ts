@@ -454,59 +454,59 @@ async function handleWorkspaceReferencePdfRoutes(context: WorkspaceRouteContext)
 }
 
 async function handleWorkspaceLibrarySourceLinkRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
-  const { request, suffix, workspaceId, identity, role, room, env } = context;
-  if (suffix === "/library-source-links" && request.method === "GET") {
-    const links = await room.listLibrarySourceLinks(workspaceId);
-    return Response.json(
-      links.map((link) => ({
-        id: link.id,
-        publicationId: link.publicationId,
-        contributedBy: link.contributedBy,
-        createdAt: link.createdAt,
-        active: link.revokedAt === null,
-        ...(link.ownerKey === identity.ownerKey ? { libraryReferenceId: link.libraryReferenceId } : {}),
-      })),
-      { headers: { "cache-control": "private, no-store" } },
-    );
-  }
-  if (suffix === "/library-source-links" && request.method === "POST") {
-    const body: unknown = await request.json();
-    if (
-      !isRecord(body) ||
-      typeof body.publicationId !== "string" ||
-      typeof body.libraryReferenceId !== "string" ||
-      body.confirmAllPdfs !== true
-    ) {
-      return jsonError("Confirm that all PDFs attached to this Library source will be shared with project members", 400);
-    }
-    const source = await env.REFERENCE_LIBRARIES.getByName(identity.ownerKey).getProjectPdfArtifacts(body.libraryReferenceId);
-    if (source === null) return jsonError("Library source not found", 404);
-    try {
-      const link = await room.linkLibrarySource(
-        workspaceId,
-        body.publicationId,
-        identity.ownerKey,
-        body.libraryReferenceId,
-        identity.email,
-      );
-      return Response.json(
-        { id: link.id, publicationId: link.publicationId, libraryReferenceId: link.libraryReferenceId },
-        { status: 201 },
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message === "Project publication not found") return jsonError(error.message, 404);
-      throw error;
-    }
-  }
+  const { request, suffix } = context;
+  if (suffix === "/library-source-links" && request.method === "GET") return await listWorkspaceLibrarySourceLinks(context);
+  if (suffix === "/library-source-links" && request.method === "POST") return await createWorkspaceLibrarySourceLink(context);
   const match = /^\/library-source-links\/([0-9a-f-]{36})$/iu.exec(suffix);
-  if (match?.[1] && request.method === "DELETE") {
-    const link = (await room.listLibrarySourceLinks(workspaceId)).find(({ id }) => id === match[1]);
-    if (!link) return jsonError("Library source link not found", 404);
-    if (role !== "owner" && link.ownerKey !== identity.ownerKey) return jsonError("Cannot remove another contributor's source", 403);
-    await room.revokeLibrarySource(workspaceId, link.id, identity.email);
-    return new Response(null, { status: 204 });
-  }
+  if (match?.[1] && request.method === "DELETE") return await removeWorkspaceLibrarySourceLink(context, match[1]);
   return null;
+}
+
+async function listWorkspaceLibrarySourceLinks({ workspaceId, identity, room }: WorkspaceRouteContext): Promise<Response> {
+  const links = await room.listLibrarySourceLinks(workspaceId);
+  return Response.json(
+    links.map((link) => ({
+      id: link.id,
+      publicationId: link.publicationId,
+      contributedBy: link.contributedBy,
+      createdAt: link.createdAt,
+      active: link.revokedAt === null,
+      ...(link.ownerKey === identity.ownerKey ? { libraryReferenceId: link.libraryReferenceId } : {}),
+    })),
+    { headers: { "cache-control": "private, no-store" } },
+  );
+}
+
+async function createWorkspaceLibrarySourceLink({ request, workspaceId, identity, room, env }: WorkspaceRouteContext): Promise<Response> {
+  const body: unknown = await request.json();
+  if (
+    !isRecord(body) ||
+    typeof body.publicationId !== "string" ||
+    typeof body.libraryReferenceId !== "string" ||
+    body.confirmAllPdfs !== true
+  ) {
+    return jsonError("Confirm that all PDFs attached to this Library source will be shared with project members", 400);
+  }
+  const source = await env.REFERENCE_LIBRARIES.getByName(identity.ownerKey).getProjectPdfArtifacts(body.libraryReferenceId);
+  if (source === null) return jsonError("Library source not found", 404);
+  try {
+    const link = await room.linkLibrarySource(workspaceId, body.publicationId, identity.ownerKey, body.libraryReferenceId, identity.email);
+    return Response.json({ id: link.id, publicationId: link.publicationId, libraryReferenceId: link.libraryReferenceId }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Project publication not found") return jsonError(error.message, 404);
+    throw error;
+  }
+}
+
+async function removeWorkspaceLibrarySourceLink(
+  { workspaceId, identity, role, room }: WorkspaceRouteContext,
+  linkId: string,
+): Promise<Response> {
+  const link = (await room.listLibrarySourceLinks(workspaceId)).find(({ id }) => id === linkId);
+  if (!link) return jsonError("Library source link not found", 404);
+  if (role !== "owner" && link.ownerKey !== identity.ownerKey) return jsonError("Cannot remove another contributor's source", 403);
+  await room.revokeLibrarySource(workspaceId, link.id, identity.email);
+  return new Response(null, { status: 204 });
 }
 
 async function handleWorkspaceAssetRoutes(context: WorkspaceRouteContext): Promise<Response | null> {

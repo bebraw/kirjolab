@@ -46,20 +46,26 @@ export async function reconcileSharedPdfBlobKey(env: Env, objectKey: string): Pr
     const kind = refKey.slice(0, first);
     const owner = refKey.slice(first + 1, last);
     const pdfId = refKey.slice(last + 1);
-    const retained =
-      kind === "library"
-        ? (await env.REFERENCE_LIBRARIES.getByName(owner).getSnapshot(true)).artifacts.some(
-            ({ id, objectKey: key }) => id === pdfId && key === objectKey,
-          )
-        : kind === "project"
-          ? (await env.DOCUMENT_ROOMS.getByName(owner).listRetainedPdfResources(owner.endsWith(":demo") ? demoWorkspaceId : owner)).some(
-              ({ id, objectKey: key }) => id === pdfId && key === objectKey,
-            )
-          : true;
+    const retained = await retainsSharedPdfReference(env, kind, owner, pdfId, objectKey);
     if (retained && state === "pending") await authority.commit(refKey);
     if (!retained) await authority.release(refKey);
   }
   await authority.scheduleCollectionIfUnused();
+}
+
+async function retainsSharedPdfReference(env: Env, kind: string, owner: string, pdfId: string, objectKey: string): Promise<boolean> {
+  if (kind === "library") {
+    return (await env.REFERENCE_LIBRARIES.getByName(owner).getSnapshot(true)).artifacts.some(
+      ({ id, objectKey: key }) => id === pdfId && key === objectKey,
+    );
+  }
+  if (kind === "project") {
+    const workspaceId = owner.endsWith(":demo") ? demoWorkspaceId : owner;
+    return (await env.DOCUMENT_ROOMS.getByName(owner).listRetainedPdfResources(workspaceId)).some(
+      ({ id, objectKey: key }) => id === pdfId && key === objectKey,
+    );
+  }
+  return true;
 }
 
 export async function migrateLegacyPdfBlobKey(env: Env, key: string): Promise<MigrationResult> {

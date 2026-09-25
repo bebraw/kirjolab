@@ -3706,29 +3706,30 @@ export class DocumentRoom extends DurableObject<Env> {
   #replaceRevisionTables(state: StoredProjectRevision, workspaceId?: string): void {
     for (const table of revisionDeleteOrder) this.ctx.storage.sql.exec(`DELETE FROM ${table}`);
     for (const table of revisionInsertOrder) {
-      for (const storedRow of state.tables[table]) {
-        const row = restoreSqlRow(storedRow);
-        if (table === "project_research_shares" && workspaceId) row.project_id = workspaceId;
-        const physicalPdfKey = table === "pdfs" ? sqlString(row, "object_key") : null;
-        if (table === "pdfs" && physicalPdfKey && digestFromPdfBlobKey(physicalPdfKey)) {
-          row.object_key = `pdf-records/${sqlString(row, "id")}`;
-        }
-        const columns = Object.keys(row);
-        if (columns.length === 0) continue;
-        const placeholders = columns.map(() => "?").join(", ");
-        this.ctx.storage.sql.exec(
-          `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
-          ...columns.map((column) => row[column] ?? null),
-        );
-        if (table === "pdfs" && physicalPdfKey && digestFromPdfBlobKey(physicalPdfKey)) {
-          this.ctx.storage.sql.exec("INSERT INTO pdf_blob_keys (pdf_id, blob_key) VALUES (?, ?)", sqlString(row, "id"), physicalPdfKey);
-        }
-      }
+      for (const storedRow of state.tables[table]) this.#insertRevisionRow(table, storedRow, workspaceId);
     }
     this.#ensureProjectFolders(
       this.#projectFiles().flatMap((file) => folderAncestors(file.path)),
       new Date().toISOString(),
     );
+  }
+
+  #insertRevisionRow(table: RevisionTable, storedRow: StoredSqlRow, workspaceId?: string): void {
+    const row = restoreSqlRow(storedRow);
+    if (table === "project_research_shares" && workspaceId) row.project_id = workspaceId;
+    const physicalPdfKey = table === "pdfs" ? sqlString(row, "object_key") : null;
+    const sharedPdf = physicalPdfKey !== null && digestFromPdfBlobKey(physicalPdfKey) !== null;
+    if (sharedPdf) row.object_key = `pdf-records/${sqlString(row, "id")}`;
+    const columns = Object.keys(row);
+    if (columns.length === 0) return;
+    const placeholders = columns.map(() => "?").join(", ");
+    this.ctx.storage.sql.exec(
+      `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
+      ...columns.map((column) => row[column] ?? null),
+    );
+    if (sharedPdf) {
+      this.ctx.storage.sql.exec("INSERT INTO pdf_blob_keys (pdf_id, blob_key) VALUES (?, ?)", sqlString(row, "id"), physicalPdfKey);
+    }
   }
 
   #projectFileRows(): ProjectFileRow[] {
