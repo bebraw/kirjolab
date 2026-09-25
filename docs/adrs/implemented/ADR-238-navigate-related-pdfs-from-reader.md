@@ -1,6 +1,6 @@
 # ADR-238: Navigate Related PDFs from the Reader
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-09-25
 
@@ -126,7 +126,7 @@ That panel already knows the active PDF's references, but it is a secondary
 inspector. A visible reader control better supports repeated switching while
 comparing papers.
 
-## Open Question
+## Future Decision
 
 - Should a reference designate one preferred main PDF across projects, with
   appendices and other supplements remaining available through the switcher?

@@ -12,6 +12,7 @@ function expectControlIcon(html: string, controlId: string, icon: IconName): voi
 describe("renderLibraryPdfRail", () => {
   it("binds page navigation controls to their directional icons", () => {
     const html = renderLibraryPdfRail();
+    expect(html).toContain('id="library-related-papers" rail');
 
     expect(html).toContain('<nav class="library-pdf-page-rail" aria-label="Private PDF controls">');
     expect(html).toContain('aria-label="PDF page navigation"');

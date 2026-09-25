@@ -71,7 +71,7 @@ Do not add a request queue, owner approval workflow, or preferred-PDF marker.
 The contribution is an explicit act by the member who owns that Library source.
 PDF selection in
 the reader remains a separate concern under
-[ADR-238](./ADR-238-navigate-related-pdfs-from-reader.md).
+[ADR-238](../implemented/ADR-238-navigate-related-pdfs-from-reader.md).
 
 Removing a contributor's project membership revokes future access through
 that contributor's private Library source links. Retain the project's

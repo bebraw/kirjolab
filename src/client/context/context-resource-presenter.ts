@@ -49,6 +49,8 @@ import "../pdf/pdf-search-panel";
 import { PdfNavigationPanel } from "../pdf/pdf-navigation-panel";
 import "../pdf/pdf-navigation-panel";
 import { PdfReferenceDetailsPanel, pdfReferenceDetailsVisibilityEvent, type PdfReferenceDetails } from "../pdf/pdf-reference-details-panel";
+import { PdfRelatedPapersControl } from "../pdf/pdf-related-papers-control";
+import { relatedPaperGroups } from "../pdf/pdf-related-papers";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "../library/library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "../library/library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "../library/library-pdf-inspector";
@@ -691,6 +693,9 @@ export class ContextResourcePresenter extends LightDomController {
     this.element("open-paper-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     this.element("open-library-pdf-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     const referenceDetailsPanel = this.element("pdf-reference-details-panel", PdfReferenceDetailsPanel);
+    for (const id of ["project-related-papers", "library-related-papers"]) {
+      this.element(id, PdfRelatedPapersControl)?.bind((paper) => void this.openPublicationPaper(paper));
+    }
     const referenceDetailsButtons = [
       this.element("open-paper-details", HTMLElement),
       this.element("open-library-pdf-details", HTMLElement),
@@ -1594,6 +1599,7 @@ export class ContextResourcePresenter extends LightDomController {
     this.currentLibraryPdf = activeLibraryArtifact;
     this.syncPdfPanels(sources, activeLibraryArtifact);
     this.presentPdfReferenceDetails(sources, activeLibraryArtifact);
+    this.presentRelatedPapers(sources);
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
     const privateHighlights = this.presentLibraryPdf(sources, activeLibraryArtifact);
@@ -1673,6 +1679,14 @@ export class ContextResourcePresenter extends LightDomController {
           ? [projectPdfReferenceDetails(projectReference)]
           : [],
     });
+  }
+
+  private presentRelatedPapers(sources: ContextResourceSources): void {
+    const groups = sources.projectApiBase
+      ? relatedPaperGroups(sources.activeTab, sources.snapshot, sources.referencePdfs, sources.library)
+      : [];
+    this.element("project-related-papers", PdfRelatedPapersControl)?.setGroups(groups);
+    this.element("library-related-papers", PdfRelatedPapersControl)?.setGroups(groups);
   }
 
   private activeLibraryArtifact(sources: ContextResourceSources): LibraryPdfArtifact | undefined {

@@ -38,6 +38,7 @@ import { ProjectMapWorkspace } from "../project/project-map-workspace";
 import { PublicationContextPanel } from "../publication/publication-context-panel";
 import { PublicationListPanel } from "../publication/publication-list-panel";
 import { PdfReferenceDetailsPanel } from "../pdf/pdf-reference-details-panel";
+import { PdfRelatedPapersControl } from "../pdf/pdf-related-papers-control";
 import type { ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "../workspace/workspace-rail-tabs";
 
@@ -345,6 +346,8 @@ function setup() {
     "library-pdf-inspector": new LibraryPdfInspector(),
     "paper-markups": new LibraryPdfMarkupLayer(),
     "pdf-reference-details-panel": new PdfReferenceDetailsPanel(),
+    "project-related-papers": new PdfRelatedPapersControl(),
+    "library-related-papers": new PdfRelatedPapersControl(),
     "manuscript-comment-list-panel": new ManuscriptCommentList(),
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
@@ -1249,6 +1252,7 @@ describe("context resource presenter", () => {
     const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
     const contextBind = vi.spyOn(elements["publication-context-panel"], "bind");
     const listBind = vi.spyOn(elements["publication-list-panel"], "bind");
+    const relatedBind = vi.spyOn(elements["project-related-papers"], "bind");
     const commentBind = vi.spyOn(elements["manuscript-comment-list-panel"], "bind");
     const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
     const insertActiveCitation = vi.spyOn(presenter, "insertActiveCitation").mockImplementation(() => undefined);
@@ -1284,6 +1288,7 @@ describe("context resource presenter", () => {
     listBind.mock.calls[0]?.[0].manage(publication.id);
     listBind.mock.calls[0]?.[0].open(publication);
     listBind.mock.calls[0]?.[0].openPaper({ kind: "reference", pdf: referencePdf });
+    relatedBind.mock.calls[0]?.[0]({ kind: "reference", pdf: referencePdf });
 
     expect(completeProjectMutation).toHaveBeenNthCalledWith(
       1,
@@ -1317,7 +1322,7 @@ describe("context resource presenter", () => {
     expect(routes.presentNotice).toHaveBeenCalledWith("Comment notice.");
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(insertActiveCitation).toHaveBeenCalledOnce();
-    expect(openPublicationPaper).toHaveBeenCalledTimes(2);
+    expect(openPublicationPaper).toHaveBeenCalledTimes(3);
     expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
     expect(library.openAvailableReference).toHaveBeenCalledWith(publication.id);
     expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });

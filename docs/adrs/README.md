@@ -21,12 +21,11 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                                  | Status   | Summary                                                                                 |
-| ------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------- |
-| [ADR-240](./proposed/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md) | Proposed | Store one verified PDF byte object across Libraries and projects.                       |
-| [ADR-239](./proposed/ADR-239-link-member-library-sources-to-project-references.md)   | Proposed | Let members link their private Library sources to shared project references.            |
-| [ADR-238](./proposed/ADR-238-navigate-related-pdfs-from-reader.md)                   | Proposed | Navigate among PDFs connected to the active paper's references from the project reader. |
-| [ADR-000](./proposed/ADR-000-template.md)                                            | Proposed | Template for drafting future ADRs.                                                      |
+| ADR                                                                                  | Status   | Summary                                                                      |
+| ------------------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------- |
+| [ADR-240](./proposed/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md) | Proposed | Store one verified PDF byte object across Libraries and projects.            |
+| [ADR-239](./proposed/ADR-239-link-member-library-sources-to-project-references.md)   | Proposed | Let members link their private Library sources to shared project references. |
+| [ADR-000](./proposed/ADR-000-template.md)                                            | Proposed | Template for drafting future ADRs.                                           |
 
 ## Accepted ADRs
 
@@ -36,6 +35,7 @@ No ADRs are currently accepted but unimplemented.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-238](./implemented/ADR-238-navigate-related-pdfs-from-reader.md)                     | Implemented          | Navigate among PDFs connected to the active paper's references from the project reader.                         |
 | [ADR-237](./implemented/ADR-237-discover-project-related-pdfs-in-references.md)           | Implemented          | Show project-related PDFs through the Research rail's existing evidence and references inventories.             |
 | [ADR-236](./implemented/ADR-236-use-dependency-review-for-audit-outages.md)               | Implemented          | Use dependency review when npm audit transport retries fail in pull-request CI.                                 |
 | [ADR-235](./implemented/ADR-235-stress-test-claims-with-researcher-questions.md)          | Implemented          | Question claim reasoning, scope, and exceptions before proposing an ordinary reviewed passage revision.         |

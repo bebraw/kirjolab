@@ -1016,6 +1016,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   enrichment, Library management, and context navigation through one typed
   binding while keeping canonical
   workspace refresh and notification policy in the application coordinator.
+- Derive reader alternatives from the active PDF's explicit project reference
+  relationships and authorized project-scoped reference-PDF catalog. Show a
+  compact PDF switcher only when at least one other paper is available; group
+  choices by reference and open each through its existing resource-keyed Context
+  tab. Keep standalone Library reading outside this project navigation.
 - Keep bounded PDF batch execution, upload transport and response guards,
   partial-failure progress, ephemeral retries, duplicate-submit gating, and
   refresh-pending state in the Lit upload control. The companion status owns

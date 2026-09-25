@@ -154,6 +154,13 @@ connection without reconstructing identity from a citation key or filename.
   relevance. Context
   navigation, Library management, canonical refresh, and workspace notification
   policy remain with the application coordinator.
+- In an active project, a PDF reader exposes Related PDFs only when another
+  authorized paper shares an explicit reference with the active PDF. Choices
+  are grouped by reference, labelled with stored filenames and source, and
+  derived from project publication-PDF links plus the project-scoped linked-
+  reference PDF catalog. Choosing a paper opens its existing resource-keyed
+  Context tab, preserving the local reading state of each tab. Standalone
+  Library reading and unrelated private PDFs have no project alternatives.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.
