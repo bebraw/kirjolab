@@ -4,8 +4,8 @@ import { ingestLibraryPdf } from "./library-pdf-ingest";
 
 describe("shared library PDF ingestion in the Workers runtime", () => {
   it("accepts a body that exactly matches its declared length", async () => {
-    const stored = vi.fn(async (_key: string, value: ReadableStream<Uint8Array>) => {
-      expect(new Uint8Array(await new Response(value).arrayBuffer())).toEqual(new TextEncoder().encode("%PDF"));
+    const stored = vi.fn(async (_key: string, value: Uint8Array) => {
+      expect(value).toEqual(new TextEncoder().encode("%PDF"));
       return { etag: '"stored"' };
     });
     const reference: BibliographicRecord = {
@@ -38,13 +38,16 @@ describe("shared library PDF ingestion in the Workers runtime", () => {
       { actor: "writer@example.test", body: new Blob(["%PDF"]).stream(), name: "paper.pdf", ownerKey: "owner", size: 4 },
       {
         authority,
-        storage: { put: stored, delete: vi.fn(async () => undefined) },
+        storage: { put: stored, get: vi.fn(async () => null) },
         now: () => new Date("2026-08-24T08:00:00.000Z"),
         randomUUID: () => "22222222-2222-4222-8222-222222222222",
       },
     );
 
-    expect(result).toMatchObject({ created: true, artifact: { size: 4, fingerprint: "r2-etag:stored" } });
+    expect(result).toMatchObject({
+      created: true,
+      artifact: { size: 4, fingerprint: "sha256:315d429b7714cedb6ad04ac31240145257692630457f3c88253c5beceac76027" },
+    });
     expect(stored).toHaveBeenCalledOnce();
     expect(createPdfDraft).toHaveBeenCalledOnce();
   });
@@ -57,11 +60,8 @@ describe("shared library PDF ingestion in the Workers runtime", () => {
       throw new Error("Draft creation must not run for a length mismatch");
     });
     const storage = {
-      put: vi.fn(async (_key: string, value: ReadableStream<Uint8Array>) => {
-        await new Response(value).arrayBuffer();
-        return { etag: '"stored"' };
-      }),
-      delete: vi.fn(async (_key: string) => undefined),
+      put: vi.fn(async (_key: string, _value: Uint8Array) => ({ etag: '"stored"' })),
+      get: vi.fn(async () => null),
     };
     const authority = {
       createPdfDraft,
@@ -78,7 +78,7 @@ describe("shared library PDF ingestion in the Workers runtime", () => {
       ),
     ).rejects.toBeDefined();
 
-    expect(storage.put).toHaveBeenCalledOnce();
+    expect(storage.put).not.toHaveBeenCalled();
     expect(createPdfDraft).not.toHaveBeenCalled();
   });
 });

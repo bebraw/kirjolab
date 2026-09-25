@@ -267,7 +267,7 @@ describe("review synthesis project artifact", () => {
          VALUES ('review/legacy.md', 3, 2, 'legacy-synthesis', 1, ?, '2026-07-19T08:00:00.000Z')`,
         digest,
       );
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 27");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 27");
     });
 
     await evictDurableObject(room);
@@ -292,7 +292,7 @@ describe("review synthesis project artifact", () => {
     });
 
     await runInDurableObject(room, (_instance: DocumentRoom, state) => {
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 27");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 27");
     });
     await evictDurableObject(room);
     await expect(room.getSnapshot("project")).resolves.toMatchObject({

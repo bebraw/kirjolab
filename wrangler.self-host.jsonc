@@ -32,6 +32,7 @@
       { "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary" },
       { "name": "BACKUP_COORDINATOR", "class_name": "BackupCoordinator" },
       { "name": "BACKUP_RECOVERIES", "class_name": "BackupRecovery" },
+      { "name": "PDF_BLOBS", "class_name": "PdfBlobAuthority" },
     ],
   },
   "migrations": [
@@ -44,6 +45,7 @@
     { "tag": "v7", "new_sqlite_classes": ["ProjectTemplateCatalog"] },
     { "tag": "v8", "new_sqlite_classes": ["ReviewStudy"] },
     { "tag": "v9", "new_sqlite_classes": ["ReviewCatalog", "ReviewAccess"] },
+    { "tag": "v10", "new_sqlite_classes": ["PdfBlobAuthority"] },
   ],
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-self-host-papers" }],
   "rules": [

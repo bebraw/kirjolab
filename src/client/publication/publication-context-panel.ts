@@ -83,7 +83,9 @@ export class PublicationContextPanel extends LightDomElement {
       .map((artifact) => ({ kind: "library" as const, artifact }));
     const localArtifactIds = new Set(libraryPapers.map((paper) => paper.artifact.id));
     const linkedReferencePapers = referencePdfs
-      .filter((pdf) => pdf.referenceId === publication.id && !localArtifactIds.has(pdf.id))
+      .filter(
+        (pdf) => pdf.referenceId === publication.id && !localArtifactIds.has(pdf.id) && !localArtifactIds.has(pdf.ownArtifactId ?? ""),
+      )
       .map((pdf) => ({ kind: "reference" as const, pdf }));
     this.data = {
       availablePdfs: pdfs.filter((pdf) => !linkedIds.has(pdf.id)),

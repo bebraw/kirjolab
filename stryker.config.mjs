@@ -32,6 +32,8 @@ const config = {
     "!src/client/service-worker.ts",
     "!src/api/**",
     "!src/durable-objects/**",
+    // Its behavioral tests use the Workers pool, which this Vitest runner does not load.
+    "!src/pdf-blob-migration.ts",
   ],
   jsonReporter: {
     fileName: "reports/mutation/mutation.json",

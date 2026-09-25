@@ -42,6 +42,46 @@ function operationValue<Value, Code extends string>(result: DocumentRoomOperatio
 }
 
 describe("DocumentRoom in the Workers runtime", () => {
+  it("retains separate project PDF records that share one verified blob", async () => {
+    const workspaceId = `shared-pdfs-${crypto.randomUUID()}`;
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    const objectKey = `pdf-blobs/sha256/${"a".repeat(64)}.pdf`;
+    const first = { ...pdfResource("first.pdf"), objectKey, createdAt: "2026-09-25T10:00:00.000Z" };
+    const second = { ...pdfResource("second.pdf"), objectKey, createdAt: "2026-09-25T10:00:01.000Z" };
+    await stub.registerPdf(first);
+    await stub.registerPdf(second);
+    expect((await stub.getSnapshot(workspaceId)).pdfs.map(({ id, objectKey: key }) => ({ id, key }))).toEqual([
+      { id: second.id, key: objectKey },
+      { id: first.id, key: objectKey },
+    ]);
+    expect((await stub.listRetainedPdfResources(workspaceId)).filter(({ objectKey: key }) => key === objectKey)).toHaveLength(2);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      expect(state.storage.sql.exec<{ foreign_keys: number }>("PRAGMA foreign_keys").one().foreign_keys).toBe(1);
+    });
+  });
+
+  it("migrates a project PDF pointer without changing its logical identity", async () => {
+    const workspaceId = `pdf-migration-${crypto.randomUUID()}`;
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    const pdf = { ...pdfResource("legacy.pdf"), objectKey: `${workspaceId}/${crypto.randomUUID()}.pdf` };
+    await stub.registerPdf(pdf);
+    const profile = (await stub.getSnapshot(workspaceId)).publicationProfile;
+    await stub.updatePublicationProfile({ ...profile, locale: "fi-FI" });
+    expect((await stub.listRetainedPdfResources(workspaceId)).some(({ objectKey }) => objectKey === pdf.objectKey)).toBe(true);
+    const digest = "a".repeat(64);
+    const objectKey = `pdf-blobs/sha256/${digest}.pdf`;
+    expect(await stub.migratePdfBlob(workspaceId, pdf.id, pdf.objectKey, objectKey, `sha256:${digest}`)).toBe("migrated");
+    expect((await stub.getSnapshot(workspaceId)).pdfs.find(({ id }) => id === pdf.id)).toMatchObject({
+      id: pdf.id,
+      objectKey,
+      fingerprint: `sha256:${digest}`,
+    });
+    expect(await stub.migratePdfBlob(workspaceId, pdf.id, pdf.objectKey, objectKey, `sha256:${digest}`)).toBe("already");
+    expect((await stub.listRetainedPdfResources(workspaceId)).every(({ objectKey: retained }) => retained !== pdf.objectKey)).toBe(true);
+  });
+
   it("suppresses only WebSocket disconnect send failures", () => {
     let closedSendCalled = false;
     expect(
@@ -644,6 +684,48 @@ describe("DocumentRoom in the Workers runtime", () => {
     await applyAuthoredSource(stub, initial.source);
     operationValue(await stub.unlinkProjectReference(workspaceId, blockingReference.id));
     expect(operationValue(await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
+  });
+
+  it("keeps contributor source-link provenance after revocation and project-reference removal", async () => {
+    const workspaceId = `source-links-${crypto.randomUUID()}`;
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    const reference = {
+      id: crypto.randomUUID(),
+      referenceKey: "source2026",
+      type: "article",
+      title: "Shared source",
+      authors: [],
+      year: "2026",
+      venue: "",
+      doi: "",
+      url: "",
+      abstract: "",
+      provenance: {},
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: "2026-09-25T10:00:00.000Z",
+      updatedAt: "2026-09-25T10:00:00.000Z",
+    } as const;
+    await stub.linkProjectReference(workspaceId, reference, reference.referenceKey);
+    const contributor = "contributor@example.test";
+    const sourceId = crypto.randomUUID();
+    const first = await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor);
+    expect(await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor)).toEqual(first);
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([first]);
+    expect(await stub.revokeLibrarySource(workspaceId, first.id, contributor)).toMatchObject({ revokedBy: contributor });
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([]);
+    const second = await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor);
+    expect(second.id).not.toBe(first.id);
+    operationValue(await stub.unlinkProjectReference(workspaceId, reference.id));
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([]);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const rows = state.storage.sql
+        .exec<{ revoked_at: string | null }>("SELECT revoked_at FROM project_library_source_links ORDER BY created_at, id")
+        .toArray();
+      expect(rows).toHaveLength(2);
+      expect(rows.every(({ revoked_at }) => revoked_at !== null)).toBe(true);
+    });
   });
 
   it("pins an exact web capture and changes it only through explicit repinning", async () => {

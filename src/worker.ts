@@ -31,6 +31,8 @@ import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
 import { BackupCoordinator } from "./durable-objects/backup-coordinator";
 import { BackupRecovery } from "./durable-objects/backup-recovery";
+import { PdfBlobAuthority } from "./durable-objects/pdf-blob-authority";
+import { runScheduledPdfBlobMigration } from "./pdf-blob-migration";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderDashboardPage } from "./views/dashboard";
@@ -45,6 +47,7 @@ export {
   BackupCoordinator,
   BackupRecovery,
   DocumentRoom,
+  PdfBlobAuthority,
   ProjectTemplateCatalog,
   ReferenceLibrary,
   ReviewAccess,
@@ -103,7 +106,12 @@ export default {
     return await handleRequest(request, env, ctx);
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runScheduledBackups(env));
+    ctx.waitUntil(
+      runScheduledBackups(env).finally(async () => {
+        const batch = await runScheduledPdfBlobMigration(env);
+        if (batch.deferred > 0) console.warn("Deferred legacy PDF blob migration", { count: batch.deferred });
+      }),
+    );
   },
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
     await consumeArtifactAnalysisBatch(batch, env);

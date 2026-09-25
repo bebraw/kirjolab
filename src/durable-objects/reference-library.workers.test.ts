@@ -170,6 +170,17 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       artifact,
     });
     expect((await library.getSnapshot()).artifacts).toContainEqual(artifact);
+    expect(await library.getProjectPdfArtifacts(reference.id)).toEqual([artifact]);
+    const later = {
+      ...artifact,
+      id: crypto.randomUUID(),
+      name: "appendix.pdf",
+      objectKey: `libraries/owner/${crypto.randomUUID()}.pdf`,
+      fingerprint: "sha256:appendix",
+    };
+    await library.attachPdf(reference.id, later);
+    expect(await library.getProjectPdfArtifacts(reference.id)).toEqual(expect.arrayContaining([artifact, later]));
+    expect(await library.getProjectPdfArtifacts(crypto.randomUUID())).toBeNull();
   });
 
   it("bounds ephemeral metadata previews and invalidates them after a metadata change", async () => {
@@ -804,7 +815,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         requestedAt,
         requestedAt,
       );
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
+      state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
     });
 
@@ -853,7 +866,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
     ).toBe(true);
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
+      state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
       await expect(
         initializeReferenceLibraryStorage(state, () => {

@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { digestFromPdfBlobKey } from "../pdf-blob";
 import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import * as Y from "yjs";
 import { isRecord as isRecordValue } from "../domain/unknown-value";
@@ -62,7 +63,7 @@ import {
 } from "../domain/project/project-files";
 import { isProjectTemplateSeed, resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project/project-templates";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
-import type { ResearchShareSnapshot } from "../domain/reference-library";
+import type { ProjectLibrarySourceLink, ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
   defaultSource,
@@ -308,6 +309,17 @@ interface ProjectReferenceRow extends Record<string, SqlStorageValue> {
   updated_at: string;
 }
 
+interface ProjectLibrarySourceLinkRow extends Record<string, SqlStorageValue> {
+  id: string;
+  publication_id: string;
+  owner_key: string;
+  library_reference_id: string;
+  contributed_by: string;
+  created_at: string;
+  revoked_by: string | null;
+  revoked_at: string | null;
+}
+
 interface ReviewArtifactPinRow extends Record<string, SqlStorageValue> {
   path: string;
   review_id: string;
@@ -353,6 +365,7 @@ interface PdfRow extends Record<string, SqlStorageValue> {
   content_type: string;
   size: number;
   object_key: string;
+  blob_key: string | null;
   fingerprint: string;
   created_at: string;
 }
@@ -938,6 +951,65 @@ export class DocumentRoom extends DurableObject<Env> {
     return projectRevisionContent(row.revision, parseStoredProjectRevision(row.snapshot_json));
   }
 
+  listRetainedPdfResources(workspaceId: string): Array<{ id: string; objectKey: string }> {
+    const resources = new Map<string, { id: string; objectKey: string }>();
+    const add = (id: string, objectKey: string): void => {
+      resources.set(`${id}\u0000${objectKey}`, { id, objectKey });
+    };
+    for (const pdf of this.getSnapshot(workspaceId).pdfs) add(pdf.id, pdf.objectKey);
+    for (const row of this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+      for (const pdf of revisionRows(parseStoredProjectRevision(row.snapshot_json), "pdfs")) {
+        add(sqlString(pdf, "id"), sqlString(pdf, "object_key"));
+      }
+    }
+    return [...resources.values()];
+  }
+
+  migratePdfBlob(
+    workspaceId: string,
+    pdfId: string,
+    oldKey: string,
+    objectKey: string,
+    fingerprint: string,
+  ): "migrated" | "already" | "missing" {
+    if (!/^pdf-blobs\/sha256\/[a-f0-9]{64}\.pdf$/u.test(objectKey) || fingerprint !== `sha256:${objectKey.slice(17, -4)}`) {
+      throw new Error("Invalid shared PDF pointer");
+    }
+    this.getSnapshot(workspaceId);
+    let changed = false;
+    let already = false;
+    this.ctx.storage.transactionSync(() => {
+      const current = this.ctx.storage.sql
+        .exec<{ object_key: string }>(
+          "SELECT COALESCE(pdf_blob_keys.blob_key, pdfs.object_key) AS object_key FROM pdfs LEFT JOIN pdf_blob_keys ON pdf_blob_keys.pdf_id = pdfs.id WHERE pdfs.id = ?",
+          pdfId,
+        )
+        .toArray()[0];
+      if (current?.object_key === objectKey) already = true;
+      if (current?.object_key === oldKey) {
+        this.#setPdfPointer(pdfId, objectKey, fingerprint);
+        changed = true;
+      }
+      for (const row of this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+        const revision = parseStoredProjectRevision(row.snapshot_json);
+        const pdfs = revision.tables.pdfs.map((pdf) => {
+          if (pdf.id === pdfId && pdf.object_key === objectKey) already = true;
+          if (pdf.id !== pdfId || pdf.object_key !== oldKey) return pdf;
+          changed = true;
+          return { ...pdf, object_key: objectKey, fingerprint };
+        });
+        if (pdfs.some((pdf, index) => pdf !== revision.tables.pdfs[index])) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?",
+            JSON.stringify({ ...revision, tables: { ...revision.tables, pdfs } }),
+            row.revision,
+          );
+        }
+      }
+    });
+    return changed ? "migrated" : already ? "already" : "missing";
+  }
+
   compareRevisions(fromRevision: number, toRevision: number): ProjectRevisionDiff {
     return compareProjectRevisions(this.getRevision(fromRevision), this.getRevision(toRevision));
   }
@@ -1090,12 +1162,26 @@ export class DocumentRoom extends DurableObject<Env> {
       );
     }
     for (const replacement of replacements.pdfs) {
+      this.#setPdfPointer(replacement.id, replacement.objectKey, replacement.fingerprint);
+    }
+  }
+
+  #setPdfPointer(pdfId: string, objectKey: string, fingerprint: string): void {
+    const shared = digestFromPdfBlobKey(objectKey) !== null;
+    this.ctx.storage.sql.exec(
+      "UPDATE pdfs SET object_key = ?, fingerprint = ? WHERE id = ?",
+      shared ? `pdf-records/${pdfId}` : objectKey,
+      fingerprint,
+      pdfId,
+    );
+    if (shared) {
       this.ctx.storage.sql.exec(
-        "UPDATE pdfs SET object_key = ?, fingerprint = ? WHERE id = ?",
-        replacement.objectKey,
-        replacement.fingerprint,
-        replacement.id,
+        "INSERT INTO pdf_blob_keys (pdf_id, blob_key) VALUES (?, ?) ON CONFLICT (pdf_id) DO UPDATE SET blob_key = excluded.blob_key",
+        pdfId,
+        objectKey,
       );
+    } else {
+      this.ctx.storage.sql.exec("DELETE FROM pdf_blob_keys WHERE pdf_id = ?", pdfId);
     }
   }
 
@@ -1661,8 +1747,98 @@ export class DocumentRoom extends DurableObject<Env> {
     const next = rows.filter((item) => item.reference_id !== referenceId).map(projectReferenceFromRow);
     this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-unlink", {}, () => {
       this.ctx.storage.sql.exec("DELETE FROM project_references WHERE reference_id = ?", referenceId);
+      this.ctx.storage.sql.exec(
+        "UPDATE project_library_source_links SET revoked_by = 'system', revoked_at = ? WHERE publication_id = ? AND revoked_at IS NULL",
+        new Date().toISOString(),
+        referenceId,
+      );
     });
     return { ok: true, value: this.getSnapshot(workspaceId) };
+  }
+
+  listLibrarySourceLinks(workspaceId: string): ProjectLibrarySourceLink[] {
+    this.getSnapshot(workspaceId);
+    const rows = this.ctx.storage.sql
+      .exec<ProjectLibrarySourceLinkRow>(
+        "SELECT * FROM project_library_source_links WHERE revoked_at IS NULL ORDER BY created_at, id LIMIT 513",
+      )
+      .toArray();
+    if (rows.length > 512) throw new Error("Project has too many active Library source links");
+    return rows.map((row) => ({
+      id: row.id,
+      publicationId: row.publication_id,
+      ownerKey: row.owner_key,
+      libraryReferenceId: row.library_reference_id,
+      contributedBy: row.contributed_by,
+      createdAt: row.created_at,
+      revokedBy: row.revoked_by,
+      revokedAt: row.revoked_at,
+    }));
+  }
+
+  linkLibrarySource(
+    workspaceId: string,
+    publicationId: string,
+    ownerKey: string,
+    libraryReferenceId: string,
+    contributedBy: string,
+  ): ProjectLibrarySourceLink {
+    const workspace = this.getSnapshot(workspaceId);
+    if (
+      !workspace.projectReferences.some(({ referenceId }) => referenceId === publicationId) &&
+      !workspace.publications.some(({ id }) => id === publicationId)
+    ) {
+      throw new Error("Project publication not found");
+    }
+    if (
+      !ownerKey ||
+      ownerKey.length > 128 ||
+      !libraryReferenceId ||
+      libraryReferenceId.length > 128 ||
+      !contributedBy ||
+      contributedBy.length > 320
+    ) {
+      throw new Error("Invalid contributor Library source");
+    }
+    const activeLinks = this.listLibrarySourceLinks(workspaceId);
+    const previous = activeLinks.find(
+      (link) => link.publicationId === publicationId && link.ownerKey === ownerKey && link.libraryReferenceId === libraryReferenceId,
+    );
+    if (previous) return previous;
+    if (activeLinks.length >= 512) throw new Error("Project has too many active Library source links");
+    const link: ProjectLibrarySourceLink = {
+      id: crypto.randomUUID(),
+      publicationId,
+      ownerKey,
+      libraryReferenceId,
+      contributedBy,
+      createdAt: new Date().toISOString(),
+      revokedBy: null,
+      revokedAt: null,
+    };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO project_library_source_links (id, publication_id, owner_key, library_reference_id, contributed_by, created_at, revoked_by, revoked_at) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)",
+      link.id,
+      link.publicationId,
+      link.ownerKey,
+      link.libraryReferenceId,
+      link.contributedBy,
+      link.createdAt,
+    );
+    return link;
+  }
+
+  revokeLibrarySource(workspaceId: string, linkId: string, actor: string): ProjectLibrarySourceLink | null {
+    const link = this.listLibrarySourceLinks(workspaceId).find(({ id }) => id === linkId);
+    if (!link) return null;
+    const revokedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      "UPDATE project_library_source_links SET revoked_by = ?, revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+      actor,
+      revokedAt,
+      linkId,
+    );
+    return { ...link, revokedBy: actor, revokedAt };
   }
 
   pinResearchShare(workspaceId: string, share: ResearchShareSnapshot): WorkspaceSnapshot {
@@ -2384,10 +2560,13 @@ export class DocumentRoom extends DurableObject<Env> {
         pdf.name,
         pdf.contentType,
         pdf.size,
-        pdf.objectKey,
+        digestFromPdfBlobKey(pdf.objectKey) ? `pdf-records/${pdf.id}` : pdf.objectKey,
         pdf.fingerprint,
         pdf.createdAt,
       );
+      if (digestFromPdfBlobKey(pdf.objectKey)) {
+        this.ctx.storage.sql.exec("INSERT INTO pdf_blob_keys (pdf_id, blob_key) VALUES (?, ?)", pdf.id, pdf.objectKey);
+      }
     });
     return pdf;
   }
@@ -3479,7 +3658,14 @@ export class DocumentRoom extends DurableObject<Env> {
     const tables = Object.fromEntries(
       revisionTables.map((table) => [
         table,
-        this.ctx.storage.sql.exec<Record<string, SqlStorageValue>>(`SELECT * FROM ${table}`).toArray().map(storeSqlRow),
+        this.ctx.storage.sql
+          .exec<Record<string, SqlStorageValue>>(
+            table === "pdfs"
+              ? "SELECT pdfs.id, pdfs.name, pdfs.content_type, pdfs.size, COALESCE(pdf_blob_keys.blob_key, pdfs.object_key) AS object_key, pdfs.fingerprint, pdfs.created_at FROM pdfs LEFT JOIN pdf_blob_keys ON pdf_blob_keys.pdf_id = pdfs.id"
+              : `SELECT * FROM ${table}`,
+          )
+          .toArray()
+          .map(storeSqlRow),
       ]),
     );
     if (!isStoredRevisionTables(tables)) throw new Error("Project revision tables could not be captured");
@@ -3520,22 +3706,30 @@ export class DocumentRoom extends DurableObject<Env> {
   #replaceRevisionTables(state: StoredProjectRevision, workspaceId?: string): void {
     for (const table of revisionDeleteOrder) this.ctx.storage.sql.exec(`DELETE FROM ${table}`);
     for (const table of revisionInsertOrder) {
-      for (const storedRow of state.tables[table]) {
-        const row = restoreSqlRow(storedRow);
-        if (table === "project_research_shares" && workspaceId) row.project_id = workspaceId;
-        const columns = Object.keys(row);
-        if (columns.length === 0) continue;
-        const placeholders = columns.map(() => "?").join(", ");
-        this.ctx.storage.sql.exec(
-          `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
-          ...columns.map((column) => row[column] ?? null),
-        );
-      }
+      for (const storedRow of state.tables[table]) this.#insertRevisionRow(table, storedRow, workspaceId);
     }
     this.#ensureProjectFolders(
       this.#projectFiles().flatMap((file) => folderAncestors(file.path)),
       new Date().toISOString(),
     );
+  }
+
+  #insertRevisionRow(table: RevisionTable, storedRow: StoredSqlRow, workspaceId?: string): void {
+    const row = restoreSqlRow(storedRow);
+    if (table === "project_research_shares" && workspaceId) row.project_id = workspaceId;
+    const physicalPdfKey = table === "pdfs" ? sqlString(row, "object_key") : null;
+    const sharedPdf = physicalPdfKey !== null && digestFromPdfBlobKey(physicalPdfKey) !== null;
+    if (sharedPdf) row.object_key = `pdf-records/${sqlString(row, "id")}`;
+    const columns = Object.keys(row);
+    if (columns.length === 0) return;
+    const placeholders = columns.map(() => "?").join(", ");
+    this.ctx.storage.sql.exec(
+      `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
+      ...columns.map((column) => row[column] ?? null),
+    );
+    if (sharedPdf) {
+      this.ctx.storage.sql.exec("INSERT INTO pdf_blob_keys (pdf_id, blob_key) VALUES (?, ?)", sqlString(row, "id"), physicalPdfKey);
+    }
   }
 
   #projectFileRows(): ProjectFileRow[] {
@@ -3753,14 +3947,16 @@ export class DocumentRoom extends DurableObject<Env> {
 
   #pdfs(): PdfResource[] {
     return this.ctx.storage.sql
-      .exec<PdfRow>("SELECT * FROM pdfs ORDER BY created_at DESC")
+      .exec<PdfRow>(
+        "SELECT pdfs.*, pdf_blob_keys.blob_key FROM pdfs LEFT JOIN pdf_blob_keys ON pdf_blob_keys.pdf_id = pdfs.id ORDER BY pdfs.created_at DESC",
+      )
       .toArray()
       .map((row) => ({
         id: row.id,
         name: row.name,
         contentType: "application/pdf",
         size: row.size,
-        objectKey: row.object_key,
+        objectKey: row.blob_key ?? row.object_key,
         fingerprint: row.fingerprint,
         createdAt: row.created_at,
       }));

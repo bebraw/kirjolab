@@ -21,6 +21,7 @@ import {
   type OwnerReviewBackup,
   type OwnerWorkspaceBackup,
 } from "../domain/backup/backups";
+import { digestFromPdfBlobKey } from "../pdf-blob";
 import { localOwnerId } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
 import type { SQLiteMigration } from "../persistence/sqlite/migrations";
@@ -405,7 +406,9 @@ export class BackupCoordinator extends DurableObject<Env> {
     const binaries: BackupBinaryObject[] = [];
     const sourceKeys = new Set([...referencedBinaryKeys(state), ...retainedBinaryObjectKeys]);
     for (const sourceKey of [...sourceKeys].sort()) {
-      if (!isOwnedBinaryKey(state.ownerKey, workspaceIds, sourceKey)) throw new Error("Backup source key is outside owner scope");
+      if (!isOwnedBinaryKey(state.ownerKey, workspaceIds, sourceKey) && !digestFromPdfBlobKey(sourceKey)) {
+        throw new Error("Backup source key is outside owner scope");
+      }
       const source = await this.env.PAPERS.head(sourceKey);
       if (!source) throw new Error(`A referenced backup source is missing: ${sourceKey}`);
       binaries.push({

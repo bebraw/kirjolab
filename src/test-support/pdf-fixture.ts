@@ -14,8 +14,8 @@ export function createLinkedEvidencePdf(): Buffer {
   return createPdf(["Open the linked section or external source.", "Internal destination reached."], undefined, false, true);
 }
 
-export function createMetadataEvidencePdf(): Buffer {
-  return createPdf(["Reviewed paper DOI 10.5555/metadata.review"], {
+export function createMetadataEvidencePdf(text = "Reviewed paper DOI 10.5555/metadata.review"): Buffer {
+  return createPdf([text], {
     Title: "Metadata Review in Practice",
     Author: "Doe, Jane; Roe, Alex",
     CreationDate: "D:20250713120000",

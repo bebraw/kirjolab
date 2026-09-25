@@ -20,6 +20,8 @@ const excludedMutationSources = new Set([
   "src/client/pdf/pdfjs-runtime.ts",
   "src/client/review/review-study.ts",
   "src/client/service-worker.ts",
+  // Its behavioral tests use the Workers pool, which the Node mutation runner does not load.
+  "src/pdf-blob-migration.ts",
 ]);
 
 export const mutationCanarySource = "src/views/app-navigation.ts";

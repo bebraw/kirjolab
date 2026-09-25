@@ -49,6 +49,8 @@ import "../pdf/pdf-search-panel";
 import { PdfNavigationPanel } from "../pdf/pdf-navigation-panel";
 import "../pdf/pdf-navigation-panel";
 import { PdfReferenceDetailsPanel, pdfReferenceDetailsVisibilityEvent, type PdfReferenceDetails } from "../pdf/pdf-reference-details-panel";
+import { PdfRelatedPapersControl } from "../pdf/pdf-related-papers-control";
+import { relatedPaperGroups } from "../pdf/pdf-related-papers";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "../library/library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "../library/library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "../library/library-pdf-inspector";
@@ -569,6 +571,8 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   async openReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
+    const ownArtifact = pdf.ownArtifactId ? this.boundLibrary()?.artifacts.find(({ id }) => id === pdf.ownArtifactId) : undefined;
+    if (ownArtifact) return await this.openLibraryPdf(ownArtifact, page, updateHistory);
     this.preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
     const binding = this.contextPresentation;
     if (binding?.projectApiBase !== null && updateHistory) binding?.owners.workspaceSurfaceSwitcher.syncRoute("push");
@@ -645,7 +649,10 @@ export class ContextResourcePresenter extends LightDomController {
       .map((artifact) => ({ kind: "library" as const, artifact }));
     const localArtifactIds = new Set(libraryPapers.map(({ artifact }) => artifact.id));
     const referencePapers = this.referencePdfs
-      .filter(({ id, referenceId }) => referenceId === publication.id && !localArtifactIds.has(id))
+      .filter(
+        ({ id, ownArtifactId, referenceId }) =>
+          referenceId === publication.id && !localArtifactIds.has(id) && !localArtifactIds.has(ownArtifactId ?? ""),
+      )
       .map((pdf) => ({ kind: "reference" as const, pdf }));
     const papers: readonly PublicationPaperOption[] = [...libraryPapers, ...referencePapers, ...projectPapers];
     const page = citationPageFromLocator(citation.locator);
@@ -691,6 +698,9 @@ export class ContextResourcePresenter extends LightDomController {
     this.element("open-paper-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     this.element("open-library-pdf-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     const referenceDetailsPanel = this.element("pdf-reference-details-panel", PdfReferenceDetailsPanel);
+    for (const id of ["project-related-papers", "library-related-papers"]) {
+      this.element(id, PdfRelatedPapersControl)?.bind((paper) => void this.openPublicationPaper(paper));
+    }
     const referenceDetailsButtons = [
       this.element("open-paper-details", HTMLElement),
       this.element("open-library-pdf-details", HTMLElement),
@@ -803,6 +813,7 @@ export class ContextResourcePresenter extends LightDomController {
         void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
       manage: (publicationId) => void owners.referenceLibraryWorkspace.openAvailableReference(publicationId),
       open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
+      openPaper: (paper) => void this.openPublicationPaper(paper),
     });
     const map = this.element("project-map", ProjectMapWorkspace);
     map?.configure(apiBase);
@@ -924,7 +935,7 @@ export class ContextResourcePresenter extends LightDomController {
     const selectedEvidence = workflow?.selectedEvidenceKeys ?? new Set<string>();
     this.element("project-evidence-panel", ProjectEvidencePanel)?.setEvidence(snapshot, selectedEvidence);
     this.element("project-annotation-form", ProjectAnnotationForm)?.setPdfs(snapshot.pdfs, renderedPdfId ?? "");
-    this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot);
+    this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot, this.referencePdfs);
     this.element("claim-list-panel", ClaimListPanel)?.setWorkspace(snapshot, selectedEvidence);
     this.presentComments(snapshot.comments);
     this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);
@@ -1593,6 +1604,7 @@ export class ContextResourcePresenter extends LightDomController {
     this.currentLibraryPdf = activeLibraryArtifact;
     this.syncPdfPanels(sources, activeLibraryArtifact);
     this.presentPdfReferenceDetails(sources, activeLibraryArtifact);
+    this.presentRelatedPapers(sources);
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
     const privateHighlights = this.presentLibraryPdf(sources, activeLibraryArtifact);
@@ -1674,9 +1686,19 @@ export class ContextResourcePresenter extends LightDomController {
     });
   }
 
+  private presentRelatedPapers(sources: ContextResourceSources): void {
+    const groups = sources.projectApiBase
+      ? relatedPaperGroups(sources.activeTab, sources.snapshot, sources.referencePdfs, sources.library)
+      : [];
+    this.element("project-related-papers", PdfRelatedPapersControl)?.setGroups(groups);
+    this.element("library-related-papers", PdfRelatedPapersControl)?.setGroups(groups);
+  }
+
   private activeLibraryArtifact(sources: ContextResourceSources): LibraryPdfArtifact | undefined {
     const tab = sources.activeTab;
-    return tab?.kind === "library-pdf" ? sources.library?.artifacts.find(({ id }) => id === tab.id) : undefined;
+    if (tab?.kind !== "library-pdf") return undefined;
+    const ownArtifactId = sources.referencePdfs.find(({ id }) => id === tab.id)?.ownArtifactId;
+    return sources.library?.artifacts.find(({ id }) => id === (ownArtifactId ?? tab.id));
   }
 
   private presentLibraryPdf(
@@ -1695,6 +1717,7 @@ export class ContextResourcePresenter extends LightDomController {
       library: sources.library,
       projectApiBase: sources.projectApiBase,
       projectReferences: sources.snapshot?.projectReferences ?? [],
+      projectPublications: sources.snapshot?.publications ?? [],
       researchShares: sources.snapshot?.researchShares ?? [],
     });
     if (artifactChanged) {

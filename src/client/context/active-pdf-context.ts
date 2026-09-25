@@ -26,8 +26,9 @@ export function activePdfLoadContext(sources: ActivePdfContextSources): ActivePd
   if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return null;
 
   const workspacePdf = tab.kind === "pdf" ? sources.workspacePdfs.find(({ id }) => id === tab.id) : undefined;
-  const libraryPdf = tab.kind === "library-pdf" ? sources.libraryArtifacts.find(({ id }) => id === tab.id) : undefined;
-  const referencePdf = tab.kind === "library-pdf" && !libraryPdf ? sources.projectReferencePdfs.find(({ id }) => id === tab.id) : undefined;
+  const referencePdf = tab.kind === "library-pdf" ? sources.projectReferencePdfs.find(({ id }) => id === tab.id) : undefined;
+  const libraryPdf =
+    tab.kind === "library-pdf" ? sources.libraryArtifacts.find(({ id }) => id === (referencePdf?.ownArtifactId ?? tab.id)) : undefined;
   const url = workspacePdf
     ? `${sources.apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
     : libraryPdf

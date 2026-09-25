@@ -187,6 +187,26 @@ memory and makes citation aliases compete with stable source identity.
   endpoint exposes bounded display metadata, never owner object keys or general
   Library state. Unlinking the reference or removing membership revokes future
   access; public read-only and edit bearers never receive this capability.
+- A signed-in contributor can explicitly link their own Library source to a
+  selected project reference or publication. The project stores a durable
+  source link with the verified contributor identity, target publication, and
+  private source UUID; it retains revoked link provenance. The UI warns that
+  all PDFs currently or later attached to the source become readable by
+  signed-in project members. Contributors cannot change another member's
+  Library. A contributor or project owner can revoke the project link without
+  deleting the private source, its PDFs, or the project citation.
+- The project PDF catalog reads bounded current attachments from each active
+  source link and returns display metadata without R2 keys or unrelated
+  Library records. Every byte read checks live project membership, active
+  source link, current attachment, and verified owner. A contributor leaving
+  the project loses the link's byte access. Public share bearers never receive
+  this catalog or its downloads.
+- PDFs with the same project publication and verified SHA-256 fingerprint form
+  one stable reader choice. The server prefers the current member's authorized
+  copy for display and download, then a deterministic remaining copy. It
+  preserves separate Library artifacts and link provenance. When the member
+  owns the chosen copy, the client opens its private artifact so their
+  annotations remain available.
 - Archiving a reference requires explicit confirmation that names the target
   and explains that it will leave the active Library until restored. Cancelling
   confirmation performs no mutation; restoring an archived reference remains
@@ -541,8 +561,10 @@ memory and makes citation aliases compete with stable source identity.
   highlight retains a separate share or revoke action.
 - A bounded light-DOM project-use block owns unidentified, unlinked, and linked
   PDF presentation, capability-boundary copy, citation preview, project-link
-  transport, canonical workspace-response validation, active bibliographic
-  record and project-link projection, and a typed completed mutation outcome.
+  transport, contributor source selection with an all-PDF warning, source-link
+  and revocation transport, canonical workspace-response validation, active
+  bibliographic record and project-link projection, and typed completed
+  mutation outcomes.
   The workspace coordinator supplies canonical snapshots and retains snapshot
   application, project-PDF refreshes, and notification policy.
 - The composed Library workspace owns archive-aware canonical Library loading,

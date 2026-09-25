@@ -8,7 +8,7 @@ import type {
   ReferenceLibrarySnapshot,
   ResearchShareSnapshot,
 } from "../../domain/reference-library";
-import type { ProjectReferenceLink } from "../../domain/workspace/workspace";
+import type { ProjectReferenceLink, PublicationResource } from "../../domain/workspace/workspace";
 import type { LibraryHighlightDraft, LibraryPdfAnnotationForms } from "./library-pdf-annotation-forms";
 import "./library-pdf-annotation-forms";
 import type { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
@@ -16,6 +16,7 @@ import "./library-pdf-annotation-list";
 import type { LibraryPdfNoteDraft } from "./library-pdf-markup-layer";
 import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import "./library-pdf-project-use";
+import { projectLibrarySourceChangedEvent } from "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "../pdf/pdf-highlight-import-panel";
 import "../pdf/pdf-highlight-import-panel";
 import {
@@ -35,6 +36,7 @@ export interface LibraryPdfInspectorContext {
   readonly library: ReferenceLibrarySnapshot;
   readonly projectApiBase: string | null;
   readonly projectReferences: readonly Pick<ProjectReferenceLink, "citationAlias" | "referenceId">[];
+  readonly projectPublications?: readonly Pick<PublicationResource, "id" | "citationKey">[];
   readonly researchShares: readonly ResearchShareSnapshot[];
 }
 
@@ -90,6 +92,9 @@ export class LibraryPdfInspector extends EagerLightDomElement {
       const outcome = (event as CustomEvent<PdfReferenceReviewOutcome>).detail;
       if (outcome.action === "library-refresh") void this.projectMutations?.completePdfReferenceReview?.(outcome.message);
     });
+    this.addEventListener(projectLibrarySourceChangedEvent, () => {
+      void this.projectMutations?.completePdfReferenceReview?.("Project PDF access updated.");
+    });
   }
 
   bindProjectMutations(projectMutations: LibraryProjectMutations): void {
@@ -122,10 +127,16 @@ export class LibraryPdfInspector extends EagerLightDomElement {
   }
 
   setContext(context: LibraryPdfInspectorContext): LibraryPdfInspectorProjection {
-    const { artifact, library, projectApiBase, projectReferences, researchShares } = context;
+    const { artifact, library, projectApiBase, projectReferences, projectPublications, researchShares } = context;
     const artifactChanged = !this.showsArtifact(artifact.id);
     if (artifactChanged) this.resetArtifact(artifact.id);
-    this.projectUse.setContext({ artifact, projectApiBase, projectReferences, references: library.references });
+    this.projectUse.setContext({
+      artifact,
+      projectApiBase,
+      projectReferences,
+      ...(projectPublications ? { projectPublications } : {}),
+      references: library.references,
+    });
     const highlights = library.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     this.referenceAnalysis.setArtifact(artifact.id);
     this.highlightImport.setContext(

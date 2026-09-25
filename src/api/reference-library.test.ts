@@ -964,7 +964,7 @@ describe("reference library API", () => {
     expect(exported.getPage(0).node.Annots()?.size()).toBe(2);
   });
 
-  it("returns an existing PDF draft and deletes the redundant R2 object", async () => {
+  it("returns an existing PDF draft without deleting shared bytes", async () => {
     vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
     const bucket = new MemoryR2Bucket();
     const fixture = apiFixture(bucket);
@@ -986,9 +986,12 @@ describe("reference library API", () => {
     const response = await handleReferenceLibraryApi(pdfUploadRequest("repeat.pdf"), fixture.env, identity);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ created: false, reference: { referenceKey: "guide" } });
-    expect(bucket.size).toBe(0);
+    expect(bucket.size).toBe(1);
     expect(fixture.library.createPdfDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "repeat.pdf", fingerprint: "r2-etag:test-etag" }),
+      expect.objectContaining({
+        name: "repeat.pdf",
+        fingerprint: "sha256:315d429b7714cedb6ad04ac31240145257692630457f3c88253c5beceac76027",
+      }),
       identity.email,
     );
   });

@@ -12,6 +12,7 @@ export function renderLibraryPdfRail(): string {
                 </button>
               </div>
               <div class="library-pdf-reading-tools" role="toolbar" aria-label="PDF reading tools">
+                <pdf-related-papers-control id="library-related-papers" rail></pdf-related-papers-control>
                 <button class="library-pdf-rail-button button-icon" id="open-library-pdf-details" type="button" aria-label="About this paper" aria-controls="pdf-reference-details-panel" aria-expanded="false" title="About this paper" data-touch-target="true">
                   ${renderIcon("guide")}<span class="sr-only">About this paper</span>
                 </button>

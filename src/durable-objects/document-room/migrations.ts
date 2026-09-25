@@ -750,5 +750,40 @@ export function documentRoomDataMigrations(dependencies: DocumentRoomMigrationDe
         return undefined;
       },
     },
+    {
+      version: 28,
+      name: "allow-project-pdfs-to-share-byte-objects",
+      apply(sql): undefined {
+        sql.exec(`
+          CREATE TABLE IF NOT EXISTS pdf_blob_keys (
+            pdf_id TEXT PRIMARY KEY REFERENCES pdfs(id) ON DELETE CASCADE,
+            blob_key TEXT NOT NULL
+          );
+        `);
+        return undefined;
+      },
+    },
+    {
+      version: 29,
+      name: "link-contributor-library-sources",
+      apply(sql): undefined {
+        sql.exec(`
+          CREATE TABLE IF NOT EXISTS project_library_source_links (
+            id TEXT PRIMARY KEY,
+            publication_id TEXT NOT NULL,
+            owner_key TEXT NOT NULL,
+            library_reference_id TEXT NOT NULL,
+            contributed_by TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            revoked_by TEXT,
+            revoked_at TEXT
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS project_library_source_links_active
+            ON project_library_source_links(publication_id, owner_key, library_reference_id)
+            WHERE revoked_at IS NULL;
+        `);
+        return undefined;
+      },
+    },
   ];
 }
