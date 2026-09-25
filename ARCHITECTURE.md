@@ -746,18 +746,35 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
   without active or external-resource constructs, and serve it under a
   no-script, no-network sandbox policy.
-- Give every duplicated or revision-seeded project independent destination-
-  scoped R2 objects for all project PDFs and images. Copy and re-key those
-  binaries before publishing the destination catalog entry; never let a copied
-  project's mutation delete or overwrite its source project's bytes.
+- Give every duplicated or revision-seeded project independent logical PDF and
+  image records. Reuse verified SHA-256 PDF blobs through the digest-keyed blob
+  authority; copy and re-key project images before publishing the destination
+  catalog entry. A copied project's mutation must not alter the source
+  project's logical resources or bytes.
 - Register every copied library reference under the duplicated or revision-
   seeded project identity before publishing its catalog entry, and remove
   partially registered dependency rows during copy cleanup.
 - Treat active project PDF and image deletion as a metadata transition. Retain
-  project-scoped R2 objects while any logical revision references them,
-  authorize downloads through current metadata, include historical binary keys
-  in owner backups, and reclaim the full prefix only on permanent project
-  deletion.
+  shared PDF blobs while a logical resource or revision needs them, and retain
+  project-scoped image objects while revisions need them. Authorize downloads
+  through current metadata, include historical binary keys in owner backups,
+  and reclaim project-scoped objects only on permanent project deletion.
+- Store one immutable R2 PDF blob per verified SHA-256 digest across Libraries
+  and projects. Keep Library artifact and project PDF identities separate; the
+  digest-keyed Durable Object tracks their references, reconciles incomplete
+  mutations, and collects bytes only after no retained logical reference
+  remains. Migrate legacy pointers and historical revisions before deleting
+  their old objects. Never infer cross-owner identity from R2 ETags or expose
+  blob existence through an upload response.
+- Let a signed-in project member explicitly link one of their own Library
+  sources to a project publication. The link records the verified contributor
+  identity and source UUID without copying PDFs or replacing the project's
+  citation. Its current and later PDF attachments become readable only to
+  current project members. Recheck membership, the active link, and current
+  Library attachment on each catalog and byte read; revocation preserves the
+  private Library and project citation. Group byte-identical choices by
+  verified digest while keeping the viewer's own authorized copy as the
+  preferred reading context.
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.
@@ -1010,9 +1027,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project publication Lit list own DOI-enrichment transport, stable
   encoded publication targets, duplicate-submit gating, retryable local
   failures, and its publication and project-reference projection from the
-  canonical workspace snapshot. Route enrichment, Library management, and
-  context navigation through one typed binding while keeping canonical
+  canonical workspace snapshot. Project-related PDF actions derive only from
+  authorized linked-reference PDFs and explicit project publication-PDF links;
+  route one paper directly and several through publication Context. Route
+  enrichment, Library management, and context navigation through one typed
+  binding while keeping canonical
   workspace refresh and notification policy in the application coordinator.
+- Derive reader alternatives from the active PDF's explicit project reference
+  relationships and authorized project-scoped reference-PDF catalog. Show a
+  compact PDF switcher only when at least one other paper is available; group
+  choices by reference and open each through its existing resource-keyed Context
+  tab. Keep standalone Library reading outside this project navigation.
 - Keep bounded PDF batch execution, upload transport and response guards,
   partial-failure progress, ephemeral retries, duplicate-submit gating, and
   refresh-pending state in the Lit upload control. The companion status owns

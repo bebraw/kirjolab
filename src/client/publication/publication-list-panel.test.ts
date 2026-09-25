@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ProjectReferenceLink, PublicationResource } from "../../domain/workspace/workspace";
+import type { ProjectReferencePdf } from "../../domain/reference-library";
+import type { PdfResource, ProjectReferenceLink, PublicationResource } from "../../domain/workspace/workspace";
 import { PublicationListPanel } from "./publication-list-panel";
 
 const publication: PublicationResource = {
@@ -37,6 +38,22 @@ const projectReference: ProjectReferenceLink = {
   },
   updatedAt: publication.updatedAt,
 };
+const referencePdf: ProjectReferencePdf = {
+  id: "library-pdf:1",
+  referenceId: publication.id,
+  name: "Library paper.pdf",
+  size: 1024,
+  fingerprint: "fingerprint-1",
+};
+const projectPdf: PdfResource = {
+  id: "project-pdf:1",
+  name: "Project paper.pdf",
+  contentType: "application/pdf",
+  size: 2048,
+  objectKey: "project/paper.pdf",
+  fingerprint: "fingerprint-2",
+  createdAt: publication.createdAt,
+};
 
 class TestPublicationListPanel extends PublicationListPanel {
   renderForTest() {
@@ -64,9 +81,17 @@ describe("publication list panel", () => {
   it("renders empty, enrichable, and connected publication states", () => {
     const panel = new TestPublicationListPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setWorkspace({ projectReferences: [], publications: [publication, { ...publication, doi: "", id: "publication:2" }] });
+    panel.setWorkspace(
+      {
+        pdfs: [],
+        projectReferences: [],
+        publicationPdfLinks: [],
+        publications: [publication, { ...publication, doi: "", id: "publication:2" }],
+      },
+      [],
+    );
     expect(panel.renderForTest()).toBeDefined();
-    panel.setWorkspace({ projectReferences: [projectReference], publications: [publication] });
+    panel.setWorkspace({ pdfs: [], projectReferences: [projectReference], publicationPdfLinks: [], publications: [publication] }, []);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -75,8 +100,8 @@ describe("publication list panel", () => {
     const panel = new TestPublicationListPanel();
     const manage = vi.fn();
     const open = vi.fn();
-    panel.bind({ enriched: vi.fn(), manage, open });
-    panel.setWorkspace({ projectReferences: [], publications: [publication] });
+    panel.bind({ enriched: vi.fn(), manage, open, openPaper: vi.fn() });
+    panel.setWorkspace({ pdfs: [], projectReferences: [], publicationPdfLinks: [], publications: [publication] }, []);
 
     panel.actForTest();
     panel.actForTest("open", "missing");
@@ -87,12 +112,52 @@ describe("publication list panel", () => {
     expect(manage).toHaveBeenCalledWith(publication.id);
   });
 
+  it("opens the sole related PDF and uses publication context to choose among several", () => {
+    const panel = new TestPublicationListPanel();
+    const open = vi.fn();
+    const openPaper = vi.fn();
+    panel.bind({ enriched: vi.fn(), manage: vi.fn(), open, openPaper });
+    panel.setWorkspace({ projectReferences: [projectReference], publications: [publication], pdfs: [], publicationPdfLinks: [] }, [
+      referencePdf,
+    ]);
+
+    panel.actForTest("paper");
+    expect(openPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
+    expect(open).not.toHaveBeenCalled();
+
+    panel.setWorkspace(
+      {
+        projectReferences: [projectReference],
+        publications: [publication],
+        pdfs: [projectPdf],
+        publicationPdfLinks: [{ id: "pdf-link:1", publicationId: publication.id, pdfId: projectPdf.id, createdAt: publication.createdAt }],
+      },
+      [referencePdf],
+    );
+    panel.actForTest("paper");
+    expect(open).toHaveBeenCalledWith(publication);
+    expect(openPaper).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores PDF opening when a reference has no connected PDF", () => {
+    const panel = new TestPublicationListPanel();
+    const open = vi.fn();
+    const openPaper = vi.fn();
+    panel.bind({ enriched: vi.fn(), manage: vi.fn(), open, openPaper });
+    panel.setWorkspace({ projectReferences: [projectReference], publications: [publication], pdfs: [], publicationPdfLinks: [] }, []);
+
+    panel.actForTest("paper");
+
+    expect(openPaper).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+  });
+
   it("owns enrichment persistence and emits the completed outcome", async () => {
     const panel = new TestPublicationListPanel();
     const enriched = vi.fn();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.bind({ enriched, manage: vi.fn(), open: vi.fn() });
+    panel.bind({ enriched, manage: vi.fn(), open: vi.fn(), openPaper: vi.fn() });
 
     await panel.enrichForTest("publication/1");
 

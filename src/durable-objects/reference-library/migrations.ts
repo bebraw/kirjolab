@@ -427,4 +427,21 @@ export const referenceLibraryMigrations = [
       return undefined;
     },
   },
+  {
+    version: 18,
+    name: "retain-migrated-deleted-pdf-identities",
+    apply(sql): undefined {
+      sql.exec("CREATE TABLE deleted_pdf_digests (fingerprint TEXT PRIMARY KEY, reference_id TEXT NOT NULL)");
+      return undefined;
+    },
+  },
+  {
+    version: 19,
+    name: "allow-shared-pdf-blob-pointers",
+    apply(sql): undefined {
+      // Keep the existing unique legacy key while storing a physical blob key that may be shared.
+      sql.exec("ALTER TABLE artifacts ADD COLUMN blob_key TEXT");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];

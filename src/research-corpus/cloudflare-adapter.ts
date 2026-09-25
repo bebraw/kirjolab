@@ -8,6 +8,7 @@ import {
   type ArtifactAnalysisKind,
 } from "../domain/reference-library";
 import { ingestLibraryPdf, type LibraryPdfIngestAuthority } from "../library-pdf-ingest";
+import type { PdfBlobAuthorityNamespace } from "../pdf-blob";
 import { ResearchCorpusService } from "./service";
 
 export interface CorpusLibraryAuthority extends ArtifactAnalysisJobLibrary, LibraryPdfIngestAuthority {
@@ -20,6 +21,7 @@ export interface CorpusCloudflareEnvironment {
   readonly REFERENCE_LIBRARIES: { getByName(ownerKey: string): CorpusLibraryAuthority };
   readonly ARTIFACT_ANALYSIS_QUEUE: Pick<ResearchCorpusBindings["ARTIFACT_ANALYSIS_QUEUE"], "send">;
   readonly PAPERS: Pick<ResearchCorpusBindings["PAPERS"], "delete" | "get" | "put">;
+  readonly PDF_BLOBS: PdfBlobAuthorityNamespace;
 }
 
 export function createCloudflareCorpusService(ownerKey: string, actor: string, env: CorpusCloudflareEnvironment): ResearchCorpusService {
@@ -49,6 +51,7 @@ export function createCloudflareCorpusService(ownerKey: string, actor: string, e
             authority: library,
             queue: env.ARTIFACT_ANALYSIS_QUEUE,
             storage: env.PAPERS,
+            blobAuthority: env.PDF_BLOBS,
           },
         ),
     },

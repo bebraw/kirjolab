@@ -11,7 +11,10 @@
     "CORPUS_ALLOWED_ORIGINS": "",
   },
   "durable_objects": {
-    "bindings": [{ "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary", "script_name": "kirjolab" }],
+    "bindings": [
+      { "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary", "script_name": "kirjolab" },
+      { "name": "PDF_BLOBS", "class_name": "PdfBlobAuthority", "script_name": "kirjolab" },
+    ],
   },
   "queues": {
     "producers": [{ "binding": "ARTIFACT_ANALYSIS_QUEUE", "queue": "kirjolab-artifact-analysis" }],

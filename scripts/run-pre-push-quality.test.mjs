@@ -21,6 +21,7 @@ test("identifies only configured Stryker production sources", () => {
   assert.equal(isMutationSource("src/domain/workspace.test.ts"), false);
   assert.equal(isMutationSource("src/api/workspace.ts"), false);
   assert.equal(isMutationSource("src/durable-objects/document-room.ts"), false);
+  assert.equal(isMutationSource("src/pdf-blob-migration.ts"), false);
   assert.equal(isMutationSource("src/client/app.ts"), false);
   assert.equal(isMutationSource("src/client/review/review-study.ts"), false);
   assert.equal(isMutationSource("src/client/review/review-study-contracts.ts"), true);

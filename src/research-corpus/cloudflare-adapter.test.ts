@@ -98,19 +98,23 @@ describe("Research Corpus Cloudflare adapter", () => {
   });
 
   it("writes new PDFs through the shared authority with the authenticated actor", async () => {
-    vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
-    const { env, library, queue, papers } = fixture();
+    const { env, library, queue, papers, blobs } = fixture();
     const service = createCloudflareCorpusService("owner-key", "writer@example.test", env);
 
     const result = await service.ingestPdf({ body: new Blob(["%PDF"]).stream(), name: "draft.pdf", size: 4 });
 
     expect(result).toEqual({ artifact: expect.objectContaining({ id: artifactId }), created: true });
     expect(library.createPdfDraft).toHaveBeenCalledWith(expect.objectContaining({ name: "draft.pdf" }), "writer@example.test");
-    expect(papers.put).toHaveBeenCalledWith(
-      expect.stringMatching(/^libraries\/owner-key\/[0-9a-f-]{36}\.pdf$/u),
-      expect.any(ReadableStream),
-      { httpMetadata: { contentType: "application/pdf" } },
+    expect(papers.put).toHaveBeenCalledWith(expect.stringMatching(/^pdf-blobs\/sha256\/[a-f0-9]{64}\.pdf$/u), expect.any(Uint8Array), {
+      httpMetadata: { contentType: "application/pdf" },
+      onlyIf: { etagDoesNotMatch: "*" },
+    });
+    expect(blobs.reserve).toHaveBeenCalledWith(
+      expect.stringMatching(/^[a-f0-9]{64}$/u),
+      expect.stringMatching(/^library:owner-key:[0-9a-f-]{36}$/u),
+      expect.any(Uint8Array),
     );
+    expect(blobs.commit).toHaveBeenCalledTimes(1);
     expect(queue.send).toHaveBeenCalledTimes(3);
   });
 });
@@ -133,12 +137,25 @@ function fixture() {
   const getByName = vi.fn(() => library);
   const queue = { send: vi.fn(async () => queueSendResponse()) };
   const papers = new TestPapers();
+  const blobs = {
+    reserve: vi.fn(async (digest: string, _refKey: string, bytes: Uint8Array) => {
+      const objectKey = `pdf-blobs/sha256/${digest}.pdf`;
+      await papers.put(objectKey, bytes, {
+        httpMetadata: { contentType: "application/pdf" },
+        onlyIf: { etagDoesNotMatch: "*" },
+      });
+      return { objectKey, fingerprint: `sha256:${digest}` };
+    }),
+    commit: vi.fn(async () => undefined),
+    release: vi.fn(async () => undefined),
+  };
   const env: CorpusCloudflareEnvironment = {
     REFERENCE_LIBRARIES: { getByName },
     ARTIFACT_ANALYSIS_QUEUE: queue,
     PAPERS: papers,
+    PDF_BLOBS: { getByName: vi.fn(() => blobs) },
   };
-  return { env, getByName, library, queue, papers };
+  return { env, getByName, library, queue, papers, blobs };
 }
 
 function unusedR2Object(): R2Object {
@@ -172,12 +189,6 @@ class TestPapers implements Pick<R2Bucket, "delete" | "get" | "put"> {
       return unusedR2Object();
     },
   );
-}
-
-class TestFixedLengthStream extends TransformStream<Uint8Array, Uint8Array> {
-  constructor(_expectedLength: number) {
-    super();
-  }
 }
 
 function page(): LibraryPdfArtifactPage {

@@ -120,6 +120,7 @@ interface ArtifactRow extends Record<string, SqlStorageValue> {
   content_type: string;
   size: number;
   object_key: string;
+  blob_key: string | null;
   fingerprint: string;
   rights: string;
   created_at: string;
@@ -408,6 +409,18 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (!row) return null;
     const artifact = artifactFromRow(row);
     return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
+  }
+
+  getProjectPdfArtifacts(referenceId: string): LibraryPdfArtifact[] | null {
+    const reference = this.ctx.storage.sql
+      .exec<{ id: string }>("SELECT id FROM library_references WHERE id = ? AND deleted_at IS NULL LIMIT 1", referenceId)
+      .toArray()[0];
+    if (!reference) return null;
+    const rows = this.ctx.storage.sql
+      .exec<ArtifactRow>("SELECT * FROM artifacts WHERE reference_id = ? ORDER BY created_at, id LIMIT 513", referenceId)
+      .toArray();
+    if (rows.length > 512) throw new Error("Project Library source has too many PDFs");
+    return rows.map(artifactFromRow);
   }
 
   async getBackupSnapshot(): Promise<{ snapshot: ReferenceLibrarySnapshot; bookmark: string | null }> {
@@ -1029,12 +1042,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
   registerPdf(artifact: LibraryPdfArtifact): LibraryPdfArtifact {
     if (artifact.referenceId !== null) throw new Error("A PDF must be registered before it is identified");
     this.ctx.storage.sql.exec(
-      `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
-       VALUES (?, NULL, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
+      `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, blob_key, fingerprint, rights, created_at)
+       VALUES (?, NULL, ?, 'application/pdf', ?, ?, ?, ?, ?, ?)`,
       artifact.id,
       artifact.name,
       artifact.size,
-      artifact.objectKey,
+      artifactStorageKey(artifact),
+      sharedPdfBlobKey(artifact.objectKey),
       artifact.fingerprint,
       artifact.rights,
       artifact.createdAt,
@@ -1042,12 +1056,71 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifact;
   }
 
+  migratePdfBlob(artifactId: string, oldKey: string, objectKey: string, fingerprint: string): "migrated" | "already" | "missing" {
+    if (!/^pdf-blobs\/sha256\/[a-f0-9]{64}\.pdf$/u.test(objectKey) || fingerprint !== `sha256:${objectKey.slice(17, -4)}`) {
+      throw new Error("Invalid shared PDF pointer");
+    }
+    const row = this.ctx.storage.sql
+      .exec<{ object_key: string; blob_key: string | null; fingerprint: string }>(
+        "SELECT object_key, blob_key, fingerprint FROM artifacts WHERE id = ?",
+        artifactId,
+      )
+      .toArray()[0];
+    if (!row) return "missing";
+    if ((row.blob_key ?? row.object_key) !== oldKey) return row.blob_key === objectKey ? "already" : "missing";
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("UPDATE artifacts SET blob_key = ?, fingerprint = ? WHERE id = ?", objectKey, fingerprint, artifactId);
+      for (const table of ["artifact_analyses", "pdf_reference_reviews", "artifact_analysis_publications"] as const) {
+        this.ctx.storage.sql.exec(
+          `UPDATE ${table} SET fingerprint = ? WHERE artifact_id = ? AND fingerprint = ?`,
+          fingerprint,
+          artifactId,
+          row.fingerprint,
+        );
+      }
+    });
+    return "migrated";
+  }
+
+  retainMigratedDeletedPdfIdentity(oldFingerprint: string, fingerprint: string): boolean {
+    if (!/^sha256:[a-f0-9]{64}$/u.test(fingerprint)) throw new Error("Invalid shared PDF identity");
+    const reference = this.ctx.storage.sql
+      .exec<{ id: string }>(
+        "SELECT id FROM library_references WHERE identity_key = ? AND deleted_at IS NOT NULL LIMIT 1",
+        `pdf:${oldFingerprint}`,
+      )
+      .toArray()[0];
+    if (!reference) return false;
+    this.ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO deleted_pdf_digests (fingerprint, reference_id) VALUES (?, ?)",
+      fingerprint,
+      reference.id,
+    );
+    return true;
+  }
+
   createPdfDraft(artifact: LibraryPdfArtifact, actor: string): PdfDraftResult {
     if (artifact.referenceId !== null) throw new Error("A new PDF draft must not already identify a reference");
     const identityKey = `pdf:${artifact.fingerprint}`;
-    const existingRow = this.ctx.storage.sql
-      .exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ? LIMIT 1", identityKey)
-      .toArray()[0];
+    if (
+      this.ctx.storage.sql
+        .exec<{ reference_id: string }>("SELECT reference_id FROM deleted_pdf_digests WHERE fingerprint = ?", artifact.fingerprint)
+        .toArray()[0]
+    ) {
+      throw new Error("A deleted library source already owns this PDF");
+    }
+    const existingRow =
+      this.ctx.storage.sql
+        .exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ? LIMIT 1", identityKey)
+        .toArray()[0] ??
+      this.ctx.storage.sql
+        .exec<ReferenceRow>(
+          `SELECT reference.* FROM library_references AS reference
+           JOIN artifacts AS artifact ON artifact.reference_id = reference.id
+           WHERE artifact.fingerprint = ? ORDER BY artifact.created_at, artifact.id LIMIT 1`,
+          artifact.fingerprint,
+        )
+        .toArray()[0];
     if (existingRow) {
       const reference = referenceFromRow(existingRow);
       if (reference.deletedAt) throw new Error("A deleted library source already owns this PDF");
@@ -1087,13 +1160,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       this.#writeReference(reference, identityKey, true, "provisional");
       this.ctx.storage.sql.exec(
-        `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
-         VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
+        `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, blob_key, fingerprint, rights, created_at)
+         VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?, ?)`,
         identified.id,
         identified.referenceId,
         identified.name,
         identified.size,
-        identified.objectKey,
+        artifactStorageKey(identified),
+        sharedPdfBlobKey(identified.objectKey),
         identified.fingerprint,
         identified.rights,
         identified.createdAt,
@@ -1116,13 +1190,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
       return { reference, artifact: existing, created: false };
     }
     this.ctx.storage.sql.exec(
-      `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
-       VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
+      `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, blob_key, fingerprint, rights, created_at)
+       VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?, ?)`,
       artifact.id,
       referenceId,
       artifact.name,
       artifact.size,
-      artifact.objectKey,
+      artifactStorageKey(artifact),
+      sharedPdfBlobKey(artifact.objectKey),
       artifact.fingerprint,
       artifact.rights,
       artifact.createdAt,
@@ -2473,11 +2548,19 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
     name: row.name,
     contentType: "application/pdf",
     size: row.size,
-    objectKey: row.object_key,
+    objectKey: row.blob_key ?? row.object_key,
     fingerprint: row.fingerprint,
     rights: row.rights === "shareable" || row.rights === "unknown" ? row.rights : "private",
     createdAt: row.created_at,
   };
+}
+
+function sharedPdfBlobKey(objectKey: string): string | null {
+  return /^pdf-blobs\/sha256\/[a-f0-9]{64}\.pdf$/u.test(objectKey) ? objectKey : null;
+}
+
+function artifactStorageKey(artifact: LibraryPdfArtifact): string {
+  return sharedPdfBlobKey(artifact.objectKey) ? `artifact:${artifact.id}` : artifact.objectKey;
 }
 
 function webSourceFromRow(row: WebSourceRow): WebSource {

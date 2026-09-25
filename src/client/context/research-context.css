@@ -334,8 +334,19 @@
     font: 0.68rem var(--font-sans);
   }
 
-  .context-pdf-panel[data-library-pdf="true"] .library-pdf-page-rail:has(.library-pdf-rail-menu[open]) {
+  .context-pdf-panel[data-library-pdf="true"] .library-pdf-page-rail:has(.library-pdf-rail-menu[open], .pdf-related-papers-menu[open]) {
     overflow: visible;
+  }
+
+  .library-pdf-page-rail .pdf-related-papers-menu {
+    position: static;
+  }
+
+  .library-pdf-page-rail .pdf-related-papers-list {
+    top: 0.75rem;
+    right: auto;
+    left: 3.9rem;
+    width: min(18rem, calc(100% - 4.65rem));
   }
 
   .context-pdf-panel[data-library-pdf="true"] :is(.pdf-search-panel, .pdf-navigation-panel, .pdf-reference-details-panel) {

@@ -153,4 +153,22 @@ describe("active PDF context", () => {
       workspacePdf: undefined,
     });
   });
+
+  it("uses a contributor's own authorized copy and private highlights for a shared choice", () => {
+    expect(
+      activePdfLoadContext({
+        activeTab: tab("library-pdf", referencePdf.id),
+        annotations: [],
+        apiBase: "/api/workspaces/workspace:1",
+        libraryArtifacts: [libraryPdf],
+        libraryHighlights: [highlight],
+        projectReferencePdfs: [{ ...referencePdf, ownArtifactId: libraryPdf.id }],
+        workspacePdfs: [],
+      }),
+    ).toMatchObject({
+      libraryPdf,
+      privateHighlights: [highlight],
+      url: "/api/library/pdfs/library%2Fpdf",
+    });
+  });
 });
