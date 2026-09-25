@@ -21,9 +21,10 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                          | Status   | Summary                                                                                             |
+| ---------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| [ADR-237](./proposed/ADR-237-discover-project-related-pdfs-in-references.md) | Proposed | Show project-related PDFs through the Research rail's existing evidence and references inventories. |
+| [ADR-000](./proposed/ADR-000-template.md)                                    | Proposed | Template for drafting future ADRs.                                                                  |
 
 ## Accepted ADRs
 
