@@ -50,6 +50,7 @@ import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
 import type { ProjectBinaryObjectReplacements } from "../durable-objects/document-room";
 import * as v from "valibot";
 import { gitHubIntegrationAvailable } from "../deployment-capabilities";
+import { digestFromPdfBlobKey, readExactPdfBytes, reservePdfBlob, type PdfBlobReservation } from "../pdf-blob";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -125,6 +126,7 @@ interface WorkspaceBinarySeed {
 
 interface CopiedWorkspaceBinaries {
   readonly objectKeys: readonly string[];
+  readonly pdfReservations: readonly PdfBlobReservation[];
   readonly replacements: ProjectBinaryObjectReplacements;
 }
 
@@ -729,6 +731,7 @@ async function permanentlyDeleteWorkspace(
     access.listMembers(identity.email),
     room.listReviewLinks(workspaceId),
   ]);
+  const retainedPdfs = await room.listRetainedPdfResources(workspaceId);
   const library = await projectOwnerLibrary(env, access, identity.email);
   for (const reference of snapshot.projectReferences) await library.unregisterProjectDependency(workspaceId, reference.referenceId);
   let cursor: string | undefined;
@@ -747,6 +750,13 @@ async function permanentlyDeleteWorkspace(
   }
   for (const member of members) await env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email)).removeWorkspace(workspaceId);
   await room.deleteWorkspaceData();
+  const releases = await Promise.allSettled(
+    retainedPdfs.flatMap((pdf) => {
+      const digest = digestFromPdfBlobKey(pdf.objectKey);
+      return digest ? [env.PDF_BLOBS.getByName(digest).release(`project:${workspaceStorageKey(identity, workspaceId)}:${pdf.id}`)] : [];
+    }),
+  );
+  if (releases.some((result) => result.status === "rejected")) console.warn("A deleted project PDF blob needs reference cleanup");
   await access.deleteWorkspaceAccess(identity.email);
   await catalog.removeWorkspace(workspaceId);
   return new Response(null, { status: 204 });
@@ -855,7 +865,7 @@ async function registerIndependentWorkspaceCopy(
   identity: AuthIdentity,
 ): Promise<WorkspaceSummary> {
   const storageKey = workspaceStorageKey(identity, workspaceId);
-  const copied = await copyWorkspaceBinaries(env.PAPERS, storageKey, binaries);
+  const copied = await copyWorkspaceBinaries(env.PAPERS, env.PDF_BLOBS, storageKey, binaries);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
   const library = env.REFERENCE_LIBRARIES.getByName(identity.ownerKey);
@@ -863,6 +873,7 @@ async function registerIndependentWorkspaceCopy(
   try {
     await access.initializeOwner(identity.email);
     await room.seedFromRevision(workspaceId, title, revisionSeed, copied.replacements);
+    for (const reservation of copied.pdfReservations) await reservation.commit();
     const snapshot = await room.getSnapshot(workspaceId);
     for (const reference of snapshot.projectReferences) {
       await library.registerProjectDependency(workspaceId, reference.referenceId);
@@ -884,19 +895,28 @@ async function registerIndependentWorkspaceCopy(
 
 async function copyWorkspaceBinaries(
   bucket: R2Bucket,
+  blobAuthority: Env["PDF_BLOBS"],
   storageKey: string,
   binaries: WorkspaceBinarySeed,
 ): Promise<CopiedWorkspaceBinaries> {
   const objectKeys: string[] = [];
+  const pdfReservations: PdfBlobReservation[] = [];
   const replacements: {
     assets: Array<{ id: string; objectKey: string; fingerprint: string; updatedAt: string }>;
     pdfs: Array<{ id: string; objectKey: string; fingerprint: string }>;
   } = { assets: [], pdfs: [] };
   try {
     for (const pdf of binaries.pdfs) {
-      const objectKey = `${storageKey}/${pdf.id}.pdf`;
-      const stored = await copyWorkspaceBinary(bucket, pdf.objectKey, objectKey, `Project PDF is unavailable: ${pdf.name}`, objectKeys);
-      replacements.pdfs.push({ id: pdf.id, objectKey, fingerprint: r2Fingerprint(stored) });
+      const source = await bucket.get(pdf.objectKey);
+      if (!source) throw new Error(`Project PDF is unavailable: ${pdf.name}`);
+      if (source.size > maximumPdfBytes) throw new Error(`Project PDF exceeds the 25 MB limit: ${pdf.name}`);
+      const reservation = await reservePdfBlob(
+        blobAuthority,
+        new Uint8Array(await source.arrayBuffer()),
+        `project:${storageKey}:${pdf.id}`,
+      );
+      pdfReservations.push(reservation);
+      replacements.pdfs.push({ id: pdf.id, ...reservation.blob });
     }
     for (const asset of binaries.assets) {
       const objectKey = `${storageKey}/assets/${asset.id}`;
@@ -914,9 +934,12 @@ async function copyWorkspaceBinaries(
         updatedAt: new Date().toISOString(),
       });
     }
-    return { objectKeys, replacements };
+    return { objectKeys, pdfReservations, replacements };
   } catch (error) {
-    if (objectKeys.length > 0) await bucket.delete(objectKeys);
+    await Promise.allSettled([
+      ...(objectKeys.length > 0 ? [bucket.delete(objectKeys)] : []),
+      ...pdfReservations.map(async (reservation) => await reservation.release()),
+    ]);
     throw error;
   }
 }
@@ -1076,28 +1099,22 @@ async function uploadPdf(
   if (size > maximumPdfBytes) return jsonError("PDF exceeds the 25 MB vertical-slice limit", 413);
 
   const id = crypto.randomUUID();
-  const objectKey = `${workspaceId}/${id}.pdf`;
   const name = safeFilename(request.headers.get("x-file-name") ?? "paper.pdf");
-  const fixedLengthBody = new FixedLengthStream(size);
-  const upload = env.PAPERS.put(objectKey, fixedLengthBody.readable, { httpMetadata: { contentType: "application/pdf" } });
-  const pipeline = request.body.pipeTo(fixedLengthBody.writable);
-  const [stored] = await Promise.all([upload, pipeline]);
+  const bytes = await readExactPdfBytes(request.body, size);
+  const reservation = await reservePdfBlob(env.PDF_BLOBS, bytes, `project:${workspaceId}:${id}`);
+  const blob = reservation.blob;
 
   const pdf: PdfResource = {
     id,
     name,
     contentType: "application/pdf",
     size,
-    objectKey,
-    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
+    objectKey: blob.objectKey,
+    fingerprint: blob.fingerprint,
     createdAt: new Date().toISOString(),
   };
-  try {
-    await room.registerPdf(pdf);
-  } catch (error) {
-    await env.PAPERS.delete(objectKey);
-    throw error;
-  }
+  await room.registerPdf(pdf);
+  await reservation.commit();
   return Response.json(pdf, { status: 201 });
 }
 

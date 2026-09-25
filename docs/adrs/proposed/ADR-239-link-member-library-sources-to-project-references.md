@@ -58,7 +58,7 @@ when several members link their separate private source records to it.
 
 Collapse byte-identical PDFs connected to the same project publication into
 one visible reader choice using the verified content identity from
-[ADR-240](./ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md). Keep
+[ADR-240](../implemented/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md). Keep
 every underlying Library artifact and authorization edge separate while their
 bytes share one physical object. When opening the choice, prefer the current
 viewer's own authorized copy, if present, so their

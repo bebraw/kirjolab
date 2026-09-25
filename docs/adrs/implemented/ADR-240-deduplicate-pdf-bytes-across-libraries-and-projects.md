@@ -1,11 +1,11 @@
 # ADR-240: Deduplicate PDF Bytes Across Libraries and Projects
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-09-25
 
-**Would amend:** [ADR-087](../implemented/ADR-087-reconcile-exact-pdf-duplicates.md)
-and [ADR-061](../implemented/ADR-061-preserve-project-revisions-and-milestones.md)
+**Amends:** [ADR-087](./ADR-087-reconcile-exact-pdf-duplicates.md)
+and [ADR-061](./ADR-061-preserve-project-revisions-and-milestones.md)
 
 ## Context
 
@@ -14,7 +14,7 @@ deduplicates exact uploads only within that owner's Library. Project PDFs
 have separate project-scoped objects, including copies made for duplicated
 or revision-seeded projects. Multiple Libraries and projects can therefore
 store identical PDF bytes independently. Proposed
-[ADR-239](./ADR-239-link-member-library-sources-to-project-references.md)
+[ADR-239](../proposed/ADR-239-link-member-library-sources-to-project-references.md)
 lets several members link their private Library sources to one project
 publication. Showing one choice for identical PDFs would still leave redundant
 physical copies unless storage identity is separated from Library ownership.

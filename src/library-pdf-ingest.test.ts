@@ -3,9 +3,10 @@ import type { ArtifactAnalysis, ArtifactAnalysisJob, BibliographicRecord, Librar
 import { ingestLibraryPdf } from "./library-pdf-ingest";
 
 const createdAt = "2026-08-24T08:00:00.000Z";
+const blobKey = "pdf-blobs/sha256/315d429b7714cedb6ad04ac31240145257692630457f3c88253c5beceac76027.pdf";
 
 describe("shared library PDF ingestion", () => {
-  it("stores one owner-scoped PDF, creates its draft, and queues all extraction kinds", async () => {
+  it("stores one shared PDF, creates its owner-scoped draft, and queues all extraction kinds", async () => {
     const { authority, queue, storage, stored } = fixture();
 
     const result = await ingestLibraryPdf(
@@ -14,21 +15,21 @@ describe("shared library PDF ingestion", () => {
     );
 
     expect(result.created).toBe(true);
-    expect(stored.get("libraries/owner-key/22222222-2222-4222-8222-222222222222.pdf")).toEqual(new TextEncoder().encode("%PDF"));
+    expect(stored.get(blobKey)).toEqual(new TextEncoder().encode("%PDF"));
     expect(authority.createPdfDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "22222222-2222-4222-8222-222222222222",
         name: "draft.pdf",
-        fingerprint: "r2-etag:stored-etag",
+        fingerprint: `sha256:${blobKey.slice("pdf-blobs/sha256/".length, -4)}`,
       }),
       "writer@example.test",
     );
     expect(queue.send).toHaveBeenCalledTimes(3);
     expect(queue.send.mock.calls.map(([message]) => message.kind)).toEqual(["pdf-highlights", "pdf-references", "pdf-text"]);
-    expect(JSON.stringify(queue.send.mock.calls)).not.toContain("libraries/owner-key");
+    expect(JSON.stringify(queue.send.mock.calls)).not.toContain(blobKey);
   });
 
-  it("deletes a redundant upload when the authority resolves an existing draft", async () => {
+  it("retains shared bytes when the owner authority resolves an existing draft", async () => {
     const { authority, queue, storage, stored } = fixture({ created: false });
 
     await ingestLibraryPdf(
@@ -36,11 +37,11 @@ describe("shared library PDF ingestion", () => {
       dependencies(authority, queue, storage),
     );
 
-    expect(stored.size).toBe(0);
+    expect(stored.size).toBe(1);
     expect(queue.send).toHaveBeenCalledTimes(3);
   });
 
-  it("removes the uploaded object if draft creation fails", async () => {
+  it("retains immutable shared bytes for retry if draft creation fails", async () => {
     const { authority, queue, storage, stored } = fixture();
     authority.createPdfDraft.mockRejectedValueOnce(new Error("authority failed"));
 
@@ -51,7 +52,7 @@ describe("shared library PDF ingestion", () => {
       ),
     ).rejects.toThrow("authority failed");
 
-    expect(stored.size).toBe(0);
+    expect(stored.size).toBe(1);
     expect(queue.send).not.toHaveBeenCalled();
   });
 });
@@ -63,8 +64,8 @@ function fixture(options: { readonly created?: boolean } = {}) {
     name: "draft.pdf",
     contentType: "application/pdf",
     size: 4,
-    objectKey: "libraries/owner-key/22222222-2222-4222-8222-222222222222.pdf",
-    fingerprint: "r2-etag:stored-etag",
+    objectKey: blobKey,
+    fingerprint: `sha256:${blobKey.slice("pdf-blobs/sha256/".length, -4)}`,
     rights: "private",
     createdAt,
   };
@@ -106,12 +107,14 @@ function fixture(options: { readonly created?: boolean } = {}) {
   };
   const stored = new Map<string, Uint8Array>();
   const storage = {
-    put: vi.fn(async (key: string, value: ReadableStream) => {
-      stored.set(key, new Uint8Array(await new Response(value).arrayBuffer()));
+    put: vi.fn(async (key: string, value: Uint8Array) => {
+      if (stored.has(key)) return null;
+      stored.set(key, Uint8Array.from(value));
       return { etag: '"stored-etag"' };
     }),
-    delete: vi.fn(async (key: string) => {
-      stored.delete(key);
+    get: vi.fn(async (key: string) => {
+      const value = stored.get(key);
+      return value ? { arrayBuffer: async () => Uint8Array.from(value).buffer } : null;
     }),
   };
   const queue = { send: vi.fn(async (_message: ArtifactAnalysisJob) => undefined) };
@@ -127,7 +130,6 @@ function dependencies(
     authority,
     queue,
     storage,
-    createFixedLengthStream: () => new TransformStream<Uint8Array, Uint8Array>(),
     now: () => new Date(createdAt),
     randomUUID: () => "22222222-2222-4222-8222-222222222222",
   };

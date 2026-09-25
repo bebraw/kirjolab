@@ -139,6 +139,15 @@ function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" 
     ACCESS_AUD: overrides.AUTH_MODE === "access" ? "audience" : "",
     CORPUS_ALLOWED_ORIGINS: "",
     REFERENCE_LIBRARIES: { getByName },
+    PDF_BLOBS: {
+      getByName: vi.fn(() => ({
+        reserve: vi.fn(async () => {
+          throw new Error("not used");
+        }),
+        commit: vi.fn(async () => undefined),
+        release: vi.fn(async () => undefined),
+      })),
+    },
     ARTIFACT_ANALYSIS_QUEUE: {
       send: vi.fn(async (_job: ArtifactAnalysisJob) => ({ metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } } })),
     },

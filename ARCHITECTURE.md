@@ -746,18 +746,26 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
   without active or external-resource constructs, and serve it under a
   no-script, no-network sandbox policy.
-- Give every duplicated or revision-seeded project independent destination-
-  scoped R2 objects for all project PDFs and images. Copy and re-key those
-  binaries before publishing the destination catalog entry; never let a copied
-  project's mutation delete or overwrite its source project's bytes.
+- Give every duplicated or revision-seeded project independent logical PDF and
+  image records. Reuse verified SHA-256 PDF blobs through the digest-keyed blob
+  authority; copy and re-key project images before publishing the destination
+  catalog entry. A copied project's mutation must not alter the source
+  project's logical resources or bytes.
 - Register every copied library reference under the duplicated or revision-
   seeded project identity before publishing its catalog entry, and remove
   partially registered dependency rows during copy cleanup.
 - Treat active project PDF and image deletion as a metadata transition. Retain
-  project-scoped R2 objects while any logical revision references them,
-  authorize downloads through current metadata, include historical binary keys
-  in owner backups, and reclaim the full prefix only on permanent project
-  deletion.
+  shared PDF blobs while a logical resource or revision needs them, and retain
+  project-scoped image objects while revisions need them. Authorize downloads
+  through current metadata, include historical binary keys in owner backups,
+  and reclaim project-scoped objects only on permanent project deletion.
+- Store one immutable R2 PDF blob per verified SHA-256 digest across Libraries
+  and projects. Keep Library artifact and project PDF identities separate; the
+  digest-keyed Durable Object tracks their references, reconciles incomplete
+  mutations, and collects bytes only after no retained logical reference
+  remains. Migrate legacy pointers and historical revisions before deleting
+  their old objects. Never infer cross-owner identity from R2 ETags or expose
+  blob existence through an upload response.
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.

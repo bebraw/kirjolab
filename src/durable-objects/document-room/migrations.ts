@@ -750,5 +750,18 @@ export function documentRoomDataMigrations(dependencies: DocumentRoomMigrationDe
         return undefined;
       },
     },
+    {
+      version: 28,
+      name: "allow-project-pdfs-to-share-byte-objects",
+      apply(sql): undefined {
+        sql.exec(`
+          CREATE TABLE IF NOT EXISTS pdf_blob_keys (
+            pdf_id TEXT PRIMARY KEY REFERENCES pdfs(id) ON DELETE CASCADE,
+            blob_key TEXT NOT NULL
+          );
+        `);
+        return undefined;
+      },
+    },
   ];
 }

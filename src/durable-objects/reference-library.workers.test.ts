@@ -804,7 +804,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         requestedAt,
         requestedAt,
       );
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
+      state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
     });
 
@@ -853,7 +855,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
     ).toBe(true);
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 17");
+      state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
+      state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
       await expect(
         initializeReferenceLibraryStorage(state, () => {

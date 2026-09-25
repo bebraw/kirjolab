@@ -1296,7 +1296,7 @@ test("copies project binaries into independent duplicate and revision projects",
     const copiedPdf = copied.pdfs.find(({ id }) => id === sourcePdf.id);
     const copiedAsset = copied.assets.find(({ id }) => id === sourceAsset.id);
     if (!copiedPdf || !copiedAsset) throw new Error("Expected copied project binaries");
-    expect(copiedPdf.objectKey).not.toBe(sourcePdf.objectKey);
+    expect(copiedPdf.objectKey).toBe(sourcePdf.objectKey);
     expect(copiedAsset.objectKey).not.toBe(sourceAsset.objectKey);
 
     const copiedPdfResponse = await page.request.get(`${copiedApi}/pdfs/${copiedPdf.id}`);
@@ -3971,7 +3971,7 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "provider_review.pdf",
     mimeType: "application/pdf",
-    buffer: createMetadataEvidencePdf(),
+    buffer: createMetadataEvidencePdf("Provider review DOI 10.5555/metadata.review"),
   });
   const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "provider review" });
   await expect(card).toBeVisible();

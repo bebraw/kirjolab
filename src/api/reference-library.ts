@@ -47,6 +47,7 @@ import {
 } from "../domain/reference-library";
 import { enqueueArtifactAnalysis } from "../artifact-analysis-job";
 import { ingestLibraryPdf, normalizePdfFilename } from "../library-pdf-ingest";
+import { digestFromPdfBlobKey, reservePdfBlob, storePdfBlob } from "../pdf-blob";
 import {
   isReferenceDiscoveryQuery,
   mergeReferenceDiscoveryCandidates,
@@ -264,6 +265,7 @@ interface ReferenceLibraryApiEnv {
     };
   };
   readonly PAPERS: Pick<R2Bucket, "put" | "get" | "delete">;
+  readonly PDF_BLOBS?: Env["PDF_BLOBS"];
   readonly ARTIFACT_ANALYSIS_QUEUE?: {
     send(message: ArtifactAnalysisJob, options?: QueueSendOptions): Promise<unknown>;
   };
@@ -732,7 +734,10 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
   const downloaded = await downloadOpenAccessPdf(candidate.pdfUrl, context.fetchExternal);
   const id = crypto.randomUUID();
   const retrievedAt = new Date().toISOString();
-  const objectKey = `libraries/${context.identity.ownerKey}/${id}.pdf`;
+  const reservation = context.env.PDF_BLOBS
+    ? await reservePdfBlob(context.env.PDF_BLOBS, downloaded.bytes, `library:${context.identity.ownerKey}:${id}`)
+    : undefined;
+  const blob = reservation?.blob ?? (await storePdfBlob(context.env.PAPERS, downloaded.bytes));
   const provenance: OpenAccessPdfProvenance = {
     provider: candidate.provider,
     providerRecordId: candidate.providerRecordId,
@@ -742,38 +747,20 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
     retrievedAt,
     contentFingerprint: downloaded.fingerprint,
   };
-  await context.env.PAPERS.put(objectKey, downloaded.bytes, {
-    httpMetadata: { contentType: "application/pdf" },
-    customMetadata: {
-      acquisition: "open-access-provider",
-      provider: provenance.provider,
-      providerRecordId: provenance.providerRecordId,
-      finalUrl: provenance.finalUrl,
-      license: provenance.license,
-      manuscriptVersion: provenance.version,
-      retrievedAt: provenance.retrievedAt,
-      contentFingerprint: provenance.contentFingerprint,
-    },
-  });
   const artifact: LibraryPdfArtifact = {
     id,
     referenceId,
     name: safeFilename(`${reference.referenceKey || "paper"}.pdf`),
     contentType: "application/pdf",
     size: downloaded.bytes.byteLength,
-    objectKey,
-    fingerprint: downloaded.fingerprint,
+    objectKey: blob.objectKey,
+    fingerprint: blob.fingerprint,
     rights: "unknown",
     createdAt: retrievedAt,
   };
-  let result: PdfDraftResult;
-  try {
-    result = await context.library.attachPdf(referenceId, artifact);
-  } catch (error) {
-    await context.env.PAPERS.delete(objectKey);
-    throw error;
-  }
-  if (!result.created) await context.env.PAPERS.delete(objectKey);
+  const result = await context.library.attachPdf(referenceId, artifact);
+  if (result.created) await reservation?.commit();
+  else await reservation?.release();
   await Promise.all([
     enqueueArtifactAnalysis(
       context.identity.ownerKey,
@@ -1120,13 +1107,25 @@ async function handleLibraryReferenceCitationRoutes(context: LibraryReferenceRou
 }
 
 async function handleLibraryReferenceDeletionRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
-  const { request, action, referenceId, library } = context;
+  const { request, action, referenceId, library, env, identity } = context;
   if (action !== undefined || request.method !== "DELETE") return null;
   const body: unknown = await request.json();
   if (!isRecord(body) || !Array.isArray(body.expectedProjectIds) || !body.expectedProjectIds.every((id) => typeof id === "string")) {
     return jsonError("Review deletion impact before permanent deletion", 409);
   }
-  return Response.json(await library.permanentlyDeleteReference(referenceId, body.expectedProjectIds), noStore());
+  const artifacts = (await library.getSnapshot(true)).artifacts.filter((artifact) => artifact.referenceId === referenceId);
+  const deleted = await library.permanentlyDeleteReference(referenceId, body.expectedProjectIds);
+  const blobAuthority = env.PDF_BLOBS;
+  if (blobAuthority) {
+    const releases = await Promise.allSettled(
+      artifacts.flatMap((artifact) => {
+        const digest = digestFromPdfBlobKey(artifact.objectKey);
+        return digest ? [blobAuthority.getByName(digest).release(`library:${identity.ownerKey}:${artifact.id}`)] : [];
+      }),
+    );
+    if (releases.some((result) => result.status === "rejected")) console.warn("A deleted Library PDF blob needs reference cleanup");
+  }
+  return Response.json(deleted, noStore());
 }
 
 async function previewCrossrefMetadata(
@@ -1846,6 +1845,7 @@ async function uploadLibraryPdf(
       authority: library,
       ...(env.ARTIFACT_ANALYSIS_QUEUE ? { queue: env.ARTIFACT_ANALYSIS_QUEUE } : {}),
       storage: env.PAPERS,
+      ...(env.PDF_BLOBS ? { blobAuthority: env.PDF_BLOBS } : {}),
     },
   );
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
