@@ -83,6 +83,21 @@ describe("related PDF choices", () => {
     ]);
   });
 
+  it("offers member-linked PDFs for a project publication without a linked Library reference", () => {
+    const supplement = { ...linkedPdf, id: "library:2", name: "Supplement.pdf" };
+    const publicationOnly = { ...snapshot, projectReferences: [] };
+    expect(relatedPaperGroups(tab("library-pdf", linkedPdf.id), publicationOnly, [linkedPdf, supplement], null)).toEqual([
+      {
+        referenceId: publication.id,
+        referenceTitle: publication.title,
+        papers: [
+          { kind: "project", pdf: projectPdf, linkId: "pdf-link:1" },
+          { kind: "reference", pdf: supplement },
+        ],
+      },
+    ]);
+  });
+
   it("omits unrelated private PDFs and references without an alternative", () => {
     expect(relatedPaperGroups(tab("library-pdf", "unrelated"), snapshot, [linkedPdf], null)).toEqual([]);
     expect(relatedPaperGroups(tab("pdf", projectPdf.id), snapshot, [], null)).toEqual([]);

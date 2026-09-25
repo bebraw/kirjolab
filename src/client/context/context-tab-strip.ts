@@ -220,7 +220,8 @@ export class ContextTabStrip extends LightDomElement {
     const pdfPanel = this.controlledPanel("context-pdf-panel");
     if (!pdfPanel) return;
     const libraryPdf = active?.kind === "library-pdf";
-    const privatePdf = libraryPdf && sources.libraryArtifacts.some(({ id }) => id === active.id);
+    const ownArtifactId = libraryPdf ? sources.referencePdfs.find(({ id }) => id === active.id)?.ownArtifactId : undefined;
+    const privatePdf = libraryPdf && sources.libraryArtifacts.some(({ id }) => id === (ownArtifactId ?? active.id));
     const readonlyPdf = libraryPdf && !privatePdf && sources.referencePdfs.some(({ id }) => id === active.id);
     pdfPanel.dataset.libraryPdf = String(libraryPdf);
     pdfPanel.dataset.readonlyPdf = String(readonlyPdf);

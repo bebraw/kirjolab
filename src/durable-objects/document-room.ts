@@ -63,7 +63,7 @@ import {
 } from "../domain/project/project-files";
 import { isProjectTemplateSeed, resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project/project-templates";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
-import type { ResearchShareSnapshot } from "../domain/reference-library";
+import type { ProjectLibrarySourceLink, ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
   defaultSource,
@@ -307,6 +307,17 @@ interface ProjectReferenceRow extends Record<string, SqlStorageValue> {
   snapshot_json: string;
   created_at: string;
   updated_at: string;
+}
+
+interface ProjectLibrarySourceLinkRow extends Record<string, SqlStorageValue> {
+  id: string;
+  publication_id: string;
+  owner_key: string;
+  library_reference_id: string;
+  contributed_by: string;
+  created_at: string;
+  revoked_by: string | null;
+  revoked_at: string | null;
 }
 
 interface ReviewArtifactPinRow extends Record<string, SqlStorageValue> {
@@ -1736,8 +1747,98 @@ export class DocumentRoom extends DurableObject<Env> {
     const next = rows.filter((item) => item.reference_id !== referenceId).map(projectReferenceFromRow);
     this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-unlink", {}, () => {
       this.ctx.storage.sql.exec("DELETE FROM project_references WHERE reference_id = ?", referenceId);
+      this.ctx.storage.sql.exec(
+        "UPDATE project_library_source_links SET revoked_by = 'system', revoked_at = ? WHERE publication_id = ? AND revoked_at IS NULL",
+        new Date().toISOString(),
+        referenceId,
+      );
     });
     return { ok: true, value: this.getSnapshot(workspaceId) };
+  }
+
+  listLibrarySourceLinks(workspaceId: string): ProjectLibrarySourceLink[] {
+    this.getSnapshot(workspaceId);
+    const rows = this.ctx.storage.sql
+      .exec<ProjectLibrarySourceLinkRow>(
+        "SELECT * FROM project_library_source_links WHERE revoked_at IS NULL ORDER BY created_at, id LIMIT 513",
+      )
+      .toArray();
+    if (rows.length > 512) throw new Error("Project has too many active Library source links");
+    return rows.map((row) => ({
+      id: row.id,
+      publicationId: row.publication_id,
+      ownerKey: row.owner_key,
+      libraryReferenceId: row.library_reference_id,
+      contributedBy: row.contributed_by,
+      createdAt: row.created_at,
+      revokedBy: row.revoked_by,
+      revokedAt: row.revoked_at,
+    }));
+  }
+
+  linkLibrarySource(
+    workspaceId: string,
+    publicationId: string,
+    ownerKey: string,
+    libraryReferenceId: string,
+    contributedBy: string,
+  ): ProjectLibrarySourceLink {
+    const workspace = this.getSnapshot(workspaceId);
+    if (
+      !workspace.projectReferences.some(({ referenceId }) => referenceId === publicationId) &&
+      !workspace.publications.some(({ id }) => id === publicationId)
+    ) {
+      throw new Error("Project publication not found");
+    }
+    if (
+      !ownerKey ||
+      ownerKey.length > 128 ||
+      !libraryReferenceId ||
+      libraryReferenceId.length > 128 ||
+      !contributedBy ||
+      contributedBy.length > 320
+    ) {
+      throw new Error("Invalid contributor Library source");
+    }
+    const activeLinks = this.listLibrarySourceLinks(workspaceId);
+    const previous = activeLinks.find(
+      (link) => link.publicationId === publicationId && link.ownerKey === ownerKey && link.libraryReferenceId === libraryReferenceId,
+    );
+    if (previous) return previous;
+    if (activeLinks.length >= 512) throw new Error("Project has too many active Library source links");
+    const link: ProjectLibrarySourceLink = {
+      id: crypto.randomUUID(),
+      publicationId,
+      ownerKey,
+      libraryReferenceId,
+      contributedBy,
+      createdAt: new Date().toISOString(),
+      revokedBy: null,
+      revokedAt: null,
+    };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO project_library_source_links (id, publication_id, owner_key, library_reference_id, contributed_by, created_at, revoked_by, revoked_at) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)",
+      link.id,
+      link.publicationId,
+      link.ownerKey,
+      link.libraryReferenceId,
+      link.contributedBy,
+      link.createdAt,
+    );
+    return link;
+  }
+
+  revokeLibrarySource(workspaceId: string, linkId: string, actor: string): ProjectLibrarySourceLink | null {
+    const link = this.listLibrarySourceLinks(workspaceId).find(({ id }) => id === linkId);
+    if (!link) return null;
+    const revokedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      "UPDATE project_library_source_links SET revoked_by = ?, revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+      actor,
+      revokedAt,
+      linkId,
+    );
+    return { ...link, revokedBy: actor, revokedAt };
   }
 
   pinResearchShare(workspaceId: string, share: ResearchShareSnapshot): WorkspaceSnapshot {

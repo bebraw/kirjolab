@@ -21,10 +21,9 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                                | Status   | Summary                                                                      |
-| ---------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------- |
-| [ADR-239](./proposed/ADR-239-link-member-library-sources-to-project-references.md) | Proposed | Let members link their private Library sources to shared project references. |
-| [ADR-000](./proposed/ADR-000-template.md)                                          | Proposed | Template for drafting future ADRs.                                           |
+| ADR                                       | Status   | Summary                            |
+| ----------------------------------------- | -------- | ---------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
 
 ## Accepted ADRs
 
@@ -34,6 +33,7 @@ No ADRs are currently accepted but unimplemented.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-239](./implemented/ADR-239-link-member-library-sources-to-project-references.md)     | Implemented          | Let members link their private Library sources to shared project references.                                    |
 | [ADR-240](./implemented/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md)   | Implemented          | Store one verified PDF byte object across Libraries and projects.                                               |
 | [ADR-238](./implemented/ADR-238-navigate-related-pdfs-from-reader.md)                     | Implemented          | Navigate among PDFs connected to the active paper's references from the project reader.                         |
 | [ADR-237](./implemented/ADR-237-discover-project-related-pdfs-in-references.md)           | Implemented          | Show project-related PDFs through the Research rail's existing evidence and references inventories.             |

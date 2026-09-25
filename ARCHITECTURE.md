@@ -766,6 +766,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   remains. Migrate legacy pointers and historical revisions before deleting
   their old objects. Never infer cross-owner identity from R2 ETags or expose
   blob existence through an upload response.
+- Let a signed-in project member explicitly link one of their own Library
+  sources to a project publication. The link records the verified contributor
+  identity and source UUID without copying PDFs or replacing the project's
+  citation. Its current and later PDF attachments become readable only to
+  current project members. Recheck membership, the active link, and current
+  Library attachment on each catalog and byte read; revocation preserves the
+  private Library and project citation. Group byte-identical choices by
+  verified digest while keeping the viewer's own authorized copy as the
+  preferred reading context.
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.

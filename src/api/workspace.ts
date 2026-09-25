@@ -43,7 +43,7 @@ import { assertExportable, buildExportBundle, ExportPipelineError } from "../dom
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
-import type { ProjectReferencePdf, SharedResearchContent } from "../domain/reference-library";
+import type { LibraryPdfArtifact, ProjectLibrarySourceLink, ProjectReferencePdf, SharedResearchContent } from "../domain/reference-library";
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 import { handleReviewStudyApi } from "./review-study";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
@@ -416,6 +416,8 @@ async function handleWorkspaceResourceRoutes(context: WorkspaceRouteContext): Pr
 }
 
 async function handleWorkspacePdfRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const sourceLinkResponse = await handleWorkspaceLibrarySourceLinkRoutes(context);
+  if (sourceLinkResponse) return sourceLinkResponse;
   const projectPdfResponse = await handleWorkspaceProjectPdfRoutes(context);
   if (projectPdfResponse) return projectPdfResponse;
   return await handleWorkspaceReferencePdfRoutes(context);
@@ -432,15 +434,79 @@ async function handleWorkspaceProjectPdfRoutes(context: WorkspaceRouteContext): 
 }
 
 async function handleWorkspaceReferencePdfRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
-  const { request, suffix, workspaceId, identity, env, access, room } = context;
+  const { request, suffix } = context;
   if (request.method !== "GET" || (suffix !== "/reference-pdfs" && !suffix.startsWith("/reference-pdfs/"))) return null;
-  const library = await projectOwnerLibrary(env, access, identity.email);
   if (suffix === "/reference-pdfs") {
-    return Response.json(await listProjectReferencePdfs(workspaceId, room, library), {
-      headers: { "cache-control": "private, no-store" },
-    });
+    return Response.json(
+      (await projectReferencePdfChoices(context)).map(({ pdf }) => pdf),
+      {
+        headers: { "cache-control": "private, no-store" },
+      },
+    );
   }
-  return await downloadProjectReferencePdf(request, workspaceId, suffix.slice("/reference-pdfs/".length), env, room, library);
+  let pdfId: string;
+  try {
+    pdfId = decodeURIComponent(suffix.slice("/reference-pdfs/".length));
+  } catch {
+    return jsonError("Reference PDF not found", 404);
+  }
+  return await downloadProjectReferencePdf(context, pdfId);
+}
+
+async function handleWorkspaceLibrarySourceLinkRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, identity, role, room, env } = context;
+  if (suffix === "/library-source-links" && request.method === "GET") {
+    const links = await room.listLibrarySourceLinks(workspaceId);
+    return Response.json(
+      links.map((link) => ({
+        id: link.id,
+        publicationId: link.publicationId,
+        contributedBy: link.contributedBy,
+        createdAt: link.createdAt,
+        active: link.revokedAt === null,
+        ...(link.ownerKey === identity.ownerKey ? { libraryReferenceId: link.libraryReferenceId } : {}),
+      })),
+      { headers: { "cache-control": "private, no-store" } },
+    );
+  }
+  if (suffix === "/library-source-links" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (
+      !isRecord(body) ||
+      typeof body.publicationId !== "string" ||
+      typeof body.libraryReferenceId !== "string" ||
+      body.confirmAllPdfs !== true
+    ) {
+      return jsonError("Confirm that all PDFs attached to this Library source will be shared with project members", 400);
+    }
+    const source = await env.REFERENCE_LIBRARIES.getByName(identity.ownerKey).getProjectPdfArtifacts(body.libraryReferenceId);
+    if (source === null) return jsonError("Library source not found", 404);
+    try {
+      const link = await room.linkLibrarySource(
+        workspaceId,
+        body.publicationId,
+        identity.ownerKey,
+        body.libraryReferenceId,
+        identity.email,
+      );
+      return Response.json(
+        { id: link.id, publicationId: link.publicationId, libraryReferenceId: link.libraryReferenceId },
+        { status: 201 },
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === "Project publication not found") return jsonError(error.message, 404);
+      throw error;
+    }
+  }
+  const match = /^\/library-source-links\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (match?.[1] && request.method === "DELETE") {
+    const link = (await room.listLibrarySourceLinks(workspaceId)).find(({ id }) => id === match[1]);
+    if (!link) return jsonError("Library source link not found", 404);
+    if (role !== "owner" && link.ownerKey !== identity.ownerKey) return jsonError("Cannot remove another contributor's source", 403);
+    await room.revokeLibrarySource(workspaceId, link.id, identity.email);
+    return new Response(null, { status: 204 });
+  }
+  return null;
 }
 
 async function handleWorkspaceAssetRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
@@ -1440,47 +1506,103 @@ async function sharePrivateResearch(
   }
 }
 
-async function listProjectReferencePdfs(
-  workspaceId: string,
-  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
-  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
-): Promise<ProjectReferencePdf[]> {
-  const [workspace, librarySnapshot] = await Promise.all([room.getSnapshot(workspaceId), library.getSnapshot(true)]);
-  const linkedReferenceIds = new Set(workspace.projectReferences.map((link) => link.referenceId));
-  return librarySnapshot.artifacts.flatMap((artifact) =>
-    artifact.referenceId && linkedReferenceIds.has(artifact.referenceId)
-      ? [
-          {
-            id: artifact.id,
-            referenceId: artifact.referenceId,
-            name: artifact.name,
-            size: artifact.size,
-            fingerprint: artifact.fingerprint,
-          },
-        ]
-      : [],
-  );
+interface ProjectPdfCandidate {
+  readonly artifact: LibraryPdfArtifact;
+  readonly publicationId: string;
+  readonly ownerKey: string;
 }
 
-async function downloadProjectReferencePdf(
-  request: Request,
-  workspaceId: string,
-  artifactId: string,
-  env: Env,
-  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
-  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
-): Promise<Response> {
-  const [workspace, librarySnapshot] = await Promise.all([room.getSnapshot(workspaceId), library.getSnapshot(true)]);
-  const artifact = librarySnapshot.artifacts.find((item) => item.id === artifactId);
-  if (!artifact?.referenceId || !workspace.projectReferences.some((link) => link.referenceId === artifact.referenceId)) {
-    return jsonError("Reference PDF not found", 404);
-  }
-  return (
-    (await downloadR2Object(request, env.PAPERS, artifact.objectKey, {
-      cacheControl: "private, no-store",
-      contentDisposition: `inline; filename="${safeFilename(artifact.name)}"`,
-    })) ?? jsonError("Reference PDF not found", 404)
+interface ProjectPdfChoice {
+  readonly pdf: ProjectReferencePdf;
+  readonly candidates: readonly ProjectPdfCandidate[];
+}
+
+async function projectReferencePdfChoices(context: WorkspaceRouteContext): Promise<ProjectPdfChoice[]> {
+  const { workspaceId, room, access, identity, env } = context;
+  const [workspace, links, members] = await Promise.all([
+    room.getSnapshot(workspaceId),
+    room.listLibrarySourceLinks(workspaceId),
+    access.listMembers(identity.email),
+  ]);
+  const owner = members.find((member) => member.role === "owner");
+  if (!owner) return [];
+  const memberKeys = new Map(
+    await Promise.all(members.map(async (member) => [await ownerKeyForEmail(member.email), member.email] as const)),
   );
+  const ownerKey = await ownerKeyForEmail(owner.email);
+  const publicationIds = new Set([
+    ...workspace.projectReferences.map(({ referenceId }) => referenceId),
+    ...workspace.publications.map(({ id }) => id),
+  ]);
+  const sources: Array<{ publicationId: string; ownerKey: string; referenceId: string }> = [
+    ...workspace.projectReferences.map(({ referenceId }) => ({ publicationId: referenceId, ownerKey, referenceId })),
+    ...links.flatMap((link: ProjectLibrarySourceLink) =>
+      link.revokedAt === null && publicationIds.has(link.publicationId) && memberKeys.get(link.ownerKey) === link.contributedBy
+        ? [{ publicationId: link.publicationId, ownerKey: link.ownerKey, referenceId: link.libraryReferenceId }]
+        : [],
+    ),
+  ];
+  if (sources.length > 512) throw new Error("Project has too many PDF sources");
+  const groups = new Map<string, ProjectPdfCandidate[]>();
+  let candidateCount = 0;
+  await Promise.all(
+    sources.map(async (source) => {
+      const artifacts = await env.REFERENCE_LIBRARIES.getByName(source.ownerKey).getProjectPdfArtifacts(source.referenceId);
+      for (const artifact of artifacts ?? []) {
+        const contentIdentity = /^sha256:[a-f0-9]{64}$/u.test(artifact.fingerprint)
+          ? artifact.fingerprint
+          : `artifact:${source.ownerKey}:${artifact.id}`;
+        const key = `${source.publicationId}:${contentIdentity}`;
+        const group = groups.get(key) ?? [];
+        group.push({ artifact, publicationId: source.publicationId, ownerKey: source.ownerKey });
+        groups.set(key, group);
+        candidateCount += 1;
+        if (candidateCount > 1024) throw new Error("Project has too many related PDFs");
+      }
+    }),
+  );
+  return [...groups.values()]
+    .map((candidates) => {
+      candidates.sort(
+        (first, second) =>
+          Number(second.ownerKey === identity.ownerKey) - Number(first.ownerKey === identity.ownerKey) ||
+          first.ownerKey.localeCompare(second.ownerKey) ||
+          first.artifact.id.localeCompare(second.artifact.id),
+      );
+      const selected = candidates[0]!;
+      const digest = /^sha256:([a-f0-9]{64})$/u.exec(selected.artifact.fingerprint)?.[1];
+      const id = digest
+        ? `pdf-choice:${selected.publicationId}:${digest}`
+        : `pdf-choice:${selected.publicationId}:artifact:${selected.ownerKey}:${selected.artifact.id}`;
+      return {
+        pdf: {
+          id,
+          referenceId: selected.publicationId,
+          name: selected.artifact.name,
+          size: selected.artifact.size,
+          fingerprint: selected.artifact.fingerprint,
+          ...(selected.ownerKey === identity.ownerKey ? { ownArtifactId: selected.artifact.id } : {}),
+        },
+        candidates,
+      };
+    })
+    .sort((first, second) => first.pdf.referenceId.localeCompare(second.pdf.referenceId) || first.pdf.id.localeCompare(second.pdf.id));
+}
+
+async function downloadProjectReferencePdf(context: WorkspaceRouteContext, pdfId: string): Promise<Response> {
+  const { request, env } = context;
+  const choice = (await projectReferencePdfChoices(context)).find(
+    ({ pdf, candidates }) => pdf.id === pdfId || candidates.some(({ artifact }) => artifact.id === pdfId),
+  );
+  if (!choice) return jsonError("Reference PDF not found", 404);
+  for (const candidate of choice.candidates) {
+    const response = await downloadR2Object(request, env.PAPERS, candidate.artifact.objectKey, {
+      cacheControl: "private, no-store",
+      contentDisposition: `inline; filename="${safeFilename(candidate.artifact.name)}"`,
+    });
+    if (response) return response;
+  }
+  return jsonError("Reference PDF not found", 404);
 }
 
 async function accessSharedResearch(

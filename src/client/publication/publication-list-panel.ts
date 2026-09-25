@@ -189,7 +189,7 @@ export class PublicationListPanel extends LightDomElement {
         return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
       });
     const referencePapers = this.data.referencePdfs
-      .filter((pdf) => pdf.referenceId === publicationId && this.data.projectReferences.some((link) => link.referenceId === publicationId))
+      .filter((pdf) => pdf.referenceId === publicationId)
       .map((pdf) => ({ kind: "reference" as const, pdf }));
     return [...referencePapers, ...projectPapers];
   }

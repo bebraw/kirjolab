@@ -3733,8 +3733,8 @@ test("shares linked reference PDFs with members but not public links", async ({ 
 
   const projectUse = page.locator("#library-project-use");
   await page.getByText("Project sharing", { exact: true }).click();
-  await expect(projectUse).toContainText("Available to project members");
-  await expect(projectUse).toContainText("Public read-only and edit links never include reference PDFs");
+  await expect(projectUse).toContainText("Reference in project");
+  await expect(projectUse).toContainText("Share your Library source below to make its PDFs available to signed-in members");
   await expect(projectUse.getByRole("button", { name: "Add reference to project" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeEnabled();
   await expect(projectUse.getByRole("button", { name: /Share PDF|Revoke PDF/u })).toHaveCount(0);
@@ -3755,7 +3755,13 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   });
   const memberPdfs = await memberContext.request.get(`${api}/reference-pdfs`);
   expect(memberPdfs.status()).toBe(200);
-  expect(await memberPdfs.json()).toEqual(referencePdfs);
+  expect(
+    ((await memberPdfs.json()) as Array<{ id: string; name: string; referenceId: string }>).map(({ id, name, referenceId }) => ({
+      id,
+      name,
+      referenceId,
+    })),
+  ).toEqual(referencePdfs.map(({ id, name, referenceId }) => ({ id, name, referenceId })));
   const memberPdf = await memberContext.request.get(`${api}/reference-pdfs/${referencePdfId}`);
   expect([200, 206]).toContain(memberPdf.status());
   expect(memberPdf.headers()["content-type"]).toContain("application/pdf");
@@ -3830,6 +3836,126 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect.poll(async () => await page.locator("#context-library-scroll").evaluate((element) => element.scrollTop)).toBe(160);
   await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[writer2026].\n");
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("writer2026");
+});
+
+test("lets a member link and revoke their private PDF source for a project reference", async ({ page, browser }) => {
+  const workspaceId = await createWorkspace(page, "Member PDF source links");
+  const api = `/api/workspaces/${workspaceId}`;
+  const origin = "http://127.0.0.1:8788";
+  const ownerBytes = createEvidencePdf("Owner's cited PDF");
+  const ownerUpload = await page.request.post("/api/library/pdfs", {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "owner-citation.pdf" },
+    data: ownerBytes,
+  });
+  expect(ownerUpload.status()).toBe(201);
+  const ownerDraft = (await ownerUpload.json()) as { reference: { id: string; referenceKey: string } };
+  expect(
+    (
+      await page.request.post(`${api}/references`, {
+        headers: { origin },
+        data: { referenceId: ownerDraft.reference.id, citationAlias: ownerDraft.reference.referenceKey },
+      })
+    ).status(),
+  ).toBe(201);
+  expect(
+    (
+      await page.request.post(`${api}/members`, {
+        headers: { origin },
+        data: { email: "pdf-contributor@example.org" },
+      })
+    ).status(),
+  ).toBe(201);
+
+  const member = await browser.newContext({
+    baseURL: origin,
+    extraHTTPHeaders: { "x-kirjolab-local-user": "pdf-contributor@example.org" },
+  });
+  const memberBytes = createEvidencePdf("Contributor's separate PDF");
+  const memberUpload = await member.request.post("/api/library/pdfs", {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "contributor.pdf" },
+    data: memberBytes,
+  });
+  expect(memberUpload.status()).toBe(201);
+  const memberDraft = (await memberUpload.json()) as { reference: { id: string }; artifact: { id: string } };
+  expect(
+    (
+      await member.request.post(`${api}/library-source-links`, {
+        headers: { origin },
+        data: { publicationId: ownerDraft.reference.id, libraryReferenceId: memberDraft.reference.id },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await member.request.post(`${api}/library-source-links`, {
+        headers: { origin },
+        data: { publicationId: ownerDraft.reference.id, libraryReferenceId: ownerDraft.reference.id, confirmAllPdfs: true },
+      })
+    ).status(),
+  ).toBe(404);
+  const before = (await (await member.request.get(`${api}/reference-pdfs`)).json()) as Array<{ id: string; name: string }>;
+  expect(before.map(({ name }) => name)).toEqual(["owner-citation.pdf"]);
+
+  const memberPage = await member.newPage();
+  await memberPage.goto(`/editor/${workspaceId}`);
+  await memberPage.getByRole("tab", { name: "Library", exact: true }).click();
+  const memberCard = memberPage.locator("#reference-library-list .library-reference-row").filter({ hasText: "contributor" });
+  await expect(memberCard).toBeVisible();
+  await memberCard.locator("button.library-reference-open").click();
+  await memberPage.getByRole("button", { name: "Annotations", exact: true }).click();
+  await memberPage.getByText("Project sharing", { exact: true }).click();
+  const sourceControl = memberPage.locator("#library-project-use");
+  await expect(sourceControl).toContainText("All PDFs now or later attached");
+  await sourceControl.locator('input[type="checkbox"]').check();
+  await sourceControl.getByRole("button", { name: "Share Library source with project" }).click();
+  await expect(sourceControl).toContainText("Library PDFs are available to project members.");
+  const link = ((await (await member.request.get(`${api}/library-source-links`)).json()) as Array<{ id: string; active: boolean }>).find(
+    ({ active }) => active,
+  );
+  expect(link).toBeDefined();
+  const visible = (await (await member.request.get(`${api}/reference-pdfs`)).json()) as Array<{ id: string; name: string }>;
+  expect(visible.map(({ name }) => name).sort()).toEqual(["contributor.pdf", "owner-citation.pdf"]);
+  const contributed = visible.find(({ name }) => name === "contributor.pdf");
+  expect(contributed).toBeDefined();
+  const downloaded = await page.request.get(`${api}/reference-pdfs/${encodeURIComponent(contributed!.id)}`);
+  expect([200, 206]).toContain(downloaded.status());
+  expect(await downloaded.body()).toEqual(memberBytes);
+  const ownLinks = (await (await member.request.get(`${api}/library-source-links`)).json()) as Array<{ libraryReferenceId: string }>;
+  expect(ownLinks[0]?.libraryReferenceId).toBe(memberDraft.reference.id);
+  const ownerLinks = (await (await page.request.get(`${api}/library-source-links`)).json()) as Array<{ libraryReferenceId?: string }>;
+  expect(ownerLinks[0]?.libraryReferenceId).toBeUndefined();
+
+  await sourceControl.getByRole("button", { name: "Remove Library source from project" }).click();
+  await expect(sourceControl).toContainText("Library source removed from this project.");
+  expect((await page.request.get(`${api}/reference-pdfs/${encodeURIComponent(contributed!.id)}`)).status()).toBe(404);
+  expect([200, 206]).toContain((await member.request.get(`/api/library/pdfs/${memberDraft.artifact.id}`)).status());
+
+  const duplicateUpload = await member.request.post("/api/library/pdfs", {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "my-owner-copy.pdf" },
+    data: ownerBytes,
+  });
+  expect(duplicateUpload.status()).toBe(201);
+  const duplicateDraft = (await duplicateUpload.json()) as { reference: { id: string } };
+  const duplicateLink = await member.request.post(`${api}/library-source-links`, {
+    headers: { origin },
+    data: { publicationId: ownerDraft.reference.id, libraryReferenceId: duplicateDraft.reference.id, confirmAllPdfs: true },
+  });
+  expect(duplicateLink.status()).toBe(201);
+  const duplicateLinkId = ((await duplicateLink.json()) as { id: string }).id;
+  const ownerChoice = (await (await page.request.get(`${api}/reference-pdfs`)).json()) as Array<{ id: string; name: string }>;
+  const memberChoice = (await (await member.request.get(`${api}/reference-pdfs`)).json()) as Array<{ id: string; name: string }>;
+  expect(ownerChoice).toHaveLength(1);
+  expect(memberChoice).toHaveLength(1);
+  expect(ownerChoice[0]?.id).toBe(memberChoice[0]?.id);
+  expect(ownerChoice[0]?.name).toBe("owner-citation.pdf");
+  expect(memberChoice[0]?.name).toBe("my-owner-copy.pdf");
+  expect((await page.request.delete(`${api}/library-source-links/${duplicateLinkId}`, { headers: { origin } })).status()).toBe(204);
+  const afterDuplicateRevocation = (await (await member.request.get(`${api}/reference-pdfs`)).json()) as Array<{
+    id: string;
+    name: string;
+  }>;
+  expect(afterDuplicateRevocation.map(({ id, name }) => ({ id, name }))).toEqual(ownerChoice.map(({ id, name }) => ({ id, name })));
+  await member.close();
 });
 
 test("uploads a bounded PDF batch with partial success and retry", async ({ page }) => {

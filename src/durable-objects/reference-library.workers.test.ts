@@ -170,6 +170,17 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       artifact,
     });
     expect((await library.getSnapshot()).artifacts).toContainEqual(artifact);
+    expect(await library.getProjectPdfArtifacts(reference.id)).toEqual([artifact]);
+    const later = {
+      ...artifact,
+      id: crypto.randomUUID(),
+      name: "appendix.pdf",
+      objectKey: `libraries/owner/${crypto.randomUUID()}.pdf`,
+      fingerprint: "sha256:appendix",
+    };
+    await library.attachPdf(reference.id, later);
+    expect(await library.getProjectPdfArtifacts(reference.id)).toEqual(expect.arrayContaining([artifact, later]));
+    expect(await library.getProjectPdfArtifacts(crypto.randomUUID())).toBeNull();
   });
 
   it("bounds ephemeral metadata previews and invalidates them after a metadata change", async () => {

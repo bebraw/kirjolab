@@ -686,6 +686,48 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(operationValue(await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
   });
 
+  it("keeps contributor source-link provenance after revocation and project-reference removal", async () => {
+    const workspaceId = `source-links-${crypto.randomUUID()}`;
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    const reference = {
+      id: crypto.randomUUID(),
+      referenceKey: "source2026",
+      type: "article",
+      title: "Shared source",
+      authors: [],
+      year: "2026",
+      venue: "",
+      doi: "",
+      url: "",
+      abstract: "",
+      provenance: {},
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: "2026-09-25T10:00:00.000Z",
+      updatedAt: "2026-09-25T10:00:00.000Z",
+    } as const;
+    await stub.linkProjectReference(workspaceId, reference, reference.referenceKey);
+    const contributor = "contributor@example.test";
+    const sourceId = crypto.randomUUID();
+    const first = await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor);
+    expect(await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor)).toEqual(first);
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([first]);
+    expect(await stub.revokeLibrarySource(workspaceId, first.id, contributor)).toMatchObject({ revokedBy: contributor });
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([]);
+    const second = await stub.linkLibrarySource(workspaceId, reference.id, "contributor-owner", sourceId, contributor);
+    expect(second.id).not.toBe(first.id);
+    operationValue(await stub.unlinkProjectReference(workspaceId, reference.id));
+    expect(await stub.listLibrarySourceLinks(workspaceId)).toEqual([]);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const rows = state.storage.sql
+        .exec<{ revoked_at: string | null }>("SELECT revoked_at FROM project_library_source_links ORDER BY created_at, id")
+        .toArray();
+      expect(rows).toHaveLength(2);
+      expect(rows.every(({ revoked_at }) => revoked_at !== null)).toBe(true);
+    });
+  });
+
   it("pins an exact web capture and changes it only through explicit repinning", async () => {
     const workspaceId = "versioned-web-reference";
     const stub = roomStub(workspaceId);

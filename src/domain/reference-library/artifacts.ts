@@ -60,6 +60,19 @@ export interface ProjectReferencePdf {
   readonly name: string;
   readonly size: number;
   readonly fingerprint: string;
+  readonly ownArtifactId?: string;
+}
+
+/** A project choice to expose PDFs attached to one contributor-owned Library source. */
+export interface ProjectLibrarySourceLink {
+  readonly id: string;
+  readonly publicationId: string;
+  readonly ownerKey: string;
+  readonly libraryReferenceId: string;
+  readonly contributedBy: string;
+  readonly createdAt: string;
+  readonly revokedBy: string | null;
+  readonly revokedAt: string | null;
 }
 
 export interface PdfDraftResult {
@@ -141,15 +154,17 @@ export function isProjectReferencePdfs(value: unknown): value is ProjectReferenc
     value.every(
       (item) =>
         isRecord(item) &&
-        Object.keys(item).length === 5 &&
+        (Object.keys(item).length === 5 || Object.keys(item).length === 6) &&
         ["id", "referenceId", "name", "size", "fingerprint"].every((key) => key in item) &&
+        Object.keys(item).every((key) => ["id", "referenceId", "name", "size", "fingerprint", "ownArtifactId"].includes(key)) &&
         typeof item.id === "string" &&
         typeof item.referenceId === "string" &&
         typeof item.name === "string" &&
         typeof item.size === "number" &&
         Number.isInteger(item.size) &&
         item.size >= 0 &&
-        typeof item.fingerprint === "string",
+        typeof item.fingerprint === "string" &&
+        (item.ownArtifactId === undefined || typeof item.ownArtifactId === "string"),
     )
   );
 }

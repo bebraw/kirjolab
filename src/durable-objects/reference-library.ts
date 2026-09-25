@@ -411,6 +411,18 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return { artifact, reference: artifact.referenceId ? this.#reference(artifact.referenceId) : null };
   }
 
+  getProjectPdfArtifacts(referenceId: string): LibraryPdfArtifact[] | null {
+    const reference = this.ctx.storage.sql
+      .exec<{ id: string }>("SELECT id FROM library_references WHERE id = ? AND deleted_at IS NULL LIMIT 1", referenceId)
+      .toArray()[0];
+    if (!reference) return null;
+    const rows = this.ctx.storage.sql
+      .exec<ArtifactRow>("SELECT * FROM artifacts WHERE reference_id = ? ORDER BY created_at, id LIMIT 513", referenceId)
+      .toArray();
+    if (rows.length > 512) throw new Error("Project Library source has too many PDFs");
+    return rows.map(artifactFromRow);
+  }
+
   async getBackupSnapshot(): Promise<{ snapshot: ReferenceLibrarySnapshot; bookmark: string | null }> {
     const snapshot = this.getSnapshot(true);
     return { snapshot, bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE) };

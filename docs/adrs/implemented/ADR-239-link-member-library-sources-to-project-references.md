@@ -1,10 +1,10 @@
 # ADR-239: Link Member Library Sources to Project References
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-09-25
 
-**Would amend:** [ADR-155](../implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)
+**Amends:** [ADR-155](./ADR-155-authorize-linked-pdfs-by-project-membership.md)
 
 ## Context
 

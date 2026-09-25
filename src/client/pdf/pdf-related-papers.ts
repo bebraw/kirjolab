@@ -17,13 +17,17 @@ export function relatedPaperGroups(
 ): readonly RelatedPaperGroup[] {
   if (!tab || !snapshot || (tab.kind !== "pdf" && tab.kind !== "library-pdf")) return [];
 
-  const linkedReferenceIds = new Set(snapshot.projectReferences.map(({ referenceId }) => referenceId));
+  const linkedReferenceIds = new Set([
+    ...snapshot.projectReferences.map(({ referenceId }) => referenceId),
+    ...referencePdfs.map(({ referenceId }) => referenceId),
+  ]);
   const activeReferenceIds =
     tab.kind === "pdf"
       ? snapshot.publicationPdfLinks.filter(({ pdfId }) => pdfId === tab.id).map(({ publicationId }) => publicationId)
       : [
           library?.artifacts.find(({ id }) => id === tab.id)?.referenceId,
           referencePdfs.find(({ id }) => id === tab.id)?.referenceId,
+          referencePdfs.find(({ ownArtifactId }) => ownArtifactId === tab.id)?.referenceId,
         ].filter((id): id is string => Boolean(id && linkedReferenceIds.has(id)));
 
   return [...new Set(activeReferenceIds)].flatMap((referenceId) => {
@@ -36,9 +40,12 @@ export function relatedPaperGroups(
         return pdf && pdf.id !== tab.id ? [{ kind: "project" as const, pdf, linkId: id }] : [];
       });
     const referencePapers: PublicationPaperOption[] = referencePdfs
-      .filter(({ referenceId: candidateId, id }) => candidateId === referenceId && id !== tab.id && linkedReferenceIds.has(referenceId))
+      .filter(
+        ({ referenceId: candidateId, id, ownArtifactId }) =>
+          candidateId === referenceId && id !== tab.id && ownArtifactId !== tab.id && linkedReferenceIds.has(referenceId),
+      )
       .map((pdf) => {
-        const artifact = library?.artifacts.find(({ id }) => id === pdf.id);
+        const artifact = library?.artifacts.find(({ id }) => id === (pdf.ownArtifactId ?? pdf.id));
         return artifact ? { kind: "library", artifact } : { kind: "reference", pdf };
       });
     const papers = [...projectPapers, ...referencePapers];

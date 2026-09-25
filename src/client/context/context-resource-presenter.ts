@@ -571,6 +571,8 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   async openReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
+    const ownArtifact = pdf.ownArtifactId ? this.boundLibrary()?.artifacts.find(({ id }) => id === pdf.ownArtifactId) : undefined;
+    if (ownArtifact) return await this.openLibraryPdf(ownArtifact, page, updateHistory);
     this.preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
     const binding = this.contextPresentation;
     if (binding?.projectApiBase !== null && updateHistory) binding?.owners.workspaceSurfaceSwitcher.syncRoute("push");
@@ -647,7 +649,10 @@ export class ContextResourcePresenter extends LightDomController {
       .map((artifact) => ({ kind: "library" as const, artifact }));
     const localArtifactIds = new Set(libraryPapers.map(({ artifact }) => artifact.id));
     const referencePapers = this.referencePdfs
-      .filter(({ id, referenceId }) => referenceId === publication.id && !localArtifactIds.has(id))
+      .filter(
+        ({ id, ownArtifactId, referenceId }) =>
+          referenceId === publication.id && !localArtifactIds.has(id) && !localArtifactIds.has(ownArtifactId ?? ""),
+      )
       .map((pdf) => ({ kind: "reference" as const, pdf }));
     const papers: readonly PublicationPaperOption[] = [...libraryPapers, ...referencePapers, ...projectPapers];
     const page = citationPageFromLocator(citation.locator);
@@ -1691,7 +1696,9 @@ export class ContextResourcePresenter extends LightDomController {
 
   private activeLibraryArtifact(sources: ContextResourceSources): LibraryPdfArtifact | undefined {
     const tab = sources.activeTab;
-    return tab?.kind === "library-pdf" ? sources.library?.artifacts.find(({ id }) => id === tab.id) : undefined;
+    if (tab?.kind !== "library-pdf") return undefined;
+    const ownArtifactId = sources.referencePdfs.find(({ id }) => id === tab.id)?.ownArtifactId;
+    return sources.library?.artifacts.find(({ id }) => id === (ownArtifactId ?? tab.id));
   }
 
   private presentLibraryPdf(
@@ -1710,6 +1717,7 @@ export class ContextResourcePresenter extends LightDomController {
       library: sources.library,
       projectApiBase: sources.projectApiBase,
       projectReferences: sources.snapshot?.projectReferences ?? [],
+      projectPublications: sources.snapshot?.publications ?? [],
       researchShares: sources.snapshot?.researchShares ?? [],
     });
     if (artifactChanged) {

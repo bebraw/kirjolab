@@ -13,8 +13,8 @@ Each private Library currently stores a PDF under an owner-scoped R2 key and
 deduplicates exact uploads only within that owner's Library. Project PDFs
 have separate project-scoped objects, including copies made for duplicated
 or revision-seeded projects. Multiple Libraries and projects can therefore
-store identical PDF bytes independently. Proposed
-[ADR-239](../proposed/ADR-239-link-member-library-sources-to-project-references.md)
+store identical PDF bytes independently.
+[ADR-239](./ADR-239-link-member-library-sources-to-project-references.md)
 lets several members link their private Library sources to one project
 publication. Showing one choice for identical PDFs would still leave redundant
 physical copies unless storage identity is separated from Library ownership.
