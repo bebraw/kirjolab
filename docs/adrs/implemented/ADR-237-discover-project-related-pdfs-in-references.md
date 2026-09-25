@@ -1,6 +1,6 @@
 # ADR-237: Discover Project-Related PDFs in References
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-09-25
 

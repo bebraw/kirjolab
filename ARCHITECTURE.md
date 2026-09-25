@@ -1010,8 +1010,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project publication Lit list own DOI-enrichment transport, stable
   encoded publication targets, duplicate-submit gating, retryable local
   failures, and its publication and project-reference projection from the
-  canonical workspace snapshot. Route enrichment, Library management, and
-  context navigation through one typed binding while keeping canonical
+  canonical workspace snapshot. Project-related PDF actions derive only from
+  authorized linked-reference PDFs and explicit project publication-PDF links;
+  route one paper directly and several through publication Context. Route
+  enrichment, Library management, and context navigation through one typed
+  binding while keeping canonical
   workspace refresh and notification policy in the application coordinator.
 - Keep bounded PDF batch execution, upload transport and response guards,
   partial-failure progress, ephemeral retries, duplicate-submit gating, and

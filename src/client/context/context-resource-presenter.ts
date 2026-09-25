@@ -803,6 +803,7 @@ export class ContextResourcePresenter extends LightDomController {
         void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
       manage: (publicationId) => void owners.referenceLibraryWorkspace.openAvailableReference(publicationId),
       open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
+      openPaper: (paper) => void this.openPublicationPaper(paper),
     });
     const map = this.element("project-map", ProjectMapWorkspace);
     map?.configure(apiBase);
@@ -924,7 +925,7 @@ export class ContextResourcePresenter extends LightDomController {
     const selectedEvidence = workflow?.selectedEvidenceKeys ?? new Set<string>();
     this.element("project-evidence-panel", ProjectEvidencePanel)?.setEvidence(snapshot, selectedEvidence);
     this.element("project-annotation-form", ProjectAnnotationForm)?.setPdfs(snapshot.pdfs, renderedPdfId ?? "");
-    this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot);
+    this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot, this.referencePdfs);
     this.element("claim-list-panel", ClaimListPanel)?.setWorkspace(snapshot, selectedEvidence);
     this.presentComments(snapshot.comments);
     this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);

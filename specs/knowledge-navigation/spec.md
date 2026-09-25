@@ -144,9 +144,14 @@ connection without reconstructing identity from a citation key or filename.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure
-  state, one typed binding for navigation, management, and completed enrichment,
-  and its publication and
-  project-reference projection from the canonical workspace snapshot. Context
+  state, one typed binding for navigation, management, paper opening, and
+  completed enrichment, and its publication and project-reference projection
+  from the canonical workspace snapshot. A linked reference shows Open PDF for
+  one connected PDF or Choose PDF for several, using the authorized reference-
+  PDF catalog and explicit project publication-PDF links. The former opens the
+  reader directly; the latter opens publication Context for selection. Neither
+  unrelated private Library PDFs nor manuscript citation text establish project
+  relevance. Context
   navigation, Library management, canonical refresh, and workspace notification
   policy remain with the application coordinator.
   reflows. Connector coordinates must use the rendered canvas dimensions rather

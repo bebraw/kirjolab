@@ -13,8 +13,8 @@ models these relationships explicitly and does not designate one PDF as the
 canonical artifact. [ADR-053](../implemented/ADR-053-use-a-tabbed-research-context-pane.md)
 gives each PDF its own resource-keyed Context tab and reading position.
 
-[ADR-237](./ADR-237-discover-project-related-pdfs-in-references.md) proposes
-discovering project-related papers in the Research rail. Its multiple-PDF
+[ADR-237](../implemented/ADR-237-discover-project-related-pdfs-in-references.md) adds
+project-related paper discovery to the Research rail. Its multiple-PDF
 action opens the publication Context to choose a paper. Once a researcher is
 reading one of those PDFs, returning to the publication Context merely to
 inspect another connected PDF interrupts reading. The reader already has an

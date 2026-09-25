@@ -2,14 +2,21 @@ import { html, nothing, type TemplateResult } from "lit";
 
 import { LightDomElement } from "../platform/light-dom-controller";
 import { bibTeXDisplayText } from "../../domain/reference-library/bibliography";
+import type { ProjectReferencePdf } from "../../domain/reference-library";
 import type { PublicationResource, WorkspaceSnapshot } from "../../domain/workspace/workspace";
 import { errorMessage, expectOk } from "../platform/http";
+import type { PublicationPaperOption } from "./publication-context-panel";
 
 export interface PublicationListBinding {
   readonly enriched: (message: string) => void;
   readonly manage: (publicationId: string) => void;
   readonly open: (publication: PublicationResource) => void;
+  readonly openPaper: (paper: PublicationPaperOption) => void;
 }
+
+type PublicationListData = Pick<WorkspaceSnapshot, "pdfs" | "projectReferences" | "publicationPdfLinks" | "publications"> & {
+  readonly referencePdfs: readonly ProjectReferencePdf[];
+};
 
 export class PublicationListPanel extends LightDomElement {
   static override properties = {
@@ -18,7 +25,7 @@ export class PublicationListPanel extends LightDomElement {
     status: { state: true },
   };
 
-  declare private data: Pick<WorkspaceSnapshot, "projectReferences" | "publications">;
+  declare private data: PublicationListData;
   declare private enrichingPublicationId: string;
   declare private status: string;
   private apiBase = "";
@@ -26,7 +33,7 @@ export class PublicationListPanel extends LightDomElement {
 
   constructor() {
     super();
-    this.data = { projectReferences: [], publications: [] };
+    this.data = { pdfs: [], projectReferences: [], publicationPdfLinks: [], publications: [], referencePdfs: [] };
     this.enrichingPublicationId = "";
     this.status = "";
   }
@@ -39,8 +46,16 @@ export class PublicationListPanel extends LightDomElement {
     this.binding = binding;
   }
 
-  setWorkspace({ projectReferences, publications }: Pick<WorkspaceSnapshot, "projectReferences" | "publications">): void {
-    this.data = { projectReferences, publications };
+  setWorkspace(
+    {
+      pdfs,
+      projectReferences,
+      publicationPdfLinks,
+      publications,
+    }: Pick<WorkspaceSnapshot, "pdfs" | "projectReferences" | "publicationPdfLinks" | "publications">,
+    referencePdfs: readonly ProjectReferencePdf[],
+  ): void {
+    this.data = { pdfs, projectReferences, publicationPdfLinks, publications, referencePdfs };
   }
 
   protected override render(): TemplateResult {
@@ -63,7 +78,11 @@ export class PublicationListPanel extends LightDomElement {
     if (!publication) return;
     const action = button.dataset.publicationAction;
     if (action === "open") this.binding?.open(publication);
-    else if (action === "manage") this.binding?.manage(publication.id);
+    else if (action === "paper") {
+      const papers = this.papersFor(publication.id);
+      if (papers.length === 1) this.binding?.openPaper(papers[0]!);
+      else if (papers.length > 1) this.binding?.open(publication);
+    } else if (action === "manage") this.binding?.manage(publication.id);
     else if (action === "enrich") void this.enrichPublication(publication.id);
   }
 
@@ -88,6 +107,7 @@ export class PublicationListPanel extends LightDomElement {
 
   private renderPublication(publication: PublicationResource): TemplateResult {
     const projectReference = this.data.projectReferences.find((link) => link.referenceId === publication.id);
+    const papers = this.papersFor(publication.id);
     const details = [bibTeXDisplayText(publication.authors.join("; ")), publication.year, bibTeXDisplayText(publication.venue)]
       .filter(Boolean)
       .join(" · ");
@@ -106,6 +126,19 @@ export class PublicationListPanel extends LightDomElement {
           >
             Open in context
           </button>
+          ${
+            papers.length > 0
+              ? html`<button
+                  type="button"
+                  class="button-secondary"
+                  data-publication-id=${publication.id}
+                  data-publication-action="paper"
+                  @click=${this.actOnPublication}
+                >
+                  ${papers.length === 1 ? "Open PDF" : "Choose PDF"}
+                </button>`
+              : nothing
+          }
           ${
             projectReference
               ? html`
@@ -146,6 +179,19 @@ export class PublicationListPanel extends LightDomElement {
         </div>
       </article>
     `;
+  }
+
+  private papersFor(publicationId: string): PublicationPaperOption[] {
+    const projectPapers = this.data.publicationPdfLinks
+      .filter((link) => link.publicationId === publicationId)
+      .flatMap((link) => {
+        const pdf = this.data.pdfs.find((item) => item.id === link.pdfId);
+        return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
+      });
+    const referencePapers = this.data.referencePdfs
+      .filter((pdf) => pdf.referenceId === publicationId && this.data.projectReferences.some((link) => link.referenceId === publicationId))
+      .map((pdf) => ({ kind: "reference" as const, pdf }));
+    return [...referencePapers, ...projectPapers];
   }
 }
 

@@ -1190,7 +1190,7 @@ describe("context resource presenter", () => {
     expect(reconcileEvidence).toHaveBeenCalledWith(snapshot.annotations, snapshot.claims);
     expect(setEvidence).toHaveBeenCalledWith(snapshot, expect.any(Set));
     expect(setPdfs).toHaveBeenCalledWith(snapshot.pdfs, "pdf-1");
-    expect(setWorkspace).toHaveBeenCalledWith(snapshot);
+    expect(setWorkspace).toHaveBeenCalledWith(snapshot, presenter.referencePdfs);
     expect(setClaims).toHaveBeenCalledWith(snapshot, expect.any(Set));
     expect(setComments).toHaveBeenCalledWith(snapshot.comments);
     expect(setCommentCount).toHaveBeenCalledWith(3);
@@ -1283,6 +1283,7 @@ describe("context resource presenter", () => {
     listBind.mock.calls[0]?.[0].enriched("Reference enriched.");
     listBind.mock.calls[0]?.[0].manage(publication.id);
     listBind.mock.calls[0]?.[0].open(publication);
+    listBind.mock.calls[0]?.[0].openPaper({ kind: "reference", pdf: referencePdf });
 
     expect(completeProjectMutation).toHaveBeenNthCalledWith(
       1,
@@ -1316,6 +1317,7 @@ describe("context resource presenter", () => {
     expect(routes.presentNotice).toHaveBeenCalledWith("Comment notice.");
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(insertActiveCitation).toHaveBeenCalledOnce();
+    expect(openPublicationPaper).toHaveBeenCalledTimes(2);
     expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
     expect(library.openAvailableReference).toHaveBeenCalledWith(publication.id);
     expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
