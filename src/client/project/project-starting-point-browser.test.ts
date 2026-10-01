@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { nothing, type TemplateResult } from "lit";
+import { isTemplateResult } from "lit/directive-helpers.js";
 import type { ProjectTemplateSummary } from "../../domain/project/project-templates";
 import type { WorkspaceSummary } from "../../domain/workspace/workspace";
 import type { DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
@@ -43,6 +45,20 @@ const workspace: WorkspaceSummary = {
   title: "Existing project",
   updatedAt: "2026-07-25T00:00:00.000Z",
 };
+
+function templateText(value: unknown): string {
+  if (value === nothing || value === null || value === undefined || typeof value === "boolean") return "";
+  if (Array.isArray(value)) return value.map(templateText).join("");
+  if (isTemplateResult(value, 1))
+    return value.strings.reduce((result, part, index) => result + part + templateText(value.values[index]), "");
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function binding(template: TemplateResult, marker: string): unknown {
+  const index = template.strings.findIndex((part) => part.includes(marker));
+  if (index < 0) throw new Error(`Missing rendered binding: ${marker}`);
+  return template.values[index];
+}
 
 class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
   active: Element | null = null;
@@ -174,6 +190,104 @@ afterEach(() => {
 });
 
 describe("project starting point browser", () => {
+  it("presents the catalog, structure and publication setup before enabling project creation", () => {
+    vi.stubGlobal("document", { body: { dataset: { workspaceId: "workspace-1" } } });
+    const browser = new TestProjectStartingPointBrowser();
+    browser.setData([builtIn, personal], [workspace]);
+    let view = browser.renderForTest();
+    let text = templateText(view);
+    for (const label of [
+      "Built in",
+      "Your templates",
+      "Existing projects",
+      "Built-in template",
+      "Guided structure",
+      "Current project · copy its latest reusable structure.",
+    ])
+      expect(text).toContain(label);
+    expect(text.match(/class="template-choice-name">Guided project/gu)).toHaveLength(1);
+    expect(text.match(/class="template-choice-name">Personal project/gu)).toHaveLength(1);
+    expect(text).toContain("<strong>2</strong><span>Markdown files</span>");
+    expect(text).toContain("<strong>1</strong><span>folder</span>");
+    expect(text).toContain("<strong>Included</strong><span>bibliography</span>");
+    expect(text).toContain('data-kind="file">main.md</li>');
+    expect(text).toContain('data-kind="folder">notes</li>');
+    expect(text).toContain('data-kind="more">+ 1 more</li>');
+    expect(text).toContain("<dd>Article</dd>");
+    expect(text).toContain("<dd>APA · en-US</dd>");
+    expect(text).toContain("<dd>A4</dd>");
+    expect(text).toContain("Choose a starting point from the template list.");
+    expect(binding(view, 'id="create-workspace"')).toBe(true);
+    expect(binding(view, "?hidden=")).toBe(false);
+    browser.chooseTemplateForTest(personal);
+    view = browser.renderForTest();
+    text = templateText(view);
+    expect(text).toContain("Personal template");
+    expect(text).toContain("Selected starting point");
+    expect(text).toContain("Using “Personal project”. The new project will be an independent copy.");
+    expect(text.match(/class="template-choice-name">Personal project/gu)).toHaveLength(1);
+    expect(binding(view, 'id="create-workspace"')).toBe(false);
+    browser.configure({ github: false });
+    expect(binding(browser.renderForTest(), "?hidden=")).toBe(true);
+    browser.setTemplateHidden(personal.id, true);
+    expect(templateText(browser.renderForTest())).toContain("Choose a starting point.");
+    expect(binding(browser.renderForTest(), 'id="create-workspace"')).toBe(true);
+  });
+
+  it("shows singular counts, empty bibliography and alternate publication settings without hidden paths", () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const template: ProjectTemplateSummary = {
+      ...builtIn,
+      preview: {
+        fileCount: 1,
+        files: ["essay.md"],
+        folderCount: 0,
+        folders: [],
+        hasBibliography: false,
+        paperSize: "letter",
+        submissionTemplate: "journal-two-column",
+        citationStyle: "ieee",
+        locale: "fi-FI",
+      },
+    };
+    browser.setData([template], []);
+    const text = templateText(browser.renderForTest());
+    expect(text).toContain("<strong>1</strong><span>Markdown file</span>");
+    expect(text).toContain("<strong>0</strong><span>folders</span>");
+    expect(text).toContain("<strong>Empty</strong><span>bibliography</span>");
+    expect(text).toContain('data-kind="file">essay.md</li>');
+    expect(text).not.toContain('data-kind="more"');
+    expect(text).toContain("<dd>Journal Two Column</dd>");
+    expect(text).toContain("<dd>IEEE · fi-FI</dd>");
+    expect(text).toContain("<dd>US Letter</dd>");
+  });
+
+  it("keeps a project source unselected while loading and ignores superseded results", async () => {
+    vi.stubGlobal("document", { body: { dataset: {} } });
+    const browser = new TestProjectStartingPointBrowser();
+    let resolve: (response: Response) => void = () => undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(
+        new Promise<Response>((done) => {
+          resolve = done;
+        }),
+      ),
+    );
+    browser.setData([builtIn], [workspace]);
+    const pending = browser.chooseProjectForTest(workspace);
+    expect(templateText(browser.renderForTest())).toContain("Loading the project structure…");
+    expect(templateText(browser.renderForTest())).toContain("Loading “Existing project”…");
+    expect(binding(browser.renderForTest(), 'id="create-workspace"')).toBe(true);
+    browser.chooseTemplateForTest(builtIn);
+    resolve(Response.json(projectTemplate));
+    await pending;
+    expect(templateText(browser.renderForTest())).toContain("Built-in template");
+    expect(templateText(browser.renderForTest())).not.toContain("Using “Existing project”");
+    browser.setData([], []);
+    expect(templateText(browser.renderForTest())).toContain("No starting points are available.");
+  });
+
   it("does not expose the GitHub import action when the capability is unavailable", () => {
     const browser = new TestProjectStartingPointBrowser();
     const openGitHub = vi.fn();

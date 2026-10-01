@@ -1,9 +1,187 @@
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import type { WorkspaceSnapshot } from "../workspace/workspace";
 import { projectArchiveFixture, projectArchiveResearchFixture } from "../../test-support/project-archive";
 import { buildProjectArchive, inspectProjectArchive } from "./project-archive";
 
 describe("native project archives", () => {
+  const invalidGraphs: Array<{ name: string; change: (snapshot: WorkspaceSnapshot) => void }> = [
+    {
+      name: "missing entry file",
+      change: (s) => {
+        s.entryFileId = "missing";
+      },
+    },
+    {
+      name: "duplicate file identity",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, id: "entry" };
+      },
+    },
+    {
+      name: "duplicate folder identity",
+      change: (s) => {
+        s.folders[1] = { ...s.folders[1]!, id: "empty" };
+      },
+    },
+    {
+      name: "duplicate reference link identity",
+      change: (s) => {
+        s.projectReferences[1]!.id = "link";
+      },
+    },
+    {
+      name: "two aliases for one reference",
+      change: (s) => {
+        s.projectReferences[1]!.referenceId = "reference";
+        s.projectReferences[1]!.snapshot = { ...s.projectReferences[1]!.snapshot, referenceId: "reference" };
+      },
+    },
+    {
+      name: "snapshot with a different reference identity",
+      change: (s) => {
+        s.projectReferences[0]!.snapshot = { ...s.projectReferences[0]!.snapshot, referenceId: "different" };
+      },
+    },
+    {
+      name: "invalid citation alias",
+      change: (s) => {
+        s.projectReferences[0]!.citationAlias = "Not a key";
+      },
+    },
+    {
+      name: "case-insensitive path collision",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, path: "PAPER.md" };
+      },
+    },
+    {
+      name: "backslash path",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, path: "sections\\result.md" };
+      },
+    },
+    {
+      name: "noncanonical path",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, path: "sections/../result.md" };
+      },
+    },
+    {
+      name: "non-Markdown text file",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, path: "sections/result.txt" };
+      },
+    },
+    {
+      name: "path deeper than 64 segments",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, path: "nested/".repeat(64) + "result.md" };
+      },
+    },
+    {
+      name: "annotation referring to a missing PDF",
+      change: (s) => {
+        s.annotations[0]!.pdfId = "missing";
+      },
+    },
+    {
+      name: "duplicate annotation fragment",
+      change: (s) => {
+        s.annotations[0]!.fragments.push({ ...s.annotations[0]!.fragments[0]! });
+      },
+    },
+    {
+      name: "PDF link referring to a missing publication",
+      change: (s) => {
+        s.publicationPdfLinks[0]!.publicationId = "missing";
+      },
+    },
+    {
+      name: "PDF link referring to a missing PDF",
+      change: (s) => {
+        s.publicationPdfLinks[0]!.pdfId = "missing";
+      },
+    },
+    {
+      name: "duplicate publication/PDF relationship",
+      change: (s) => {
+        s.publicationPdfLinks.push({ ...s.publicationPdfLinks[0]!, id: "other" });
+      },
+    },
+    {
+      name: "evidence referring to a missing claim",
+      change: (s) => {
+        s.claimEvidenceLinks[0]!.claimId = "missing";
+      },
+    },
+    {
+      name: "evidence referring to a missing annotation",
+      change: (s) => {
+        s.claimEvidenceLinks[0]!.annotationId = "missing";
+      },
+    },
+    {
+      name: "passage referring to a missing annotation",
+      change: (s) => {
+        s.links[0]!.annotationId = "missing";
+      },
+    },
+    {
+      name: "passage referring to a missing claim",
+      change: (s) => {
+        s.claimLinks[0]!.claimId = "missing";
+      },
+    },
+    {
+      name: "resolved anchor referring to a missing file",
+      change: (s) => {
+        s.comments[0] = { ...s.comments[0]!, anchor: { ...s.comments[0]!.anchor, fileId: "missing" } };
+      },
+    },
+    {
+      name: "resolved anchor whose text differs",
+      change: (s) => {
+        s.files[1] = { ...s.files[1]!, content: "Changed.\n" };
+      },
+    },
+    {
+      name: "review pin without a file",
+      change: (s) => {
+        s.reviewArtifactPins[0] = { ...s.reviewArtifactPins[0]!, path: "review/missing.md" };
+      },
+    },
+    {
+      name: "duplicate pinned review path",
+      change: (s) => {
+        s.reviewArtifactPins.push({ ...s.reviewArtifactPins[0]! });
+      },
+    },
+    {
+      name: "research share for another project",
+      change: (s) => {
+        s.researchShares[0] = { ...s.researchShares[0]!, projectId: "other" };
+      },
+    },
+    {
+      name: "research share for a missing reference",
+      change: (s) => {
+        s.researchShares[0] = { ...s.researchShares[0]!, referenceId: "missing" };
+      },
+    },
+    {
+      name: "research share with mismatched content kind",
+      change: (s) => {
+        s.researchShares[0] = { ...s.researchShares[0]!, kind: "artifact" };
+      },
+    },
+  ];
+  it.each(invalidGraphs)("rejects $name before exporting an inconsistent graph", async ({ change }) => {
+    const { snapshot, binaries } = projectArchiveResearchFixture();
+    change(snapshot);
+    await expect(buildProjectArchive(snapshot, binaries)).rejects.toThrow();
+  });
+
   it("round-trips exact files, entry, folders, settings and uncited reference aliases", async () => {
     const source = projectArchiveFixture();
     const bytes = await buildProjectArchive(source, new Map());
