@@ -21,9 +21,10 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                   | Status   | Summary                                                                            |
+| --------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| [ADR-241](./proposed/ADR-241-add-lossless-native-project-archives.md) | Proposed | Define paired native project ZIP export and import with explicit round-trip scope. |
+| [ADR-000](./proposed/ADR-000-template.md)                             | Proposed | Template for drafting future ADRs.                                                 |
 
 ## Accepted ADRs
 
