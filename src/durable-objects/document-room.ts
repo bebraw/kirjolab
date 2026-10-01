@@ -952,6 +952,12 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   listRetainedPdfResources(workspaceId: string): Array<{ id: string; objectKey: string }> {
+    // Cleanup may be retried on the same live stub after deleteAll removed its tables.
+    if (
+      !this.ctx.storage.sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspace'").toArray()
+        .length
+    )
+      return [];
     const resources = new Map<string, { id: string; objectKey: string }>();
     const add = (id: string, objectKey: string): void => {
       resources.set(`${id}\u0000${objectKey}`, { id, objectKey });

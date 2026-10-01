@@ -794,8 +794,8 @@ export function renderHomePage(
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="eyebrow">Publication output</p>
-            <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Export composed project</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Choose a format for the composed project.</p>
+            <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Export project</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Choose publication output or a restorable project archive.</p>
           </div>
           <button class="button-secondary" id="close-export" type="button">Close</button>
         </div>
@@ -805,6 +805,7 @@ export function renderHomePage(
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.md"><span class="eyebrow">Plain text</span><strong class="mt-2 block font-sans">Markdown</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Composed manuscript</span></a>
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/source.zip"><span class="eyebrow">Archive</span><strong class="mt-2 block font-sans">Source bundle</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Files and evidence</span></a>
         </div>
+        <native-project-export api-base="/api/workspaces/${escapedWorkspaceId}"><section class="mt-5 border-t border-app-line pt-4"><p class="eyebrow">Project transfer</p><h3 class="mt-2 font-sans font-semibold">Kirjolab project (.zip)</h3><p class="ui-supporting-text mt-2">Inspect the current project scope before downloading a restorable archive.</p></section></native-project-export>
         <details class="rail-collection mt-5">
           <summary><span>Interoperability files</span></summary>
           <div class="pb-4 pt-3">
@@ -840,6 +841,7 @@ export function renderHomePage(
             <p class="ui-status" id="new-workspace-template-status" role="status">Templates and existing projects create independent projects without research history.</p>
             <div class="ui-cluster justify-end">
               <button class="button-secondary" id="open-latex-import" type="button">Import LaTeX</button>
+              <button class="button-secondary" id="open-project-import" type="button">Import Kirjolab project</button>
               <button class="button-secondary" id="open-github-import" type="button"${capabilities.github ? "" : " hidden"}>Import GitHub</button>
               <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
               <button class="button-primary" id="create-workspace" type="submit" disabled>Create project</button>
@@ -847,6 +849,10 @@ export function renderHomePage(
           </footer>
         </form>
       </project-starting-point-browser>
+    </dialog>
+
+    <dialog class="new-workspace-dialog ui-dialog" id="project-import-dialog">
+      <project-import-panel id="project-import-panel"><form class="p-5" id="project-import-form"><p class="eyebrow">Project transfer</p><h2 class="ui-heading mt-1">Import a Kirjolab project</h2><p class="ui-supporting-text mt-2">Preview a Kirjolab project ZIP before creating an independent project.</p><label class="field-label mt-5">Kirjolab project ZIP<input class="field" id="project-import-archive" type="file" accept=".zip,application/zip" required></label><p class="ui-status mt-3" id="project-import-status" role="status"></p><button class="button-secondary mt-5" id="preview-project-import" type="submit">Preview import</button><button class="button-primary mt-5" id="confirm-project-import" type="button" disabled>Create project</button></form></project-import-panel>
     </dialog>
 
     <dialog class="new-workspace-dialog ui-dialog" id="latex-import-dialog">

@@ -19,6 +19,7 @@ import { EditorStatus } from "../editor/editor-status";
 import { GitHubImportPanel } from "../integrations/github/github-import-panel";
 import { GitHubSyncMenu } from "../integrations/github/github-sync-menu";
 import { LatexImportPanel } from "../integrations/latex/latex-import-panel";
+import { ProjectImportPanel } from "../project/project-import-panel";
 import { LibraryPdfAnnotationToolbar } from "../library/library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "../library/library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "../library/library-pdf-markup-layer";
@@ -72,6 +73,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     newWorkspace: requireElement("new-workspace", HTMLButtonElement),
     newWorkspaceStartingPoints: requireElement("project-starting-point-browser", ProjectStartingPointBrowser),
     latexImportPanel: requireElement("latex-import-panel", LatexImportPanel),
+    projectImportPanel: requireElement("project-import-panel", ProjectImportPanel),
     gitHubImportPanel: requireElement("github-import-panel", GitHubImportPanel),
     gitHubSyncMenu: requireElement("github-sync-control", GitHubSyncMenu),
     saveTemplateDialog: requireElement("project-template-save-dialog", ProjectTemplateSaveDialog),

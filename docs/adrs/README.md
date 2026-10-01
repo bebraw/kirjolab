@@ -21,19 +21,19 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                   | Status   | Summary                                                                            |
-| --------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| [ADR-241](./proposed/ADR-241-add-lossless-native-project-archives.md) | Proposed | Define paired native project ZIP export and import with explicit round-trip scope. |
-| [ADR-000](./proposed/ADR-000-template.md)                             | Proposed | Template for drafting future ADRs.                                                 |
+| ADR                                       | Status   | Summary                            |
+| ----------------------------------------- | -------- | ---------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
 
 ## Accepted ADRs
 
-No ADRs are currently accepted but unimplemented.
+No accepted-but-unimplemented ADRs.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-241](./implemented/ADR-241-add-lossless-native-project-archives.md)                  | Implemented          | Preserve current project state through paired native ZIP export and import.                                     |
 | [ADR-242](./implemented/ADR-242-scope-reference-imports-to-active-project.md)             | Implemented          | Default editor BibTeX imports and Library browsing to the active project's reference set.                       |
 | [ADR-239](./implemented/ADR-239-link-member-library-sources-to-project-references.md)     | Implemented          | Let members link their private Library sources to shared project references.                                    |
 | [ADR-240](./implemented/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md)   | Implemented          | Store one verified PDF byte object across Libraries and projects.                                               |

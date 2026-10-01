@@ -1,6 +1,6 @@
 # ADR-241: Add Lossless Native Project Archives
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-10-01
 
@@ -119,19 +119,18 @@ evidence. Import must preserve their content and allow citations, attachments,
 and evidence links to resolve without manual reconstruction. Existing Library
 matches and malformed or incomplete archives need separate regression cases.
 
-### Scope questions before acceptance
+### Initial scope
 
-- Decide whether full retained revisions and named milestones from
+- Version 1 preserves the current working project. Full retained revisions and named milestones from
   [ADR-061](../implemented/ADR-061-preserve-project-revisions-and-milestones.md)
-  are mandatory or an explicitly selected archive scope. The current-state
-  minimum must not be advertised as preserving the complete timeline.
-- Define how authorized Library attachments may be included as portable copies,
-  including contributor export rights and the destination ownership model.
-  Live private source grants cannot simply survive project identity remapping.
-- Set concrete format limits and the compatibility policy in the feature spec
-  before implementation. On acceptance, record the global interchange boundary
-  in `ARCHITECTURE.md` and create `specs/project-interchange/spec.md`, with updates
-  to the affected export and reference-library contracts.
+  are excluded and disclosed in the manifest and both workflows. A later archive
+  version may add history; current-state archives are not complete timeline backups.
+- Live Library attachments and source grants are excluded. Explicitly shared
+  project snapshots remain project content; unrelated private research remains
+  Library-owned. Contributor attachment export requires a later rights contract.
+- Concrete format limits and the compatibility policy live in
+  `specs/project-interchange/spec.md`. The global interchange boundary belongs
+  in `ARCHITECTURE.md`, alongside affected export and reference-library contracts.
 
 Project-only Library defaults, direct BibTeX-to-project intake, and bulk
 selection of existing Library references remain separate workflow changes.
@@ -167,8 +166,8 @@ back into Kirjolab as a complete working project.
 - Imported projects have new runtime identities and freshly configured sharing.
 - Native project archives complement publication exports, Library interchange,
   and operational owner backups; each retains its own declared scope.
-- This draft proposes the contract and does not change current product behavior
-  or supersede implemented ADRs before acceptance.
+- Implementation adds a native interchange boundary without replacing existing
+  publication, Library, or operational backup formats.
 
 ## Alternatives Considered
 

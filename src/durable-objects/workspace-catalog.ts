@@ -97,7 +97,43 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 6,
+    name: "retain-native-project-import-receipts",
+    apply(sql): undefined {
+      sql.exec(`CREATE TABLE native_project_imports (
+        id TEXT PRIMARY KEY, digest TEXT NOT NULL, project_id TEXT NOT NULL, claim_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('processing', 'complete', 'failed')),
+        updated_at TEXT NOT NULL, source_project_id TEXT, source_revision INTEGER, archive_sha256 TEXT, source_identity_map_json TEXT,
+        abandoned_ids_json TEXT NOT NULL DEFAULT '[]'
+      )`);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
+
+interface NativeProjectImportRow extends Record<string, SqlStorageValue> {
+  id: string;
+  digest: string;
+  project_id: string;
+  claim_id: string;
+  status: "processing" | "complete" | "failed";
+  updated_at: string;
+  abandoned_ids_json: string;
+}
+export type NativeProjectImportClaim =
+  | { status: "complete"; workspace: WorkspaceSummary }
+  | { status: "busy" }
+  | { status: "claimed"; projectId: string; claimId: string; abandonedProjectIds: string[] };
+
+function nativeProjectImportAbandonedIds(existing: NativeProjectImportRow | undefined): string[] {
+  const abandoned: unknown = existing ? JSON.parse(existing.abandoned_ids_json) : [];
+  if (!Array.isArray(abandoned) || !abandoned.every((id): id is string => typeof id === "string"))
+    throw new Error("Invalid project import cleanup receipt");
+  const identities = [...new Set([...abandoned, ...(existing?.status === "processing" ? [existing.project_id] : [])])];
+  if (identities.length > 64) throw new Error("Project import has too many unfinished cleanup attempts");
+  return identities;
+}
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
   id: string;
@@ -198,6 +234,81 @@ export class WorkspaceCatalog extends DurableObject<Env> {
       now,
     );
     return summaryFromRow(this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", id).one());
+  }
+
+  claimNativeProjectImport(attemptId: string, digest: string): NativeProjectImportClaim {
+    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(attemptId) || !/^[a-f0-9]{64}$/u.test(digest))
+      throw new Error("Invalid project import attempt");
+    const existing = this.ctx.storage.sql
+      .exec<NativeProjectImportRow>("SELECT * FROM native_project_imports WHERE id = ?", attemptId)
+      .toArray()[0];
+    if (existing && existing.digest !== digest) throw new Error("This import attempt belongs to a different archive or preview");
+    if (existing?.status === "complete") {
+      const workspace = this.getWorkspace(existing.project_id);
+      if (!workspace) throw new Error("The previously imported project has been removed");
+      return { status: "complete", workspace };
+    }
+    if (existing?.status === "processing" && Date.now() - Date.parse(existing.updated_at) < 10 * 60_000) return { status: "busy" };
+    if (
+      !existing &&
+      this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM native_project_imports").one().count >= 2_000
+    )
+      throw new Error("Project import receipt limit reached");
+    const projectId = crypto.randomUUID(),
+      claimId = crypto.randomUUID();
+    const abandonedProjectIds = nativeProjectImportAbandonedIds(existing);
+    this.ctx.storage.sql.exec(
+      `INSERT INTO native_project_imports (id, digest, project_id, claim_id, status, updated_at, abandoned_ids_json) VALUES (?, ?, ?, ?, 'processing', ?, ?)
+      ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, claim_id = excluded.claim_id, status = excluded.status, updated_at = excluded.updated_at, abandoned_ids_json = excluded.abandoned_ids_json`,
+      attemptId,
+      digest,
+      projectId,
+      claimId,
+      new Date().toISOString(),
+      JSON.stringify(abandonedProjectIds),
+    );
+    return { status: "claimed", projectId, claimId, abandonedProjectIds };
+  }
+
+  acknowledgeNativeProjectImportCleanup(attemptId: string, claimId: string): void {
+    const row = this.ctx.storage.sql.exec<NativeProjectImportRow>("SELECT * FROM native_project_imports WHERE id = ?", attemptId).one();
+    if (row.claim_id !== claimId || row.status !== "processing") throw new Error("Project import claim changed");
+    this.ctx.storage.sql.exec("UPDATE native_project_imports SET abandoned_ids_json = '[]' WHERE id = ?", attemptId);
+  }
+
+  completeNativeProjectImport(
+    attemptId: string,
+    claimId: string,
+    title: string,
+    sourceProjectId: string,
+    sourceRevision: number,
+    archiveSha256: string,
+    sourceIdentityMapJson: string,
+  ): WorkspaceSummary {
+    return this.ctx.storage.transactionSync(() => {
+      const row = this.ctx.storage.sql.exec<NativeProjectImportRow>("SELECT * FROM native_project_imports WHERE id = ?", attemptId).one();
+      if (row.claim_id !== claimId || row.status !== "processing") throw new Error("Project import claim changed");
+      const workspace = this.registerWorkspace(row.project_id, title);
+      this.ctx.storage.sql.exec(
+        "UPDATE native_project_imports SET status = 'complete', source_project_id = ?, source_revision = ?, archive_sha256 = ?, source_identity_map_json = ?, updated_at = ? WHERE id = ?",
+        sourceProjectId,
+        sourceRevision,
+        archiveSha256,
+        sourceIdentityMapJson,
+        new Date().toISOString(),
+        attemptId,
+      );
+      return workspace;
+    });
+  }
+
+  failNativeProjectImport(attemptId: string, claimId: string): void {
+    this.ctx.storage.sql.exec(
+      "UPDATE native_project_imports SET status = 'failed', updated_at = ? WHERE id = ? AND claim_id = ? AND status = 'processing'",
+      new Date().toISOString(),
+      attemptId,
+      claimId,
+    );
   }
 
   getWorkspace(id: string): WorkspaceSummary | null {

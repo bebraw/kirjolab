@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { PublicationWordStatistics } from "../../domain/publication/publication-statistics";
 import "./export-statistics-panel";
+import "./native-project-export";
 import type { ExportStatisticsPanel } from "./export-statistics-panel";
 
 export class ProjectExportDialog extends LitElement {

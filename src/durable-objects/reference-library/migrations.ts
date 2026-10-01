@@ -444,4 +444,12 @@ export const referenceLibraryMigrations = [
       return undefined;
     },
   },
+  {
+    version: 20,
+    name: "track-native-project-reference-staging",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE project_dependencies ADD COLUMN archive_created INTEGER NOT NULL DEFAULT 0");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];

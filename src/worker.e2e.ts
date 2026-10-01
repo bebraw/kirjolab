@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
+import { buildProjectArchive } from "./domain/project/project-archive";
+import { projectArchiveFixture } from "./test-support/project-archive";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, type WorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace/workspace";
 import {
@@ -5597,6 +5599,58 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.goto("/editor/demo");
   await expect(page.locator("#workspace-switcher")).toHaveValue("demo");
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
+});
+
+test("imports, exports and restores a native Kirjolab project with references already linked", async ({ page }) => {
+  const source = projectArchiveFixture();
+  const archive = await buildProjectArchive(source, new Map());
+  await page.goto("/editor/demo");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page
+    .locator("#project-import-archive")
+    .setInputFiles({ name: "paper.zip", mimeType: "application/zip", buffer: Buffer.from(archive) });
+  await expect(page.locator("#confirm-project-import")).toBeDisabled();
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator("#project-import-preview")).toContainText("2 linked references");
+  await expect(page.locator("#project-import-preview")).toContainText("Revision history and milestones");
+  await page.locator("#project-import-title").fill("Native browser round trip");
+  await page.locator("#confirm-project-import").click();
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const firstId = workspaceIdFromPage(page, "Expected native import id");
+  const first = await readWorkspaceSnapshot(page, `/api/workspaces/${firstId}`);
+  expect(first.projectReferences.map(({ citationAlias }) => citationAlias)).toEqual(["CustomAlias", "Uncited"]);
+  await expect(page.locator("#preview")).toContainText("Result");
+  await page.locator("[data-project-export-trigger]").first().click();
+  await page.getByRole("button", { name: "Inspect export scope" }).click();
+  await expect(page.locator("native-project-export")).toContainText("2 linked references");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Kirjolab project" }).click();
+  const downloaded = await downloadPromise;
+  expect(downloaded.suggestedFilename()).toBe("kirjolab-project.zip");
+  const stream = await downloaded.createReadStream();
+  if (!stream) throw new Error("Expected downloaded archive bytes");
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  await page.locator("#close-export").click();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page
+    .locator("#project-import-archive")
+    .setInputFiles({ name: "roundtrip.zip", mimeType: "application/zip", buffer: Buffer.concat(chunks) });
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator("#project-import-preview")).toContainText("2 existing Library records reused");
+  await page.locator("#confirm-project-import").click();
+  await page.waitForURL((url) => /\/editor\/[0-9a-f-]{36}$/u.test(url.pathname) && !url.pathname.endsWith(firstId));
+  const secondId = workspaceIdFromPage(page, "Expected restored project id");
+  const restored = await readWorkspaceSnapshot(page, `/api/workspaces/${secondId}`);
+  expect(restored.files.map(({ path, content }) => ({ path, content }))).toEqual(
+    first.files.map(({ path, content }) => ({ path, content })),
+  );
+  expect(restored.comments[0]!.resolution).toMatchObject({ status: "resolved", text: "Result" });
+  expect(restored.projectReferences.map(({ citationAlias }) => citationAlias)).toEqual(["CustomAlias", "Uncited"]);
 });
 
 test("previews and imports a bounded LaTeX project", async ({ page }) => {

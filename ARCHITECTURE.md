@@ -814,6 +814,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Derive every publication target from one versioned, source-mapped export
   intermediate. Markdown, cited BibTeX, LaTeX, PDF, statistics, and archives
   must not independently resolve includes or citation reachability.
+- Keep native project interchange separate from publication rendering. Export
+  one coherent current-project snapshot with all linked reference aliases,
+  canonical research relationships, and verified required bytes under a
+  bounded versioned manifest. Validate the complete archive before import;
+  allocate fresh identities, retain bounded source provenance, rebuild resolved
+  anchors, and never restore source permissions or external capabilities.
+  Reuse Library identities without overwriting existing metadata. Publish only
+  after staging succeeds, clean up newly created resources on failure, and
+  retain owner-scoped attempt receipts so retries return the same project.
 - Treat authored Markdown headings as the only visible publication titles.
   Project-settings titles may identify artifacts and PDF metadata but must not
   be injected into PDF or LaTeX body content.

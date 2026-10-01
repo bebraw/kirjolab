@@ -51,6 +51,7 @@ import type { ProjectBinaryObjectReplacements } from "../durable-objects/documen
 import * as v from "valibot";
 import { gitHubIntegrationAvailable } from "../deployment-capabilities";
 import { digestFromPdfBlobKey, readExactPdfBytes, reservePdfBlob, type PdfBlobReservation } from "../pdf-blob";
+import { exportNativeProject } from "./project-interchange";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -710,6 +711,8 @@ async function handleWorkspaceHistoryMutationRoute(context: WorkspaceRouteContex
 async function handleWorkspaceExportRoute(context: WorkspaceRouteContext): Promise<Response | null> {
   const { request, suffix, workspaceId, env, room } = context;
   if (!suffix.startsWith("/export/") || request.method !== "GET") return null;
+  if (suffix === "/export/project-preview" || suffix === "/export/project.zip")
+    return await exportNativeProject(suffix, workspaceId, room, env);
   return await exportWorkspace(suffix, workspaceId, room, env);
 }
 
@@ -1631,8 +1634,8 @@ async function revokeSharedResearch(
   library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
 ): Promise<Response> {
   if (role !== "owner") return jsonError("Only the workspace owner can revoke private research", 403);
-  const revoked = await library.revokeResearchShare(shareId);
-  return Response.json(await room.revokeResearchShare(workspaceId, shareId, revoked.revokedAt ?? new Date().toISOString()));
+  const revoked = await library.revokeProjectResearchShare(workspaceId, shareId);
+  return Response.json(await room.revokeResearchShare(workspaceId, shareId, revoked?.revokedAt ?? new Date().toISOString()));
 }
 
 async function downloadSharedResearch(

@@ -81,6 +81,7 @@ import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
 import { runSQLiteMigrations } from "../persistence/sqlite/migrations";
 import { referenceLibraryMigrations } from "./reference-library/migrations";
 import { currentRecoveryBookmark } from "./recovery";
+import type { ProjectReferenceLink } from "../domain/workspace/workspace";
 
 const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
 const maximumMetadataPreviewCacheEntries = 16;
@@ -464,6 +465,109 @@ export class ReferenceLibrary extends DurableObject<Env> {
   getReferences(referenceIds: readonly string[]): BibliographicRecord[] {
     if (referenceIds.length > 512) throw new Error("Too many references requested");
     return referenceIds.map((id) => this.#reference(id, true));
+  }
+
+  previewProjectArchiveReferences(links: readonly ProjectReferenceLink[]): Array<{ sourceId: string; referenceId: string | null }> {
+    if (links.length > 512) throw new Error("Too many project references");
+    const identities = new Set<string>();
+    return links.map((link) => {
+      const key = likelyReferenceIdentity(link.snapshot);
+      if (identities.has(key)) throw new Error("Distinct project references match one Library identity; reconcile them before export");
+      identities.add(key);
+      const row = this.ctx.storage.sql.exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ?", key).toArray()[0];
+      if (row?.deleted_at) throw new Error("A project reference matches a deleted Library record; resolve the Library conflict first");
+      return { sourceId: link.referenceId, referenceId: row?.id ?? null };
+    });
+  }
+
+  stageProjectArchiveReferences(
+    projectId: string,
+    links: readonly ProjectReferenceLink[],
+    actor: string,
+    expectedMatches: Array<{ sourceId: string; referenceId: string | null }>,
+  ): Array<{ sourceId: string; referenceId: string }> {
+    const matches = this.previewProjectArchiveReferences(links);
+    if (JSON.stringify(matches) !== JSON.stringify(expectedMatches)) throw new Error("Library matches changed; preview the archive again");
+    const now = new Date().toISOString();
+    return this.ctx.storage.transactionSync(() =>
+      links.map((link, index) => {
+        const match = matches[index]!;
+        let referenceId = match.referenceId;
+        if (!referenceId) {
+          const snapshot = link.snapshot;
+          const reference: BibliographicRecord = {
+            id: crypto.randomUUID(),
+            referenceKey: memorableReferenceKey(snapshot),
+            type: snapshot.type,
+            title: snapshot.title,
+            authors: snapshot.authors,
+            year: snapshot.year,
+            venue: snapshot.venue,
+            doi: normalizeDoi(snapshot.doi),
+            url: snapshot.url,
+            abstract: "",
+            provenance: { title: { method: "migration", capturedAt: now, actor } },
+            archivedAt: null,
+            deletedAt: null,
+            createdAt: now,
+            updatedAt: now,
+          };
+          const keyed = { ...reference, referenceKey: this.#allocateReferenceKey(reference) };
+          this.#writeReference(keyed, likelyReferenceIdentity(keyed), true);
+          referenceId = keyed.id;
+        }
+        this.ctx.storage.sql.exec(
+          "INSERT OR IGNORE INTO project_dependencies (project_id, reference_id, linked_at, archive_created) VALUES (?, ?, ?, ?)",
+          projectId,
+          referenceId,
+          now,
+          match.referenceId ? 0 : 1,
+        );
+        return { sourceId: link.referenceId, referenceId };
+      }),
+    );
+  }
+
+  rollbackProjectArchiveReferences(projectId: string): void {
+    this.ctx.storage.transactionSync(() => {
+      const rows = this.ctx.storage.sql
+        .exec<{ reference_id: string; linked_at: string; archive_created: number }>(
+          "SELECT reference_id, linked_at, archive_created FROM project_dependencies WHERE project_id = ?",
+          projectId,
+        )
+        .toArray();
+      this.ctx.storage.sql.exec("DELETE FROM project_dependencies WHERE project_id = ?", projectId);
+      for (const row of rows) {
+        if (!row.archive_created || this.#referenceMergeBlockers(row.reference_id).length) continue;
+        const current = this.ctx.storage.sql
+          .exec<ReferenceRow>("SELECT * FROM library_references WHERE id = ?", row.reference_id)
+          .toArray()[0];
+        if (!current || current.updated_at !== row.linked_at) continue;
+        const used = [
+          "artifacts",
+          "notes",
+          "highlights",
+          "pdf_markups",
+          "reference_tags",
+          "reference_collections",
+          "reading_state",
+          "citation_research_queue",
+        ].some(
+          (table) =>
+            this.ctx.storage.sql
+              .exec<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table} WHERE reference_id = ?`, row.reference_id)
+              .one().count > 0,
+        );
+        const citations = this.ctx.storage.sql
+          .exec<{ count: number }>(
+            "SELECT COUNT(*) AS count FROM citation_assertions WHERE citing_reference_id = ? OR cited_reference_id = ?",
+            row.reference_id,
+            row.reference_id,
+          )
+          .one().count;
+        if (!used && !citations) this.ctx.storage.sql.exec("DELETE FROM library_references WHERE id = ?", row.reference_id);
+      }
+    });
   }
 
   getReferenceReconciliationReport(): ReferenceReconciliationReport {
@@ -1620,6 +1724,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const revokedAt = new Date().toISOString();
     this.ctx.storage.sql.exec("UPDATE research_shares SET revoked_at = ? WHERE id = ?", revokedAt, shareId);
     return { ...shareFromRow(row), revokedAt };
+  }
+
+  revokeProjectResearchShare(projectId: string, shareId: string): ResearchShareSnapshot | null {
+    const row = this.ctx.storage.sql.exec<ShareRow>("SELECT * FROM research_shares WHERE id = ?", shareId).toArray()[0];
+    // Native archives restore a project snapshot without recreating its source's private Library share.
+    if (!row) return null;
+    if (row.project_id !== projectId) throw new Error("Research share belongs to another project");
+    return this.revokeResearchShare(shareId);
   }
 
   setReadingState(

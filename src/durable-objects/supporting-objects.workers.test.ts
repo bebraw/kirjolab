@@ -28,6 +28,7 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       { version: 3, name: "add-public-share-locators" },
       { version: 4, name: "retain-github-import-previews" },
       { version: 5, name: "connect-github-users" },
+      { version: 6, name: "retain-native-project-import-receipts" },
     ]);
     expect(accessLedger).toEqual([
       { version: 1, name: "create-workspace-access" },

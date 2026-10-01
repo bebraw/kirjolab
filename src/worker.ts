@@ -8,6 +8,7 @@ import { handleProjectTemplateApi } from "./api/project-templates";
 import { handleGitHubConnectionApi } from "./api/github-connection";
 import { handleGitHubImportApi } from "./api/github-import";
 import { handleLatexImportApi } from "./api/latex-import";
+import { handleProjectImportApi } from "./api/project-interchange";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import {
   createReviewResource,
@@ -84,6 +85,7 @@ const authenticatedApiRoutes: readonly AuthenticatedApiRoute[] = [
     capability: "github",
   },
   { matches: (path) => path === "/api/latex-import-previews" || path === "/api/latex-imports", handle: handleLatexImportApi },
+  { matches: (path) => path === "/api/project-import-previews" || path === "/api/project-imports", handle: handleProjectImportApi },
   {
     matches: (path) => githubConnectionPaths.has(path) || path.startsWith("/api/github/installations/"),
     handle: handleGitHubConnectionApi,

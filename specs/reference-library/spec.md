@@ -51,6 +51,14 @@ memory and makes citation aliases compete with stable source identity.
 - Project duplication and revision seeding register the destination project's
   copied reference identities before publishing it. Failed copies remove any
   partially registered dependency rows.
+- [Native project import](../project-interchange/spec.md) previews strong
+  Library matches, creates missing records and project dependencies in one
+  Library transaction, and preserves exported project snapshots and aliases.
+  Reusing a match never updates its metadata or private research. Distinct
+  project references that collapse to one Library identity, deleted matches,
+  or changed preview mappings require reconciliation before creation. Failed
+  imports remove their dependency rows and delete only newly created,
+  unchanged, otherwise-unused Library records.
 - Project bibliography text is derived from linked snapshots. Normal export
   includes only aliases cited by composed `main.md`; archival export may use
   every explicit project link.

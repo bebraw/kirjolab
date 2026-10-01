@@ -278,7 +278,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     const note = (await library.getSnapshot(true)).notes[0];
     const share = await library.shareResearch("project-a", referenceId, "note", note!.id);
     expect(share).toMatchObject({ projectId: "project-a", kind: "note", content: { kind: "note", body: "Private interpretation" } });
-    expect(await library.revokeResearchShare(share.id)).toMatchObject({ revokedAt: expect.any(String) });
+    await expect(async () => await library.revokeProjectResearchShare("other-project", share.id)).rejects.toThrow("another project");
+    expect(await library.revokeProjectResearchShare("project-a", share.id)).toMatchObject({ revokedAt: expect.any(String) });
+    expect(await library.revokeProjectResearchShare("project-a", crypto.randomUUID())).toBeNull();
   });
 
   it("requires bibliographic identification before a PDF becomes an ordinary source artifact", async () => {
@@ -817,6 +819,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       );
       state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
       state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("ALTER TABLE project_dependencies DROP COLUMN archive_created");
       state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
     });
@@ -868,6 +871,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
       state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
       state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
+      state.storage.sql.exec("ALTER TABLE project_dependencies DROP COLUMN archive_created");
       state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 17");
       await state.storage.deleteAlarm();
       await expect(
