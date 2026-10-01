@@ -1,0 +1,10 @@
+{
+  "id": "2026-10-01-patch-transitive-audit-findings",
+  "title": "Patch transitive URI, HTTP, and IP address audit findings",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": [],
+  "touches": ["package.json", "package-lock.json"],
+  "checks": ["npm run security:audit", "npm run ci:local"]
+}
