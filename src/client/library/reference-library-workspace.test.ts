@@ -253,7 +253,7 @@ describe("reference Library workspace", () => {
       library,
       projectApiBase: "/api/workspaces/workspace",
       projectReferences: [],
-      references: library.references,
+      references: [],
       researchShares: [],
     });
   });
@@ -582,7 +582,9 @@ describe("reference Library workspace", () => {
       new CustomEvent(libraryDiscoveryRefreshEvent, { detail: { index: 2, message: "Reference saved", requestId: 3 } }),
     );
     workspace.dispatchEvent(
-      new CustomEvent(libraryReferenceImportRefreshEvent, { detail: { message: "References imported", requestId: 4 } }),
+      new CustomEvent(libraryReferenceImportRefreshEvent, {
+        detail: { message: "References imported", projectSnapshot: null, requestId: 4 },
+      }),
     );
     workspace.dispatchEvent(new CustomEvent(libraryPdfUploadOutcomeEvent, { detail: { action: "notice", message: "Upload notice" } }));
     workspace.dispatchEvent(
@@ -606,6 +608,51 @@ describe("reference Library workspace", () => {
     expect(callbacks.presentNotice).toHaveBeenCalledWith("PDF uploaded");
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Website captured");
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Archive restored");
+  });
+
+  it("applies an imported project snapshot before refreshing its project-only Library", async () => {
+    const { owners, workspace } = setup();
+    const callbacks = bindOwnerHarness(workspace, {}, "workspace", "/api/workspaces/workspace");
+    workspace.setData({ library, projectApiBase: "/api/workspaces/workspace", projectReferences: [], researchShares: [] });
+    const complete = vi.spyOn(owners["library-reference-import-control"], "complete");
+    const snapshot = { ...workspaceSnapshotFixture, revision: 2 };
+
+    workspace.dispatchEvent(
+      new CustomEvent<import("./library-reference-import-control").LibraryReferenceImportRefresh>(libraryReferenceImportRefreshEvent, {
+        detail: { message: "Added to project", projectSnapshot: snapshot, requestId: 1 },
+      }),
+    );
+
+    await vi.waitFor(() => expect(complete).toHaveBeenCalledWith(1));
+    expect(callbacks.applyProjectMutation).toHaveBeenCalledWith(snapshot);
+    expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
+    expect(owners["reference-library-filters"].value.linkage).toBe("linked");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Added to project");
+
+    workspace.dispatchEvent(
+      new CustomEvent<import("./library-reference-import-control").LibraryReferenceImportRefresh>(libraryReferenceImportRefreshEvent, {
+        detail: { message: "Library only", projectSnapshot: null, requestId: 2 },
+      }),
+    );
+    await vi.waitFor(() => expect(complete).toHaveBeenCalledWith(2));
+    expect(callbacks.applyProjectMutation).toHaveBeenCalledOnce();
+    expect(owners["reference-library-filters"].value.linkage).toBe("all");
+  });
+
+  it.each([
+    [libraryPdfUploadOutcomeEvent, { action: "refresh", message: "Private source added", requestId: 1 }],
+    [libraryDiscoveryRefreshEvent, { index: 0, message: "Private source added", requestId: 1 }],
+    [webSourceCapturedEvent, "Private source added"],
+  ])("reveals private intake through %s after starting in project-only scope", async (eventName, detail) => {
+    const { owners, workspace } = setup();
+    const callbacks = bindOwnerHarness(workspace, {}, "workspace", "/api/workspaces/workspace");
+    workspace.setData({ library, projectApiBase: "/api/workspaces/workspace", projectReferences: [], researchShares: [] });
+    expect(owners["reference-library-filters"].value.linkage).toBe("linked");
+
+    workspace.dispatchEvent(new CustomEvent(eventName, { detail }));
+
+    await vi.waitFor(() => expect(callbacks.presentNotice).toHaveBeenCalledWith("Private source added"));
+    expect(owners["reference-library-filters"].value.linkage).toBe("all");
   });
 
   it("contains refresh failures and always completes local request state", async () => {

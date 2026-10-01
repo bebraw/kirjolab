@@ -1,6 +1,7 @@
 # ADR-156: Keep BibTeX at Interoperability Boundaries
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-242](./ADR-242-scope-reference-imports-to-active-project.md)
 
 **Date:** 2026-07-19
 

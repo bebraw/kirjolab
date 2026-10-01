@@ -60,6 +60,7 @@ export interface ReferenceLibraryWorkspaceData {
 interface LibraryRefreshOptions {
   readonly complete?: () => void;
   readonly refresh?: () => Promise<void>;
+  readonly showAllReferences?: boolean;
 }
 
 export interface ReferenceLibraryWorkspaceOwners {
@@ -167,12 +168,18 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     this.addEventListener(libraryDiscoveryRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryDiscoveryRefresh>).detail;
       void this.completeRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
+        showAllReferences: true,
         complete: () => this.element("library-discovery-results", LibraryDiscoveryResults)?.complete(detail.index, detail.requestId),
       });
     });
     this.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceImportRefresh>).detail;
       void this.completeRefresh(detail.message, "References were imported, but the refreshed Library could not be loaded.", {
+        refresh: async () => {
+          if (detail.projectSnapshot) await this.applyProjectMutation(detail.projectSnapshot);
+          this.element("reference-library-filters", ReferenceLibraryFilterPanel)?.reset("", detail.projectSnapshot ? "linked" : "all");
+          await this.refreshBoundProject();
+        },
         complete: () => this.element("library-reference-import-control", LibraryReferenceImportControl)?.complete(detail.requestId),
       });
     });
@@ -186,6 +193,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
       void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "The web source was captured, but the refreshed Library could not be loaded.",
+        { showAllReferences: true },
       );
     });
     this.addEventListener(openAccessPdfImportedEvent, (event) => {
@@ -212,6 +220,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
   setData(data: ReferenceLibraryWorkspaceData): void {
     this.data = data;
     this.librarySnapshot = data.library;
+    this.configureProjectControls(data.projectApiBase);
     this.present();
   }
 
@@ -293,10 +302,16 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
   bindWorkspace(workspaceId: string, projectApiBase: string | null, owners: ReferenceLibraryWorkspaceOwners): void {
     this.projectApiBase = projectApiBase;
     this.owners = owners;
+    this.configureProjectControls(projectApiBase);
     this.element("citation-network-workspace", CitationNetworkWorkspace)?.configure(workspaceId);
     const upload = this.element("library-pdf-upload-control", LibraryPdfUploadControl);
     const status = this.element("library-pdf-upload-status", LibraryPdfUploadStatus);
     if (upload && status) upload.bindStatus(status);
+  }
+
+  private configureProjectControls(projectApiBase: string | null): void {
+    this.element("library-reference-import-control", LibraryReferenceImportControl)?.configure(projectApiBase);
+    this.element("reference-library-filters", ReferenceLibraryFilterPanel)?.configure(projectApiBase);
   }
 
   async refreshBoundProject(): Promise<void> {
@@ -355,6 +370,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
 
   async completeRefresh(message: string, fallback: string, options: LibraryRefreshOptions = {}): Promise<boolean> {
     try {
+      if (options.showAllReferences) this.element("reference-library-filters", ReferenceLibraryFilterPanel)?.reset();
       await (options.refresh?.() ?? this.refreshBoundProject());
       this.presentNotice(message);
       return true;
@@ -489,6 +505,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     if (outcome.action === "notice") this.presentNotice(outcome.message);
     else
       void this.completeRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
+        showAllReferences: true,
         complete: () => this.element("library-pdf-upload-control", LibraryPdfUploadControl)?.complete(outcome.requestId),
       });
   }

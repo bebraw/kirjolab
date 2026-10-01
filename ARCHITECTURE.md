@@ -1092,8 +1092,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   a future explicit rights-aware contract says otherwise.
 - Keep BibTeX and CSL JSON file selection, file reads, import transport,
   duplicate-submit gating, local error state, and refresh-pending state in the
-  Lit reference-import control. Keep canonical Library refresh and toast policy
-  in the application coordinator.
+  Lit reference-import control. In the editor, default BibTeX intake to the
+  current project through the existing owner-only bibliography-import API,
+  with an explicit Library-only alternative. Keep canonical workspace response
+  validation in the control, and snapshot application, Library refresh, and
+  toast policy in the composed Library workspace. Default editor reference
+  filtering to current project links while standalone Library intake and
+  browsing remain private and project-independent. These scopes are ephemeral
+  view state; canonical references remain Library-owned under
+  [ADR-242](./docs/adrs/implemented/ADR-242-scope-reference-imports-to-active-project.md).
 - Keep portable-archive selection and restore transport, duplicate-submit
   gating, local error state, and refresh-pending state in the Lit Library tools
   menu. Let it apply archived-reference visibility locally and emit only the

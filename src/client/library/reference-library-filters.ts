@@ -29,6 +29,7 @@ export class ReferenceLibraryFilterPanel extends LightDomElement {
   declare private filters: ReferenceLibraryFilters;
   declare private total: number;
   declare private types: readonly string[];
+  private projectApiBase: string | null = null;
 
   constructor() {
     super();
@@ -42,8 +43,14 @@ export class ReferenceLibraryFilterPanel extends LightDomElement {
     return this.filters;
   }
 
-  reset(query = ""): void {
-    this.filters = query ? { ...emptyFilters, query } : emptyFilters;
+  configure(projectApiBase: string | null): void {
+    if (projectApiBase === this.projectApiBase) return;
+    this.projectApiBase = projectApiBase;
+    this.reset("", projectApiBase ? "linked" : "all");
+  }
+
+  reset(query = "", linkage: ReferenceLibraryFilters["linkage"] = "all"): void {
+    this.filters = { ...emptyFilters, query, linkage };
   }
 
   filterLibrary(library: ReferenceLibrarySnapshot, projectReferences: readonly LinkedReference[]): readonly BibliographicRecord[] {
@@ -74,7 +81,9 @@ export class ReferenceLibraryFilterPanel extends LightDomElement {
         >
       </div>
       <details class="action-menu library-filter-menu ui-menu" data-action-menu>
-        <summary class="button-secondary" title="Filter and sort references">Filter</summary>
+        <summary class="button-secondary" title="Filter and sort references">
+          Filter${this.projectApiBase ? ` · ${this.filters.linkage === "linked" ? "This project" : this.filters.linkage === "all" ? "All references" : "Not linked"}` : ""}
+        </summary>
         <section class="library-menu library-filter-fields ui-menu-panel" aria-label="Filter reference library">
           <label class="field-label"
             >Type<select class="field" id="reference-filter-type" .value=${this.filters.type} @input=${this.changeType}>
