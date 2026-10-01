@@ -63,8 +63,12 @@ This profile is for one researcher evaluating Kirjolab on the same computer.
 It is not a public, production, highly available, or supported multiplayer
 deployment. Browser/AI artifact analysis, scheduled backups, Cloudflare Access,
 and the GitHub App integration are unavailable. Its Miniflare state directory
-is opaque runtime state rather than a portable backup; export important
-Markdown and BibTeX through Kirjolab.
+is opaque runtime state rather than a portable backup. Use **Export → Kirjolab
+project (.zip)** to transfer the current working project, then **New project →
+Import Kirjolab project** to preview and restore it. The archive includes all
+linked references and project-owned PDFs; its scope excludes revision history,
+private Library attachments, memberships, and external connections. See the
+[native project interchange contract](specs/project-interchange/spec.md).
 
 To rebuild an updated checkout without deleting local state:
 

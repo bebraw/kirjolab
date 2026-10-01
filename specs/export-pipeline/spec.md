@@ -76,6 +76,12 @@ files.
   effective entry. The manifest records that entry's current path. The source bundle additionally retains the authored folder tree
   and project-shared metadata; it does not silently embed private library
   artifacts or imported research PDFs.
+- Native **Kirjolab project (.zip)** uses the separate
+  [project interchange contract](../project-interchange/spec.md). It captures
+  canonical current-project state and required binary payloads without
+  publication rendering or citation filtering, and remains available when
+  composition has diagnostics. The existing source bundle is a legacy export
+  and does not promise native restoration.
 - Composed Markdown and canonical files intentionally retain portable Kirjolab
   extensions. Publication-facing LaTeX and PDF must never print supported
   `::include`, `::alias`, `::anchor`, `::bibliography`, `:ref`, `:cite`, `:citet`, or `:citep`
@@ -92,6 +98,9 @@ files.
 - The export dialog presents PDF, LaTeX project ZIP, composed Markdown, and the
   archival source ZIP as primary formats. Cited BibTeX remains available as a
   bibliography file under a collapsed **Interoperability files** section.
+- A **Project transfer** section previews current-project counts, the entry
+  document, and exclusions before native archive download. Download failures
+  remain in the dialog with retry available.
 - A live word-count badge opens the same dialog. Statistics show the composed
   total plus per-file and per-heading counts.
 - The export-dialog host owns both external trigger bindings and the badge's

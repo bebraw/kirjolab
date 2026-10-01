@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { workspaceSnapshotFixture } from "../../test-support/workspace-fixture";
 import {
   LibraryReferenceImportControl,
   libraryReferenceImportRefreshEvent,
@@ -12,6 +13,12 @@ class TestLibraryReferenceImportControl extends LibraryReferenceImportControl {
 
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
+  }
+
+  chooseDestination(value: string): void {
+    const event = new Event("input");
+    Object.defineProperty(event, "currentTarget", { value: { value } });
+    this.changeDestination(event);
   }
 }
 
@@ -63,12 +70,90 @@ describe("library reference import control", () => {
     ]);
     expect(refreshes).toEqual([
       {
-        message: "References imported into your private library. Add only the ones this project uses.",
+        message: "References imported into your private Library.",
+        projectSnapshot: null,
         requestId: 1,
       },
-      { message: "CSL JSON imported into the canonical library.", requestId: 2 },
+      { message: "CSL JSON imported into the canonical library.", projectSnapshot: null, requestId: 2 },
     ]);
     control.complete(2);
+  });
+
+  it("imports a whole bibliography into the configured project and emits its canonical snapshot", async () => {
+    const control = new TestLibraryReferenceImportControl();
+    control.configure("/api/workspaces/workspace");
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(workspaceSnapshotFixture));
+    vi.stubGlobal("fetch", fetchMock);
+    const refreshes: LibraryReferenceImportRefresh[] = [];
+    control.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
+      refreshes.push((event as CustomEvent<LibraryReferenceImportRefresh>).detail);
+    });
+
+    await control.importFile("bibtex", file("references.bib", "@manual{one,title={One}}\n@manual{two,title={Two}}"));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/bibliography/import",
+      expect.objectContaining({
+        body: JSON.stringify({ bibtex: "@manual{one,title={One}}\n@manual{two,title={Two}}" }),
+        method: "POST",
+      }),
+    );
+    expect(refreshes).toEqual([
+      {
+        message: "References imported and added to this project.",
+        projectSnapshot: workspaceSnapshotFixture,
+        requestId: 1,
+      },
+    ]);
+  });
+
+  it("keeps Library-only imports private and preserves that choice during project refreshes", async () => {
+    const control = new TestLibraryReferenceImportControl();
+    control.configure("/api/workspaces/workspace");
+    control.chooseDestination("library");
+    control.configure("/api/workspaces/workspace");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await control.importFile("bibtex", file("private.bib", "@manual{private,title={Private}}"));
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/import", expect.objectContaining({ method: "POST" }));
+    control.complete(1);
+    control.configure("/api/workspaces/another");
+    fetchMock.mockResolvedValue(Response.json(workspaceSnapshotFixture));
+    await control.importFile("bibtex", file("another.bib", "@manual{another,title={Another}}"));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/workspaces/another/bibliography/import", expect.anything());
+  });
+
+  it("rejects malformed project responses locally and allows retry", async () => {
+    const control = new TestLibraryReferenceImportControl();
+    control.configure("/api/workspaces/workspace");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ id: "incomplete" }))
+      .mockResolvedValue(Response.json(workspaceSnapshotFixture));
+    vi.stubGlobal("fetch", fetchMock);
+    const refreshed = vi.fn();
+    control.addEventListener(libraryReferenceImportRefreshEvent, refreshed);
+
+    await control.importFile("bibtex", file("invalid.bib", "@manual{one}"));
+    expect(refreshed).not.toHaveBeenCalled();
+    await control.importFile("bibtex", file("retry.bib", "@manual{one}"));
+    expect(refreshed).toHaveBeenCalledOnce();
+  });
+
+  it("keeps CSL JSON and standalone BibTeX imports Library-only", async () => {
+    const control = new TestLibraryReferenceImportControl();
+    control.configure("/api/workspaces/workspace");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await control.importFile("csl-json", file("references.json", "[]"));
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/import/csl-json", expect.anything());
+    control.complete(1);
+    control.configure(null);
+    await control.importFile("bibtex", file("standalone.bib", "@manual{one}"));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/library/import", expect.anything());
   });
 
   it("keeps provider failures local and ignores concurrent imports", async () => {

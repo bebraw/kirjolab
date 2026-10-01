@@ -193,7 +193,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="word-count-badge"');
     expect(html).toContain('id="export-dialog"');
     expect(html).toContain('<project-export-dialog id="export-dialog-control">');
-    expect(html).toContain("Choose a format for the composed project.");
+    expect(html).toContain("Choose publication output or a restorable project archive.");
+    expect(html).toContain('<native-project-export api-base="/api/workspaces/demo">');
+    expect(html).toContain('id="project-import-panel"');
     expect(html).toContain("/api/workspaces/demo/export/document.pdf");
     expect(html).toContain("/api/workspaces/demo/export/latex.zip");
     expect(html).toContain("/api/workspaces/demo/export/source.zip");
@@ -201,7 +203,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('class="context-tab-list ui-tab-list"');
     expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
-    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(10);
+    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(11);
     expect(html).toContain('id="open-github-import"');
     expect(html).toContain('id="github-import-dialog"');
     expect(html).toContain('<github-import-panel id="github-import-panel">');

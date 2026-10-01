@@ -85,6 +85,24 @@ describe("reference library filter panel", () => {
 
     expect(panel.filterLibrary(library("article", "book"), [{ referenceId: "reference-1" }]).map(({ id }) => id)).toEqual(["reference-1"]);
   });
+
+  it("defaults to the current project's references and preserves deliberate filters across refreshes", () => {
+    const panel = new TestReferenceLibraryFilterPanel();
+    panel.configure("/api/workspaces/first");
+    expect(panel.value.linkage).toBe("linked");
+    expect(panel.filterLibrary(library("article", "book"), [{ referenceId: "reference-1" }]).map(({ id }) => id)).toEqual(["reference-1"]);
+
+    panel.changeForTest("linkage", "all");
+    panel.changeForTest("query", "Reference");
+    panel.configure("/api/workspaces/first");
+    expect(panel.value).toMatchObject({ linkage: "all", query: "Reference" });
+
+    panel.configure("/api/workspaces/second");
+    expect(panel.value).toMatchObject({ linkage: "linked", query: "" });
+    panel.configure(null);
+    expect(panel.value.linkage).toBe("all");
+    expect(panel.filterLibrary(library("article", "book"), [])).toHaveLength(2);
+  });
 });
 
 function library(...types: string[]): ReferenceLibrarySnapshot {

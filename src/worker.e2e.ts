@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
+import { buildProjectArchive } from "./domain/project/project-archive";
+import { projectArchiveFixture } from "./test-support/project-archive";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, type WorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace/workspace";
 import {
@@ -153,6 +155,7 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
 
 test("opens a recent Library source at its addressed card", async ({ page }) => {
   await page.goto("/library");
+  await expect(page.locator("#library-bibliography-destination")).toHaveCount(0);
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "dashboard-deep-link.bib",
     mimeType: "application/x-bibtex",
@@ -3179,6 +3182,8 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.getByRole("tab", { name: "Library", exact: true }).click();
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#reference-library-dialog")).toHaveCount(0);
+  await page.locator(".library-add-menu > summary").click();
+  await page.getByLabel("BibTeX destination").selectOption("library");
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "private-library.bib",
     mimeType: "application/x-bibtex",
@@ -3188,6 +3193,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
       year = {2026}
     }`),
   });
+  await page.keyboard.press("Escape");
   const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
   await expect(card).toContainText("writer2026");
@@ -3802,7 +3808,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await card.getByRole("button", { name: "Save tags" }).click();
   await expect(page.locator("#toast")).toHaveText("Private tags saved.");
   await expect(card.getByLabel("Private tags for Private Research Guide")).toHaveValue("methods, revisit");
-  await page.getByText("Filter", { exact: true }).click();
+  await page.getByTitle("Filter and sort references", { exact: true }).click();
   await page.locator("#reference-filter-organization").fill("methods");
   await expect(page.locator("#reference-filter-count")).toHaveText(/1 \/ \d+/u);
   await page.locator("#reference-filter-linkage").selectOption("linked");
@@ -3899,6 +3905,9 @@ test("lets a member link and revoke their private PDF source for a project refer
   const memberPage = await member.newPage();
   await memberPage.goto(`/editor/${workspaceId}`);
   await memberPage.getByRole("tab", { name: "Library", exact: true }).click();
+  await memberPage.locator(".library-filter-menu > summary").click();
+  await memberPage.locator("#reference-filter-linkage").selectOption("all");
+  await memberPage.keyboard.press("Escape");
   const memberCard = memberPage.locator("#reference-library-list .library-reference-row").filter({ hasText: "contributor" });
   await expect(memberCard).toBeVisible();
   await memberCard.locator("button.library-reference-open").click();
@@ -4224,6 +4233,8 @@ test("reviews and reconciles a strong duplicate Library reference", async ({ pag
   const workspaceId = await createWorkspace(page, "Reference reconciliation");
   await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Library", exact: true }).click();
+  await page.locator(".library-add-menu > summary").click();
+  await page.getByLabel("BibTeX destination").selectOption("library");
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "duplicate-references.bib",
     mimeType: "application/x-bibtex",
@@ -4240,6 +4251,7 @@ test("reviews and reconciles a strong duplicate Library reference", async ({ pag
       journal = {Imported venue}
     }`),
   });
+  await page.keyboard.press("Escape");
   const references = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Explicit Reconciliation Study" });
   await expect(references).toHaveCount(2);
 
@@ -4268,6 +4280,8 @@ test("records and reviews source citation assertions in an accessible shared net
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("tab", { name: "Library", exact: true }).click();
+  await page.locator(".library-add-menu > summary").click();
+  await page.getByLabel("BibTeX destination").selectOption("library");
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "citation-network.bib",
     mimeType: "application/x-bibtex",
@@ -4284,6 +4298,7 @@ test("records and reviews source citation assertions in an accessible shared net
       doi = {10.1000/network-beta}
     }`),
   });
+  await page.keyboard.press("Escape");
   const alpha = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Network Alpha Study" });
   await expect(alpha).toBeVisible();
   const alphaId = await alpha.getAttribute("data-reference-id");
@@ -5586,6 +5601,58 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
+test("imports, exports and restores a native Kirjolab project with references already linked", async ({ page }) => {
+  const source = projectArchiveFixture();
+  const archive = await buildProjectArchive(source, new Map());
+  await page.goto("/editor/demo");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page
+    .locator("#project-import-archive")
+    .setInputFiles({ name: "paper.zip", mimeType: "application/zip", buffer: Buffer.from(archive) });
+  await expect(page.locator("#confirm-project-import")).toBeDisabled();
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator("#project-import-preview")).toContainText("2 linked references");
+  await expect(page.locator("#project-import-preview")).toContainText("Revision history and milestones");
+  await page.locator("#project-import-title").fill("Native browser round trip");
+  await page.locator("#confirm-project-import").click();
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const firstId = workspaceIdFromPage(page, "Expected native import id");
+  const first = await readWorkspaceSnapshot(page, `/api/workspaces/${firstId}`);
+  expect(first.projectReferences.map(({ citationAlias }) => citationAlias)).toEqual(["CustomAlias", "Uncited"]);
+  await expect(page.locator("#preview")).toContainText("Result");
+  await page.locator("[data-project-export-trigger]").first().click();
+  await page.getByRole("button", { name: "Inspect export scope" }).click();
+  await expect(page.locator("native-project-export")).toContainText("2 linked references");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Kirjolab project" }).click();
+  const downloaded = await downloadPromise;
+  expect(downloaded.suggestedFilename()).toBe("kirjolab-project.zip");
+  const stream = await downloaded.createReadStream();
+  if (!stream) throw new Error("Expected downloaded archive bytes");
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  await page.locator("#close-export").click();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page
+    .locator("#project-import-archive")
+    .setInputFiles({ name: "roundtrip.zip", mimeType: "application/zip", buffer: Buffer.concat(chunks) });
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator("#project-import-preview")).toContainText("2 existing Library records reused");
+  await page.locator("#confirm-project-import").click();
+  await page.waitForURL((url) => /\/editor\/[0-9a-f-]{36}$/u.test(url.pathname) && !url.pathname.endsWith(firstId));
+  const secondId = workspaceIdFromPage(page, "Expected restored project id");
+  const restored = await readWorkspaceSnapshot(page, `/api/workspaces/${secondId}`);
+  expect(restored.files.map(({ path, content }) => ({ path, content }))).toEqual(
+    first.files.map(({ path, content }) => ({ path, content })),
+  );
+  expect(restored.comments[0]!.resolution).toMatchObject({ status: "resolved", text: "Result" });
+  expect(restored.projectReferences.map(({ citationAlias }) => citationAlias)).toEqual(["CustomAlias", "Uncited"]);
+});
+
 test("previews and imports a bounded LaTeX project", async ({ page }) => {
   const archive = zipSync({
     "main.tex": strToU8(
@@ -6136,7 +6203,72 @@ test("derives collaborative project bibliography from shared-library aliases", a
   await collaborator.close();
 });
 
-test("keeps legacy project BibTeX import compatible without exposing it in the project UI", async ({ page }) => {
+test("imports a bibliography into an existing project with a private Library alternative", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Project-targeted reference import");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/editor/${workspaceId}`);
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  const before = await readWorkspaceSnapshot(page, api);
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
+  await expect(page.locator("#reference-filter-linkage")).toHaveValue("linked");
+  await expect(page.locator("#reference-library-list .library-reference-row")).toHaveCount(before.projectReferences.length);
+  await page.locator(".library-add-menu > summary").click();
+  await expect(page.getByLabel("BibTeX destination")).toHaveValue("project");
+  await expect(page.getByText("Import and add all references to this project.", { exact: true })).toBeVisible();
+
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "invalid.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from("not a bibliography"),
+  });
+  await expect(page.locator("#library-reference-import-control")).toContainText("No valid BibTeX entries found");
+  await expect(page.locator("#library-bibliography-upload")).toBeEnabled();
+  expect((await readWorkspaceSnapshot(page, api)).projectReferences).toHaveLength(before.projectReferences.length);
+
+  const bibliography = {
+    name: "project-sources.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@manual{batchOne2026, title={Batch Import First Source}, author={Batch, Ada}, year={2026}}
+      @manual{batchTwo2026, title={Batch Import Second Source}, author={Batch, Bea}, year={2026}}`),
+  };
+  await page.locator("#library-bibliography-upload").setInputFiles(bibliography);
+  await expect(page.locator("#toast")).toContainText("References imported and added to this project.");
+  const rows = page.locator("#reference-library-list .library-reference-row");
+  await expect(rows).toHaveCount(before.projectReferences.length + 2);
+  await expect(rows.getByRole("button", { name: "Linked", exact: true })).toHaveCount(before.projectReferences.length + 2);
+  const imported = await readWorkspaceSnapshot(page, api);
+  expect(imported.projectReferences.map(({ citationAlias }) => citationAlias).sort()).toEqual(
+    [...before.projectReferences.map(({ citationAlias }) => citationAlias), "batchOne2026", "batchTwo2026"].sort(),
+  );
+  expect(imported.source).toBe(before.source);
+  await page.locator("#library-bibliography-upload").setInputFiles(bibliography);
+  await expect(page.locator("#library-bibliography-upload")).toBeEnabled();
+  expect((await readWorkspaceSnapshot(page, api)).projectReferences).toHaveLength(before.projectReferences.length + 2);
+
+  await page.getByLabel("BibTeX destination").selectOption("library");
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "private-sources.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from("@manual{privateBatch, title={Private Batch Import Source}, author={Private, Ada}, year={2026}}"),
+  });
+  const privateRow = rows.filter({ hasText: "Private Batch Import Source" });
+  await expect(privateRow).toBeVisible();
+  await expect(privateRow.getByRole("button", { name: "Add", exact: true })).toBeVisible();
+  await expect(page.locator("#reference-filter-linkage")).toHaveValue("all");
+  await expect(page.getByLabel("BibTeX destination")).toHaveValue("library");
+  expect((await readWorkspaceSnapshot(page, api)).projectReferences).toHaveLength(before.projectReferences.length + 2);
+
+  await page.reload();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
+  await expect(page.locator("#reference-filter-linkage")).toHaveValue("linked");
+  await expect(rows).toHaveCount(before.projectReferences.length + 2);
+  await expect(privateRow).toHaveCount(0);
+  await page.locator(".library-filter-menu > summary").click();
+  await page.locator("#reference-filter-linkage").selectOption("all");
+  await expect(privateRow).toBeVisible();
+});
+
+test("keeps project BibTeX import compatible through the Library workflow", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Stable shared import");
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/editor/${workspaceId}`);

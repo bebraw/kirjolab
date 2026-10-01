@@ -4,14 +4,16 @@ import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "..
 import type { AppCapabilities } from "../app/app-contracts";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
 import { LightDomElement } from "../platform/light-dom-controller";
+import type { ProjectImportPanel } from "./project-import-panel";
 import { formatCalendarDate } from "../platform/format";
 import { errorMessage, expectOk, jsonFetch } from "../platform/http";
 
-export type StartingPointAction = "import-github" | "import-latex";
+export type StartingPointAction = "import-github" | "import-latex" | "import-project";
 
 interface StartingPointOwners {
   readonly gitHubImportPanel: { open(): void };
   readonly latexImportPanel: { open(): void };
+  readonly projectImportPanel?: ProjectImportPanel;
   readonly saveTemplateDialog: { syncTemplates(): void };
   readonly toast: { show(message: string, options?: DeferredDeletionNoticeOptions): void };
 }
@@ -270,6 +272,9 @@ export class ProjectStartingPointBrowser extends LightDomElement {
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
           <div class="ui-cluster justify-end">
+            <button class="button-secondary" id="open-project-import" type="button" @click=${() => this.openImport("import-project")}>
+              Import Kirjolab project
+            </button>
             <button class="button-secondary" id="open-latex-import" type="button" @click=${() => this.openImport("import-latex")}>
               Import LaTeX
             </button>
@@ -321,7 +326,8 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   protected openImport(detail: StartingPointAction): void {
     if (detail === "import-github" && !this.githubAvailable) return;
     this.close();
-    if (detail === "import-latex") this.owners?.latexImportPanel.open();
+    if (detail === "import-project") this.owners?.projectImportPanel?.open();
+    else if (detail === "import-latex") this.owners?.latexImportPanel.open();
     else this.owners?.gitHubImportPanel.open();
   }
 

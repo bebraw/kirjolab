@@ -27,12 +27,14 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No ADRs are currently accepted but unimplemented.
+No accepted-but-unimplemented ADRs.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-241](./implemented/ADR-241-add-lossless-native-project-archives.md)                  | Implemented          | Preserve current project state through paired native ZIP export and import.                                     |
+| [ADR-242](./implemented/ADR-242-scope-reference-imports-to-active-project.md)             | Implemented          | Default editor BibTeX imports and Library browsing to the active project's reference set.                       |
 | [ADR-239](./implemented/ADR-239-link-member-library-sources-to-project-references.md)     | Implemented          | Let members link their private Library sources to shared project references.                                    |
 | [ADR-240](./implemented/ADR-240-deduplicate-pdf-bytes-across-libraries-and-projects.md)   | Implemented          | Store one verified PDF byte object across Libraries and projects.                                               |
 | [ADR-238](./implemented/ADR-238-navigate-related-pdfs-from-reader.md)                     | Implemented          | Navigate among PDFs connected to the active paper's references from the project reader.                         |
@@ -101,7 +103,7 @@ No ADRs are currently accepted but unimplemented.
 | [ADR-170](./implemented/ADR-170-use-valibot-at-trust-boundaries.md)                       | Implemented          | Use inferred Valibot schemas selectively at bounded trust boundaries.                                           |
 | [ADR-169](./implemented/ADR-169-recognize-held-pdf-drawing-shapes.md)                     | Implemented          | Recognize bounded held freehand PDF markup as reviewed native shapes.                                           |
 | [ADR-168](./implemented/ADR-168-instantiate-from-existing-projects.md)                    | Implemented          | Instantiate a new project directly from an authorized existing project's sanitized current structure.           |
-| [ADR-156](./implemented/ADR-156-keep-bibtex-at-interoperability-boundaries.md)            | Implemented          | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries.                  |
+| [ADR-156](./implemented/ADR-156-keep-bibtex-at-interoperability-boundaries.md)            | Partially superseded | Remove BibTeX from ordinary project UI; ADR-242 adds project-targeted intake at the Library import boundary.    |
 | [ADR-155](./implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)           | Implemented          | Grant authenticated project members linked-reference PDF access while excluding public bearer links.            |
 | [ADR-154](./implemented/ADR-154-refine-linked-pdf-reference-keys.md)                      | Implemented          | Keep PDF-origin keys refinable and propagate generated aliases without overwriting researcher choices.          |
 | [ADR-153](./implemented/ADR-153-keep-build-week-media-capture-local.md)                   | Implemented          | Keep Build Week media capture manual, isolated, validated, and outside the template and CI baselines.           |

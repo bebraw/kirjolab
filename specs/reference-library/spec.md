@@ -51,6 +51,14 @@ memory and makes citation aliases compete with stable source identity.
 - Project duplication and revision seeding register the destination project's
   copied reference identities before publishing it. Failed copies remove any
   partially registered dependency rows.
+- [Native project import](../project-interchange/spec.md) previews strong
+  Library matches, creates missing records and project dependencies in one
+  Library transaction, and preserves exported project snapshots and aliases.
+  Reusing a match never updates its metadata or private research. Distinct
+  project references that collapse to one Library identity, deleted matches,
+  or changed preview mappings require reconciliation before creation. Failed
+  imports remove their dependency rows and delete only newly created,
+  unchanged, otherwise-unused Library records.
 - Project bibliography text is derived from linked snapshots. Normal export
   includes only aliases cited by composed `main.md`; archival export may use
   every explicit project link.
@@ -60,10 +68,26 @@ memory and makes citation aliases compete with stable source identity.
 - Existing workspace BibTeX migrates lazily and idempotently into the owner
   library, then becomes project links and derived bibliography.
 - A bounded light-DOM reference-import control owns BibTeX and CSL JSON file
-  selection, file reads, import transport, duplicate-submit gating, local
-  failures, input reset, and refresh-pending state. It emits a typed successful
-  refresh request; the workspace coordinator refreshes the canonical Library,
-  applies toast policy, and acknowledges completion before another import.
+  selection, file reads, import destination, transport, duplicate-submit gating,
+  local failures, input reset, and refresh-pending state. In a project, BibTeX
+  defaults to **This project**: one file import uses the existing owner-only
+  `POST /api/workspaces/{id}/bibliography/import` boundary to import into the
+  canonical Library and link every imported source to that project. Existing
+  library matches are reused, existing project links are synchronized without
+  duplication, and incoming keys suggest project aliases under the existing
+  collision checks. Import never inserts manuscript citations.
+- **Library only** keeps BibTeX intake private through `POST /api/library/import`.
+  Standalone `/library` has no project destination; CSL JSON remains explicitly
+  labelled Library-only intake. Selecting a destination does not change the
+  scope of PDF or website intake. Destination choice survives refreshes in the
+  same project and resets when project context changes; it is not persisted.
+- The import control validates a project import's canonical workspace response
+  and includes it in the typed successful refresh request. The workspace
+  coordinator applies that snapshot before refreshing the canonical Library,
+  clears other filters, shows linked references after a project import or all
+  references after a Library-only import, applies toast policy, and acknowledges
+  completion before another import. Failed imports display the server error
+  locally and permit retry without reporting success.
 - A PDF upload creates a provisional `misc` source immediately, derives only a
   title from its filename, assigns its provisional reference key, and attaches
   the private artifact atomically. Researchers may enrich metadata later;
@@ -241,6 +265,18 @@ memory and makes citation aliases compete with stable source identity.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
+- The editor Library initially filters to references linked to the current
+  project, including uncited sources. **Filter → Project → Linked or unlinked**
+  exposes the full private Library for reuse. The Filter summary identifies the
+  current scope. Deliberate filter choices survive refreshes in that project;
+  entering another project restores the linked default. Standalone `/library`
+  initially shows all private references. An explicit reference reveal may clear
+  linkage filters so the requested source remains reachable. Successful private
+  PDF, website, and discovery intake clears filters and shows all references so
+  a newly added, unlinked source can be inspected and connected to the project.
+  This project-first
+  workflow follows
+  [ADR-242](../../docs/adrs/implemented/ADR-242-scope-reference-imports-to-active-project.md).
 - `/library` exposes the same private Library and kind-qualified PDF reader
   without opening a project. This mode must not fetch a workspace snapshot,
   connect a collaboration socket, restore manuscript state, or expose project
