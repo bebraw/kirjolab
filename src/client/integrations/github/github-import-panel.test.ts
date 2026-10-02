@@ -1,3 +1,5 @@
+import { nothing } from "lit";
+import { isTemplateResult } from "lit/directive-helpers.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitHubImportPanel } from "./github-import-panel";
 
@@ -83,6 +85,128 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 describe("GitHub import panel", () => {
+  it("keeps standalone setup, review and busy controls synchronized with creation progress", () => {
+    const panel = new TestGitHubImportPanel();
+    panel.standalone = true;
+    const states: unknown[] = [];
+    const back = vi.fn();
+    panel.addEventListener("project-creation-state", (event) => {
+      if (event instanceof CustomEvent) {
+        states.push(event.detail);
+        expect(event.bubbles).toBe(true);
+      }
+    });
+    panel.addEventListener("project-creation-back", back);
+    let view = markup(panel.renderForTest());
+    expect(control(view, "preview-github-import")).toContain("?hidden=false");
+    expect(control(view, "preview-github-import")).toContain("?disabled=true");
+    expect(view).toContain("/api/github/connect?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub");
+    expect(view).toContain("/api/github/install?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub");
+    expect(view).toContain("Choose another starting point");
+    panel.setInstallations([installation]);
+    panel.setRepositories([repository]);
+    panel.setBranches([{ name: "main", protected: true }], "main");
+    expect(control(markup(panel.renderForTest()), "preview-github-import")).toContain("?disabled=false");
+    panel.beginPreview();
+    view = markup(panel.renderForTest());
+    expect(view).toContain("Reading the selected commit…");
+    expect(control(view, "preview-github-import")).toContain("?disabled=true");
+    panel.showPreview({ id: "preview-1", commitSha: "1234567890abcdef", entryPath: "main.md", files: [{ path: "main.md", bytes: 10 }] });
+    view = markup(panel.renderForTest());
+    expect(control(view, "preview-github-import")).toContain("?hidden=true");
+    expect(view).toMatch(/aria-labelledby="github-connection-heading"\s+\?hidden=true/u);
+    expect(view).toContain('sm:grid-cols-2" ?hidden=true');
+    expect(view).toContain("1234567890 previewed. Confirm to create the project.");
+    expect(view).toContain("1 Markdown files · entry main.md");
+    expect(view).toContain("main.md · 1 KB");
+    panel.beginCreation();
+    expect(markup(panel.renderForTest())).toContain("Creating the project…");
+    panel.showCreationError("Try again");
+    expect(markup(panel.renderForTest())).toContain("Try again");
+    panel.edit();
+    view = markup(panel.renderForTest());
+    expect(control(view, "preview-github-import")).toContain("?hidden=false");
+    expect(view).toContain("Preview to inspect the selected files and resolved entry.");
+    expect(states).toEqual([
+      { step: 2, busy: true },
+      { step: 3, busy: false },
+      { step: 3, busy: true },
+      { step: 3, busy: false },
+      { step: 2, busy: false },
+    ]);
+    panel.cancelForTest();
+    expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("shows picker placeholders and resets dependent selections while loading", () => {
+    const panel = new TestGitHubImportPanel();
+    expect(markup(panel.renderForTest())).toContain("Connect GitHub first");
+    expect(markup(panel.renderForTest())).toContain("Checking connection…");
+    panel.beginConnectionRefresh();
+    expect(control(markup(panel.renderForTest()), "github-installation-id")).toContain("?disabled=true");
+    panel.setInstallationsLoading();
+    expect(markup(panel.renderForTest())).toContain("Loading accounts…");
+    panel.setInstallations([]);
+    expect(markup(panel.renderForTest())).toContain("No installations available");
+    panel.setInstallations([installation, { ...installation, id: 8, accountLogin: "ada", accountType: "User" }]);
+    panel.setRepositories([repository, { ...repository, id: 12, fullName: "research-lab/public", private: false }]);
+    panel.setBranches(
+      [
+        { name: "draft", protected: false },
+        { name: "main", protected: true },
+      ],
+      "main",
+    );
+    let view = markup(panel.renderForTest());
+    expect(view).toContain("research-lab · organization");
+    expect(view).toContain("ada · personal");
+    expect(view).toContain("research-lab/paper · private");
+    expect(view).toContain("value=12>research-lab/public</option>");
+    expect(view).toContain("value=main>main · protected");
+    expect(view).toContain("value=draft>draft</option>");
+    expect(control(view, "github-installation-id")).toContain("?disabled=false");
+    expect(control(view, "github-repository")).toContain("?disabled=false");
+    expect(control(view, "github-branch")).toContain("?disabled=false");
+    panel.setBranches([{ name: "draft", protected: false }], "absent");
+    expect(panel.selection.branch).toBe("draft");
+    panel.setBranches([], "main");
+    expect(markup(panel.renderForTest())).toContain("No branches available");
+    expect(panel.selection.branch).toBe("");
+    panel.setRepositoriesLoading();
+    expect(markup(panel.renderForTest())).toContain("Loading repositories…");
+    expect(panel.selection.repository).toBeNull();
+    panel.setRepositories([]);
+    expect(markup(panel.renderForTest())).toContain("No repositories available");
+    panel.resetDisconnected();
+    view = markup(panel.renderForTest());
+    expect(view).toContain("Connect GitHub first");
+    expect(view).toContain("Choose an account");
+    expect(view).toContain("Choose a repository");
+    expect(panel.selection).toMatchObject({ installationId: null, repository: null, branch: "" });
+  });
+
+  it("shows actionable request failures and preserves retry after a failed creation", async () => {
+    const panel = new TestGitHubImportPanel();
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await panel.previewForTest();
+    expect(markup(panel.renderForTest())).toContain("Choose a GitHub account");
+    expect(fetcher).not.toHaveBeenCalled();
+    panel.setInstallations([installation]);
+    await panel.previewForTest();
+    expect(markup(panel.renderForTest())).toContain("Choose a GitHub repository");
+    panel.setRepositories([repository]);
+    panel.setBranches([{ name: "main", protected: false }], "main");
+    fetcher.mockResolvedValueOnce(jsonResponse({ invalid: true }));
+    await panel.previewForTest();
+    expect(markup(panel.renderForTest())).toContain("GitHub returned an invalid import preview");
+    panel.showPreview({ id: "preview-1", commitSha: "1234567890abcdef", entryPath: "main.md", files: [{ path: "main.md", bytes: 10 }] });
+    fetcher.mockResolvedValueOnce(jsonResponse({ invalid: true }));
+    await panel.confirmForTest();
+    expect(markup(panel.renderForTest())).toContain("GitHub import returned invalid project data");
+    expect(markup(panel.renderForTest())).toMatch(/class="button-primary"\s+type="button"\s+\?hidden=false\s+\?disabled=false/u);
+  });
+
   it("stays hidden and makes no requests without the GitHub capability", async () => {
     const panel = new TestGitHubImportPanel();
     const dialog = new FakeDialog();
@@ -113,6 +237,7 @@ describe("GitHub import panel", () => {
     expect(dialog.modalCount).toBe(0);
     expect(fetcher).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
+    expect(markup(panel.renderForTest())).toBe("");
   });
 
   it("owns the light-DOM form and repository selection lifecycle", () => {
@@ -195,8 +320,9 @@ describe("GitHub import panel", () => {
     const panel = new TestGitHubImportPanel();
 
     await panel.refreshConnection();
-    expect(panel.renderForTest()).toBeDefined();
+    expect(markup(panel.renderForTest())).toContain("Connection unavailable");
     await panel.refreshConnection();
+    expect(markup(panel.renderForTest())).toContain("Connect GitHub to choose repositories available to your account.");
     expect(panel.selection.installationId).toBeNull();
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
@@ -225,18 +351,30 @@ describe("GitHub import panel", () => {
   it("presents preview, creation, and error states", () => {
     const panel = new TestGitHubImportPanel();
     panel.beginPreview();
+    expect(markup(panel.renderForTest())).toContain("Reading the selected commit…");
     panel.showPreview({
       id: "preview-1",
       commitSha: "1234567890abcdef",
       entryPath: "main.md",
       files: Array.from({ length: 13 }, (_, index) => ({ path: `chapter-${index}.md`, bytes: index + 1 })),
     });
-    expect(panel.renderForTest()).toBeDefined();
+    const view = markup(panel.renderForTest());
+    expect(view).toContain("13 Markdown files · entry main.md");
+    expect(view.match(/<li>chapter-/gu)).toHaveLength(12);
+    expect(view).toContain("chapter-11.md · 1 KB");
+    expect(view).not.toContain("chapter-12.md");
+    expect(view).toContain("…and 1 more");
+    expect(control(view, "preview-github-import")).toContain("?hidden=false");
+    expect(view).toMatch(/class="button-primary"\s+type="button"\s+\?hidden=false\s+\?disabled=false/u);
     panel.beginCreation();
+    expect(markup(panel.renderForTest())).toMatch(/class="button-primary"\s+type="button"\s+\?hidden=false\s+\?disabled=true/u);
     panel.showCreationError("Could not create project.");
+    expect(markup(panel.renderForTest())).toContain("Could not create project.");
     panel.showPreviewError("Could not preview repository.");
+    expect(markup(panel.renderForTest())).toContain("Could not preview repository.");
     panel.resetPreview();
-    expect(panel.renderForTest()).toBeDefined();
+    expect(markup(panel.renderForTest())).toContain("Preview to inspect the selected files and resolved entry.");
+    expect(markup(panel.renderForTest())).toMatch(/class="button-primary"\s+type="button"\s+\?hidden=false\s+\?disabled=true/u);
   });
 
   it("owns import preview, creation, and canonical project navigation", async () => {
@@ -339,3 +477,20 @@ describe("GitHub import panel", () => {
     expect(replaceState).toHaveBeenCalledWith(null, "", "/");
   });
 });
+
+function markup(value: unknown): string {
+  return serialize(value).replace(/\s+/gu, " ");
+}
+
+function serialize(value: unknown): string {
+  if (value === nothing || value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(serialize).join("");
+  if (isTemplateResult(value, 1)) return value.strings.reduce((result, part, index) => result + part + serialize(value.values[index]), "");
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "";
+}
+
+function control(value: string, id: string): string {
+  const match = new RegExp(`<[^>]+id="${id}"[^>]*>`, "u").exec(value);
+  if (!match) throw new Error(`Missing rendered control: ${id}`);
+  return match[0];
+}

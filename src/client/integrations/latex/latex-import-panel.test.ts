@@ -1,3 +1,5 @@
+import { nothing } from "lit";
+import { isTemplateResult } from "lit/directive-helpers.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LatexImportPreview } from "../../app/app-contracts";
 import { LatexImportPanel } from "./latex-import-panel";
@@ -94,6 +96,125 @@ function eventWithTarget(target: object): Event {
 }
 
 describe("LaTeX import panel", () => {
+  it("keeps standalone setup, review, failures and back navigation synchronized", () => {
+    const panel = new TestLatexImportPanel();
+    panel.standalone = true;
+    const states: unknown[] = [];
+    const back = vi.fn();
+    panel.addEventListener("project-creation-state", (event) => {
+      if (event instanceof CustomEvent) {
+        states.push(event.detail);
+        expect(event.bubbles).toBe(true);
+      }
+    });
+    panel.addEventListener("project-creation-back", back);
+    let view = markup(panel.renderForTest());
+    expect(control(view, "preview-latex-import")).toContain("?hidden=false");
+    expect(control(view, "confirm-latex-import")).toContain("?hidden=true");
+    expect(control(view, "confirm-latex-import")).toContain("?disabled=true");
+    expect(view).toContain("Preview to inspect the converted Markdown and diagnostics.");
+    panel.archiveChangedForTest(new File(["zip"], "my__paper--draft.ZIP"));
+    panel.previewSucceeded(preview);
+    view = markup(panel.renderForTest());
+    expect(view).toContain('sm:grid-cols-2" ?hidden=true');
+    expect(control(view, "preview-latex-import")).toContain("?hidden=true");
+    expect(control(view, "confirm-latex-import")).toContain("?hidden=false");
+    expect(control(view, "confirm-latex-import")).toContain("?disabled=false");
+    expect(view).toContain("my paper draft");
+    expect(view).toContain("1 Markdown files · 1 figure inputs detected · bibliography selected");
+    expect(view).toContain("# Paper");
+    expect(view).toContain("Note: Converted");
+    panel.previewFailed("Preview unavailable");
+    expect(markup(panel.renderForTest())).toContain("Preview unavailable");
+    panel.confirmFailed("Create unavailable");
+    expect(markup(panel.renderForTest())).toContain("Create unavailable");
+    panel.edit();
+    view = markup(panel.renderForTest());
+    expect(control(view, "confirm-latex-import")).toContain("?hidden=true");
+    expect(control(view, "confirm-latex-import")).toContain("?disabled=true");
+    expect(states).toEqual([
+      { step: 3, busy: false },
+      { step: 3, busy: false },
+      { step: 3, busy: false },
+      { step: 2, busy: false },
+    ]);
+    panel.cancelForTest();
+    expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("requires a root choice and blocks confirmation when conversion reports errors", async () => {
+    const panel = new TestLatexImportPanel();
+    panel.archiveFile = new File(["zip"], "paper.zip");
+    panel.previewSucceeded({ ...preview, conversion: null, archive: { ...preview.archive, rootCandidates: ["a.tex", "b.tex"] } });
+    let view = markup(panel.renderForTest());
+    expect(control(view, "latex-root-field")).toContain("?hidden=false");
+    expect(view).toContain('<option value="">Choose a root document</option>');
+    expect(view).toContain("<option value=a.tex>a.tex</option>");
+    expect(view).toContain("Choose a root document, then preview again.");
+    const fetcher = vi.fn().mockResolvedValue(Response.json(preview));
+    vi.stubGlobal("fetch", fetcher);
+    panel.rootChangedForTest("b.tex");
+    expect(markup(panel.renderForTest())).toContain("Preview the selected root before creating the project.");
+    await panel.previewForTest();
+    expect(fetcher).toHaveBeenCalledWith("/api/latex-import-previews?root=b.tex", expect.objectContaining({ method: "POST" }));
+    const conversion = preview.conversion;
+    if (!conversion) throw new Error("Fixture must contain a conversion");
+    panel.previewSucceeded({
+      ...preview,
+      conversion: {
+        ...conversion,
+        report: {
+          ...conversion.report,
+          diagnostics: [
+            { message: "Unsafe command", severity: "error" },
+            { message: "Check this", severity: "warning" },
+          ],
+        },
+      },
+    });
+    view = markup(panel.renderForTest());
+    expect(control(view, "latex-root-field")).toContain("?hidden=true");
+    expect(control(view, "confirm-latex-import")).toContain("?disabled=true");
+    expect(view).toContain("1 blocking diagnostic requires review.");
+    expect(view).toContain("Blocked: Unsafe command");
+    expect(view).toContain("Review: Check this");
+    fetcher.mockClear();
+    await panel.confirmForTest();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("disables controls and prevents duplicate requests or cancellation during preview", async () => {
+    const panel = new TestLatexImportPanel();
+    panel.standalone = true;
+    panel.archiveFile = new File(["zip"], "paper.zip");
+    const response = deferred<Response>();
+    const fetcher = vi.fn().mockReturnValue(response.promise);
+    const back = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    panel.addEventListener("project-creation-back", back);
+    const pending = panel.previewForTest();
+    const view = markup(panel.renderForTest());
+    for (const id of [
+      "latex-import-title",
+      "latex-import-archive",
+      "latex-import-root",
+      "preview-latex-import",
+      "confirm-latex-import",
+      "cancel-latex-import",
+    ])
+      expect(control(view, id)).toContain("?disabled=true");
+    expect(view).toContain("Previewing…");
+    expect(view).toContain("Inspecting and converting the archive on the server…");
+    await panel.previewForTest();
+    await panel.confirmForTest();
+    panel.cancelForTest();
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(back).not.toHaveBeenCalled();
+    response.resolve(Response.json(preview));
+    await pending;
+    expect(control(markup(panel.renderForTest()), "confirm-latex-import")).toContain("?disabled=false");
+  });
+
   it("renders initial, root-selection, converted, blocking, and failure states", () => {
     const panel = new TestLatexImportPanel();
     expect(panel.renderForTest()).toBeDefined();
@@ -209,11 +330,12 @@ describe("LaTeX import panel", () => {
       .mockResolvedValueOnce(Response.json({ workspace: null }));
 
     await panel.previewForTest();
+    expect(markup(panel.renderForTest())).toContain("LaTeX import returned an invalid preview");
     await panel.previewForTest();
     panel.titleForTest("Paper");
     await panel.confirmForTest();
 
-    expect(panel.renderForTest()).toBeDefined();
+    expect(markup(panel.renderForTest())).toContain("LaTeX import returned invalid project data");
   });
 
   it("owns its native dialog lifecycle", () => {
@@ -236,4 +358,21 @@ function deferred<T>(): { readonly promise: Promise<T>; resolve(value: T): void 
     resolvePromise = resolve;
   });
   return { promise, resolve: resolvePromise };
+}
+
+function markup(value: unknown): string {
+  return serialize(value).replace(/\s+/gu, " ");
+}
+
+function serialize(value: unknown): string {
+  if (value === nothing || value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(serialize).join("");
+  if (isTemplateResult(value, 1)) return value.strings.reduce((result, part, index) => result + part + serialize(value.values[index]), "");
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "";
+}
+
+function control(value: string, id: string): string {
+  const match = new RegExp(`<[^>]+id="${id}"[^>]*>`, "u").exec(value);
+  if (!match) throw new Error(`Missing rendered control: ${id}`);
+  return match[0];
 }
