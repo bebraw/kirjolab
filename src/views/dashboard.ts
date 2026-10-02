@@ -46,7 +46,7 @@ export function renderDashboardPage(
           <p>Writing, evidence, and sources stay close without competing for attention.</p>
         </div>
         <div class="dashboard-actions" aria-label="Create or collect">
-          <a class="button-primary" href="/editor?create=1">New project</a>
+          <a class="button-primary" href="/projects/new">New project</a>
           <a class="button-secondary" href="/review">Start a review</a>
           <a class="button-secondary" href="/library">Add references</a>
         </div>

@@ -5,6 +5,9 @@ import type { ProjectTemplateSummary } from "../../domain/project/project-templa
 import type { WorkspaceSummary } from "../../domain/workspace/workspace";
 import type { DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
 import { ProjectStartingPointBrowser, type StartingPointAction } from "./project-starting-point-browser";
+import { ProjectImportPanel } from "./project-import-panel";
+import { LatexImportPanel } from "../integrations/latex/latex-import-panel";
+import { GitHubImportPanel } from "../integrations/github/github-import-panel";
 
 const builtIn: ProjectTemplateSummary = {
   createdAt: null,
@@ -55,9 +58,25 @@ function templateText(value: unknown): string {
 }
 
 function binding(template: TemplateResult, marker: string): unknown {
-  const index = template.strings.findIndex((part) => part.includes(marker));
-  if (index < 0) throw new Error(`Missing rendered binding: ${marker}`);
-  return template.values[index];
+  const result = findBinding(template, marker);
+  if (!result) throw new Error(`Missing rendered binding: ${marker}`);
+  return result.value;
+}
+
+function findBinding(template: unknown, marker: string): { value: unknown } | null {
+  if (Array.isArray(template)) {
+    for (const child of template) {
+      const result = findBinding(child, marker);
+      if (result) return result;
+    }
+  }
+  if (!isTemplateResult(template, 1)) return null;
+  for (let index = 0; index < template.strings.length; index++) {
+    if (template.strings[index]?.includes(marker)) return { value: template.values[index] };
+    const result = findBinding(template.values[index], marker);
+    if (result) return result;
+  }
+  return null;
 }
 
 class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
@@ -104,6 +123,18 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
 
   async createForTest(): Promise<void> {
     await this.create(new Event("submit"));
+  }
+  loadPageForTest(): Promise<void> {
+    return this.loadCreationPage();
+  }
+  backForTest(): void {
+    this.previousStep();
+  }
+  chooseAgainForTest(): void {
+    this.chooseAgain();
+  }
+  importStateForTest(detail: unknown): void {
+    this.importStateChanged(new CustomEvent("project-creation-state", { detail }));
   }
 
   cancelForTest(): void {
@@ -190,6 +221,90 @@ afterEach(() => {
 });
 
 describe("project starting point browser", () => {
+  it.each([
+    ["import-project", "project-import-panel", ProjectImportPanel],
+    ["import-latex", "latex-import-panel", LatexImportPanel],
+    ["import-github", "github-import-panel", GitHubImportPanel],
+  ] as const)("keeps Back to setup on step two for %s", (action, selector, Panel) => {
+    const browser = new TestProjectStartingPointBrowser();
+    browser.standalone = true;
+    const panel = new Panel();
+    panel.standalone = true;
+    panel.addEventListener("project-creation-state", (event) => {
+      if (event instanceof CustomEvent) browser.importStateForTest(event.detail);
+    });
+    Object.defineProperty(browser, "querySelector", { value: (value: string) => (value === selector ? panel : null) });
+    browser.importForTest(action);
+    browser.importStateForTest({ step: 3, busy: false });
+    browser.backForTest();
+    const activeStep = /aria-current=step[^>]*>\s*<span>(\d+)<\/span>([^<]+)/u.exec(templateText(browser.renderForTest()))?.slice(1);
+    expect(activeStep).toEqual(["02", "Project setup"]);
+    expect(templateText(browser.renderForTest())).toContain(`${selector} standalone`);
+  });
+
+  it("keeps template creation read-only until the final step and preserves setup when going back", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    browser.standalone = true;
+    browser.setData([builtIn], []);
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(workspace));
+    await browser.createForTest();
+    expect(templateText(browser.renderForTest())).toContain("Choose a starting point.");
+    browser.chooseTemplateForTest(builtIn);
+    await browser.createForTest();
+    expect(templateText(browser.renderForTest())).toContain("Name your project");
+    await browser.createForTest();
+    expect(templateText(browser.renderForTest())).toContain("Enter a project title.");
+    browser.changeTitleForTest("Reviewed template");
+    await browser.createForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(templateText(browser.renderForTest())).toContain("Reviewed template");
+    browser.backForTest();
+    expect(templateText(browser.renderForTest())).toContain("Name your project");
+    await browser.createForTest();
+    await browser.createForTest();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith(workspace.href);
+  });
+
+  it("loads the standalone catalog and routes imports through setup and review", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    browser.standalone = true;
+    vi.stubGlobal("document", { body: { dataset: {} } });
+    Object.defineProperty(browser, "querySelector", { value: () => null });
+    vi.stubGlobal("location", { href: "https://example.test/projects/new" });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json([workspace]))
+      .mockResolvedValueOnce(Response.json([builtIn]));
+    await browser.loadPageForTest();
+    expect(templateText(browser.renderForTest())).toContain("Guided project");
+    browser.importForTest("import-project");
+    expect(templateText(browser.renderForTest())).toContain("project-import-panel standalone");
+    browser.importStateForTest({ step: 3, busy: true });
+    browser.chooseAgainForTest();
+    expect(templateText(browser.renderForTest())).toContain("project-import-panel standalone");
+    browser.importStateForTest({ step: 3, busy: false });
+    expect(templateText(browser.renderForTest())).toContain("Back to setup");
+    browser.importStateForTest({ step: 4, busy: "wrong" });
+    browser.importStateForTest(null);
+    browser.backForTest();
+    browser.chooseAgainForTest();
+    expect(templateText(browser.renderForTest())).toContain("Choose a starting point");
+    browser.importForTest("import-latex");
+    expect(templateText(browser.renderForTest())).toContain("latex-import-panel standalone");
+    browser.chooseAgainForTest();
+    browser.importForTest("import-github");
+    expect(templateText(browser.renderForTest())).toContain("github-import-panel standalone");
+  });
+
+  it("reports standalone catalog errors without enabling creation", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    browser.standalone = true;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));
+    await browser.loadPageForTest();
+    expect(templateText(browser.renderForTest())).toContain("Project catalog returned invalid data");
+  });
   it("presents the catalog, structure and publication setup before enabling project creation", () => {
     vi.stubGlobal("document", { body: { dataset: { workspaceId: "workspace-1" } } });
     const browser = new TestProjectStartingPointBrowser();
@@ -228,7 +343,7 @@ describe("project starting point browser", () => {
     expect(text.match(/class="template-choice-name">Personal project/gu)).toHaveLength(1);
     expect(binding(view, 'id="create-workspace"')).toBe(false);
     browser.configure({ github: false });
-    expect(binding(browser.renderForTest(), "?hidden=")).toBe(true);
+    expect(binding(browser.renderForTest(), 'id="open-github-import"')).toBe(true);
     browser.setTemplateHidden(personal.id, true);
     expect(templateText(browser.renderForTest())).toContain("Choose a starting point.");
     expect(binding(browser.renderForTest(), 'id="create-workspace"')).toBe(true);
@@ -489,10 +604,12 @@ describe("project starting point browser", () => {
     expect(browser.focusCount).toBe(1);
   });
 
-  it("owns shell-trigger loading and post-load focus", async () => {
+  it("opens the dedicated creation route from the editor trigger", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const trigger = new EventTarget();
     const load = vi.fn().mockResolvedValue(undefined);
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
     browser.bindWorkspace(
       {
         gitHubImportPanel: { open: vi.fn() },
@@ -506,10 +623,9 @@ describe("project starting point browser", () => {
     );
 
     trigger.dispatchEvent(new Event("click"));
-    await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(browser.firstFocusCount).toBe(1));
-
-    expect(browser.modalCount).toBe(1);
+    expect(assign).toHaveBeenCalledWith("/projects/new");
+    expect(load).not.toHaveBeenCalled();
+    expect(browser.modalCount).toBe(0);
   });
 
   it("owns one-shot browser create requests", async () => {

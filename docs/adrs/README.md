@@ -33,6 +33,7 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-243](./implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)  | Implemented          | Create projects on a dedicated stepwise page and normalize bounded Markdown ZIPs into native metadata.          |
 | [ADR-241](./implemented/ADR-241-add-lossless-native-project-archives.md)                  | Implemented          | Preserve current project state through paired native ZIP export and import.                                     |
 | [ADR-242](./implemented/ADR-242-scope-reference-imports-to-active-project.md)             | Implemented          | Default editor BibTeX imports and Library browsing to the active project's reference set.                       |
 | [ADR-239](./implemented/ADR-239-link-member-library-sources-to-project-references.md)     | Implemented          | Let members link their private Library sources to shared project references.                                    |

@@ -4,6 +4,7 @@ export const exampleRoutes = [
   { path: "/library/pdfs/:id", purpose: "Routable private library PDF reader" },
   { path: "/editor", purpose: "Resume a writing project" },
   { path: "/editor/:id", purpose: "Stable writing-project editor" },
+  { path: "/projects/new", purpose: "Stepwise writing-project creation" },
   { path: "/review", purpose: "Evidence review catalog" },
   { path: "/review/:id", purpose: "Independent collaborative evidence review" },
   { path: "/workspaces/:id", purpose: "Legacy writing-project redirect" },

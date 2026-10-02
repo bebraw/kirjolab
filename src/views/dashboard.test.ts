@@ -93,7 +93,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('<h1 id="dashboard-heading">Pick up the thread.</h1>');
     expect(html).toContain('<a class="primary-navigation-link" href="/" aria-current="page">Dashboard</a>');
     expect(html).toContain('<a class="primary-navigation-link" href="/editor/recent-project">Editor</a>');
-    expect(html).toContain('href="/editor?create=1">New project</a>');
+    expect(html).toContain('href="/projects/new">New project</a>');
     expect(html).toContain('href="/review">Start a review</a>');
     expect(html).toContain('href="/library">Add references</a>');
     expect(html).toContain("2 projects");

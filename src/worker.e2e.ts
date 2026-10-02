@@ -1977,14 +1977,13 @@ test("filters and quickly opens project files", async ({ page }) => {
 test("locks iPad viewport zoom and keeps editor layers aligned", async ({ browser }) => {
   const context = await browser.newContext({ hasTouch: true, viewport: { width: 1024, height: 1366 } });
   const page = await context.newPage();
-  await page.goto("/editor?create=1");
+  await page.goto("/editor/demo");
 
   await expect(page.locator("html")).toHaveCSS("touch-action", "pan-x pan-y");
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
     "content",
     "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   );
-  await expect(page.locator("#new-workspace-title")).toHaveCSS("font-size", "16px");
   const editorTypography = await page.evaluate(() => {
     const source = getComputedStyle(document.querySelector("#source-editor")!);
     const highlight = getComputedStyle(document.querySelector("#source-editor-highlight")!);
@@ -2001,6 +2000,11 @@ test("locks iPad viewport zoom and keeps editor layers aligned", async ({ browse
     sourceLineHeight: "27px",
     highlightLineHeight: "27px",
   });
+
+  await page.goto("/projects/new");
+  await page.locator('[data-template-id="builtin-blank"]').click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.locator("#new-workspace-title")).toHaveCSS("font-size", "16px");
 
   await context.close();
 });
@@ -5543,9 +5547,11 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
-  await page.locator("#new-workspace-title").fill("Independent inquiry");
   await page.locator('[data-template-id="builtin-guided"]').click();
-  await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.locator("#new-workspace-title").fill("Independent inquiry");
+  await page.getByRole("button", { name: "Review project", exact: true }).click();
+  await page.getByRole("button", { name: "Create project", exact: true }).click();
   await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
   const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
@@ -5607,11 +5613,11 @@ test("imports, exports and restores a native Kirjolab project with references al
   await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
-  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page.getByRole("button", { name: "Import project ZIP", exact: true }).click();
   await page
     .locator("#project-import-archive")
     .setInputFiles({ name: "paper.zip", mimeType: "application/zip", buffer: Buffer.from(archive) });
-  await expect(page.locator("#confirm-project-import")).toBeDisabled();
+  await expect(page.locator("#confirm-project-import")).toBeHidden();
   await page.locator("#preview-project-import").click();
   await expect(page.locator("#project-import-preview")).toContainText("2 linked references");
   await expect(page.locator("#project-import-preview")).toContainText("Revision history and milestones");
@@ -5636,7 +5642,7 @@ test("imports, exports and restores a native Kirjolab project with references al
   await page.locator("#close-export").click();
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
-  await page.getByRole("button", { name: "Import Kirjolab project", exact: true }).click();
+  await page.getByRole("button", { name: "Import project ZIP", exact: true }).click();
   await page
     .locator("#project-import-archive")
     .setInputFiles({ name: "roundtrip.zip", mimeType: "application/zip", buffer: Buffer.concat(chunks) });
@@ -5651,6 +5657,49 @@ test("imports, exports and restores a native Kirjolab project with references al
   );
   expect(restored.comments[0]!.resolution).toMatchObject({ status: "resolved", text: "Result" });
   expect(restored.projectReferences.map(({ citationAlias }) => citationAlias)).toEqual(["CustomAlias", "Uncited"]);
+});
+
+test("creates a source ZIP project step by step without loading an editor behind setup", async ({ page }) => {
+  const entries: Record<string, Uint8Array> = {
+    "paper/manuscript.md": strToU8("# Source paper\n\nImported writing :cite[Source2026].\n"),
+    "paper/notes/design.md": strToU8("# Notes\nOriginal notes."),
+    "paper/bibliography.bib": strToU8("@article{Source2026,title={Evidence source},author={Writer, Ada},year={2026}}"),
+    "paper/source.pdf": strToU8("%PDF-1.7\nBundled PDF"),
+  };
+  for (let index = 0; index < 1_100; index++) entries[`paper/node_modules/${index}.js`] = strToU8("dependency");
+  await page.goto("/projects/new");
+  await expect(page.locator("#source-editor")).toHaveCount(0);
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(page.locator('[aria-current="step"]')).toHaveText("01Starting point");
+  await page.getByRole("button", { name: "Import project ZIP", exact: true }).click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText("02Project setup");
+  await page
+    .locator("#project-import-archive")
+    .setInputFiles({ name: "paper.zip", mimeType: "application/zip", buffer: Buffer.from(zipSync(entries)) });
+  await expect(page.locator("#project-import-pdfs")).toBeChecked();
+  await page.locator("#project-import-pdfs").uncheck();
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText("03Review and create");
+  await expect(page.locator("#project-import-title")).toHaveValue("Source paper");
+  await expect(page.locator("#project-import-preview")).toContainText("1101 ZIP entries skipped");
+  await expect(page.locator("#project-import-preview")).toContainText("0 project PDFs");
+  await page.getByRole("button", { name: "Back to setup", exact: true }).click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText("02Project setup");
+  await expect(page.locator("#project-import-pdfs")).not.toBeChecked();
+  await page.locator("#preview-project-import").click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText("03Review and create");
+  await expect(page.locator("#project-import-entry")).toHaveValue("manuscript.md");
+  await page.locator("#project-import-entry").selectOption("notes/design.md");
+  await expect(page.locator("#project-import-preview")).toContainText("Entry: notes/design.md");
+  await page.locator("#project-import-title").fill("Reviewed source project");
+  await page.locator("#confirm-project-import").click();
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const id = workspaceIdFromPage(page, "Expected source import project");
+  const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${id}`);
+  expect(snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path).toBe("notes/design.md");
+  expect(snapshot.projectReferences[0]?.citationAlias).toBe("Source2026");
+  expect(snapshot.pdfs).toEqual([]);
+  await expect(page.locator("#preview")).toContainText("Original notes");
 });
 
 test("previews and imports a bounded LaTeX project", async ({ page }) => {
@@ -5715,7 +5764,7 @@ test("rejects an unsafe LaTeX archive without enabling confirmation", async ({ p
 
   await expect(page.locator("#latex-import-status")).toHaveText("Unsafe archive path: ../main.tex");
   await expect(page.locator("#latex-import-preview")).toContainText("Preview to inspect the converted Markdown and diagnostics.");
-  await expect(page.getByRole("button", { name: "Create project" })).toBeDisabled();
+  await expect(page.locator("#confirm-latex-import")).toBeHidden();
 });
 
 test("starts from built-in and promoted personal project templates", async ({ page }) => {
@@ -5728,20 +5777,14 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   const guidedTemplate = page.locator('[data-template-id="builtin-guided"]');
   await expect(guidedTemplate).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".template-choice", { has: guidedTemplate })).toHaveAttribute("data-selected", "false");
-  await page.locator("#cancel-new-workspace").focus();
-  await page.keyboard.press("Tab");
-  await expect(page.locator("#new-workspace-title")).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".header-action-menu summary")).toBeFocused();
-  await page.locator(".header-action-menu summary").click();
-  await page.getByRole("button", { name: "New project" }).click();
+  await expect(page).toHaveURL(/\/projects\/new$/u);
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(page.locator("#source-editor")).toHaveCount(0);
   await page.getByRole("button", { name: "Import LaTeX" }).click();
-  await expect(page.locator("#latex-import-dialog")).toBeVisible();
+  await expect(page.locator("latex-import-panel")).toBeVisible();
   await expect(page.locator("#latex-import-title")).toBeFocused();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.locator("#latex-import-dialog")).toBeHidden();
-  await page.locator(".header-action-menu summary").click();
-  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Choose another starting point" }).click();
+  await expect(page.locator("latex-import-panel")).toHaveCount(0);
   await page.setViewportSize({ width: 1024, height: 768 });
   const desktopBrowser = await page.locator(".template-browser").evaluate((browser) => {
     const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();
@@ -5765,7 +5808,9 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-id")).toHaveValue("builtin-literature-review");
   await expect(page.locator("#new-workspace-template-preview")).toContainText("Selected starting point");
   await expect(page.locator("#create-workspace")).toBeEnabled();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.locator("#new-workspace-title").fill("Review workflow");
+  await page.getByRole("button", { name: "Review project", exact: true }).click();
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
@@ -5790,8 +5835,10 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-preview")).toContainText("Existing project");
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(`project:${reviewWorkspaceId}`);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.locator("#new-workspace-title").fill("Direct project copy");
-  const directCopySourceId = workspaceIdFromPage(page, "Expected a direct project-copy source workspace id");
+  await page.getByRole("button", { name: "Review project", exact: true }).click();
+  const directCopySourceId = reviewWorkspaceId;
   await Promise.all([
     page.waitForURL((url) => isDifferentEditorWorkspace(url, directCopySourceId)),
     page.locator("#create-workspace").click(),
@@ -5828,8 +5875,10 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator(`[data-template-id="${personal.id}"]`).click();
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(personal.id);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.locator("#new-workspace-title").fill("Reusable review");
-  const personalSourceId = workspaceIdFromPage(page, "Expected a personal-template source workspace id");
+  await page.getByRole("button", { name: "Review project", exact: true }).click();
+  const personalSourceId = reviewWorkspaceId;
   await Promise.all([
     page.waitForURL((url) => isDifferentEditorWorkspace(url, personalSourceId)),
     page.locator("#create-workspace").click(),
@@ -5962,9 +6011,7 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Preview import" })).toBeDisabled();
 
   connected = true;
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await page.locator(".header-action-menu summary").click();
-  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Choose another starting point" }).click();
   await page.getByRole("button", { name: "Import GitHub" }).click();
   await expect(page.locator("#github-connection-status")).toContainText("Connected as @researcher");
   await expect(page.getByRole("link", { name: "Manage repository access" })).toBeVisible();
@@ -5978,6 +6025,9 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.locator("#github-import-preview")).toContainText("sections/results.md · 1 KB");
   await page.getByRole("button", { name: "Create project" }).click();
   await expect(page.locator("#github-import-status")).toHaveText("Import preview changed");
+
+  await page.getByRole("button", { name: "Back to setup" }).click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText("02Project setup");
 
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Disconnect account" }).click();
@@ -7217,6 +7267,7 @@ test("serves stable health and browser assets", async ({ request }) => {
       "/library/pdfs/:id",
       "/editor",
       "/editor/:id",
+      "/projects/new",
       "/review",
       "/review/:id",
       "/workspaces/:id",

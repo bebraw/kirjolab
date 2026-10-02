@@ -9,30 +9,38 @@ import { errorMessage, expectOk } from "../platform/http";
 
 export class ProjectImportPanel extends LightDomElement {
   static override properties = {
+    standalone: { type: Boolean },
     busy: { state: true },
     previewData: { state: true },
     status: { state: true },
     projectTitle: { state: true },
+    selection: { state: true },
   };
   declare private busy: "preview" | "confirm" | null;
   declare private previewData: ProjectImportPreview | null;
   declare private status: string;
   declare private projectTitle: string;
+  declare standalone: boolean;
+  declare private selection: { entryPath?: string; bibliographyPath?: string; includePdfs?: boolean };
   private archiveFile: File | null = null;
   private attemptId = crypto.randomUUID();
   private epoch = 0;
   private parentDialog: HTMLDialogElement | null = null;
   constructor() {
     super();
+    this.standalone = false;
     this.busy = null;
     this.previewData = null;
     this.status = "";
     this.projectTitle = "";
+    this.selection = {};
   }
   override connectedCallback(): void {
     super.connectedCallback();
-    this.parentDialog = this.dialog();
-    this.parentDialog.addEventListener("cancel", this.preventBusyCancel);
+    if (!this.standalone) {
+      this.parentDialog = this.dialog();
+      this.parentDialog.addEventListener("cancel", this.preventBusyCancel);
+    }
   }
   override disconnectedCallback(): void {
     this.parentDialog?.removeEventListener("cancel", this.preventBusyCancel);
@@ -44,7 +52,7 @@ export class ProjectImportPanel extends LightDomElement {
   };
   open(): void {
     this.reset();
-    this.dialog().showModal();
+    if (!this.standalone) this.dialog().showModal();
   }
   reset(): void {
     this.querySelector<HTMLFormElement>("#project-import-form")?.reset();
@@ -54,6 +62,7 @@ export class ProjectImportPanel extends LightDomElement {
     this.status = "";
     this.projectTitle = "";
     this.archiveFile = null;
+    this.selection = {};
     this.attemptId = crypto.randomUUID();
   }
   protected dialog(): HTMLDialogElement {
@@ -62,7 +71,22 @@ export class ProjectImportPanel extends LightDomElement {
     return dialog;
   }
   protected cancel(): void {
-    if (!this.busy) this.dialog().close();
+    if (!this.busy) {
+      if (this.standalone) this.dispatchEvent(new CustomEvent("project-creation-back", { bubbles: true }));
+      else this.dialog().close();
+    }
+  }
+  edit(): void {
+    this.epoch++;
+    this.previewData = null;
+    this.status = "Review the archive again after changing setup.";
+    this.notifyCreation();
+  }
+  private notifyCreation(): void {
+    if (this.standalone)
+      this.dispatchEvent(
+        new CustomEvent("project-creation-state", { bubbles: true, detail: { step: this.previewData ? 3 : 2, busy: this.busy !== null } }),
+      );
   }
   protected archiveChanged(event: Event): void {
     this.archiveFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null;
@@ -70,6 +94,8 @@ export class ProjectImportPanel extends LightDomElement {
     this.previewData = null;
     this.status = "";
     this.attemptId = crypto.randomUUID();
+    this.selection = {};
+    this.projectTitle = "";
   }
   protected updateTitle(event: Event): void {
     this.projectTitle = (event.currentTarget as HTMLInputElement).value;
@@ -88,7 +114,9 @@ export class ProjectImportPanel extends LightDomElement {
     this.previewData = null;
     this.status = "Inspecting the project archive…";
     try {
-      const response = await fetch("/api/project-import-previews", {
+      const query = this.selectionQuery();
+      this.notifyCreation();
+      const response = await fetch(`/api/project-import-previews${query.size ? `?${query}` : ""}`, {
         method: "POST",
         body: archive,
         credentials: "same-origin",
@@ -99,7 +127,13 @@ export class ProjectImportPanel extends LightDomElement {
       if (epoch !== this.epoch) return;
       if (!isProjectImportPreview(value)) throw new Error("The server returned an invalid project preview");
       this.previewData = value;
-      this.projectTitle = value.summary.title;
+      if (!this.projectTitle.trim()) this.projectTitle = value.summary.title;
+      if (value.source)
+        this.selection = {
+          entryPath: value.summary.entryPath,
+          bibliographyPath: value.source.bibliographyPath,
+          includePdfs: value.source.includePdfs,
+        };
       this.attemptId = crypto.randomUUID();
       this.status =
         value.kind === "legacy"
@@ -109,15 +143,17 @@ export class ProjectImportPanel extends LightDomElement {
       if (epoch === this.epoch) this.status = errorMessage(error, "Could not inspect the project archive.");
     } finally {
       if (epoch === this.epoch) this.busy = null;
+      if (epoch === this.epoch) this.notifyCreation();
     }
   }
   protected async confirm(): Promise<void> {
     const preview = this.previewData,
       archive = this.archiveFile;
-    if (this.busy || !archive || preview?.kind !== "native" || !preview.previewDigest || !this.projectTitle.trim()) return;
+    if (this.busy || !archive || !preview || preview.kind === "legacy" || !preview.previewDigest || !this.projectTitle.trim()) return;
     this.busy = "confirm";
     this.status = "Creating the project…";
     const epoch = this.epoch;
+    this.notifyCreation();
     try {
       const query = new URLSearchParams({
         title: this.projectTitle,
@@ -125,6 +161,7 @@ export class ProjectImportPanel extends LightDomElement {
         previewDigest: preview.previewDigest,
         attemptId: this.attemptId,
       });
+      for (const [key, value] of this.selectionQuery()) query.set(key, value);
       const response = await fetch(`/api/project-imports?${query}`, {
         method: "POST",
         body: archive,
@@ -140,18 +177,20 @@ export class ProjectImportPanel extends LightDomElement {
       if (epoch === this.epoch) this.status = errorMessage(error, "Could not create the project. Retry Create project.");
     } finally {
       if (epoch === this.epoch) this.busy = null;
+      if (epoch === this.epoch) this.notifyCreation();
     }
   }
   protected override render(): TemplateResult {
     const preview = this.previewData;
     return html`<form class="p-5" id="project-import-form" @submit=${this.preview}>
-      <p class="eyebrow">Project transfer</p>
-      <h2 class="ui-heading mt-1">Import a Kirjolab project</h2>
+      <p class="eyebrow">${preview?.kind === "source" ? "Source project" : "Project import"}</p>
+      <h2 class="ui-heading mt-1">${preview ? "Review your project" : "Bring your writing into Kirjolab"}</h2>
       <p class="ui-supporting-text mt-2">
-        Restore the current files, linked references and project research from a Kirjolab project ZIP. Maximum 20 MiB.
+        Import a Markdown project folder ZIP or a Kirjolab export. Markdown, a selected BibTeX bibliography, images and PDFs are included.
+        Maximum 20 MiB.
       </p>
-      <label class="field-label mt-5"
-        >Kirjolab project ZIP<input
+      <label class="field-label mt-5" ?hidden=${this.standalone && preview !== null}
+        >Project ZIP<input
           class="field"
           id="project-import-archive"
           type="file"
@@ -160,56 +199,127 @@ export class ProjectImportPanel extends LightDomElement {
           ?disabled=${this.busy !== null}
           @change=${this.archiveChanged}
       /></label>
-      ${
-        preview
-          ? html`<section class="mt-5 border-t border-app-line pt-4" id="project-import-preview">
-              <p class="text-sm font-semibold">
-                ${preview.summary.files} files · ${preview.summary.references} linked references · ${preview.summary.images} images ·
-                ${preview.summary.pdfs} project PDFs · ${preview.summary.sharedSnapshots} shared snapshots
-              </p>
-              <p class="ui-status mt-2">Entry: ${preview.summary.entryPath || "Unavailable"}</p>
-              ${
-                preview.kind === "native"
-                  ? html`<p class="ui-status mt-2">
-                        ${preview.reusedReferences} existing Library records reused · ${preview.newReferences} new records. Project citation
-                        aliases and snapshots are preserved.
-                      </p>
-                      <label class="field-label mt-4"
-                        >Project title<input
-                          class="field"
-                          id="project-import-title"
-                          maxlength="120"
-                          required
-                          .value=${this.projectTitle}
-                          ?disabled=${this.busy !== null}
-                          @input=${this.updateTitle}
-                      /></label>`
-                  : nothing
-              }
-              <p class="eyebrow mt-4">Excluded from this archive</p>
-              <ul class="mt-2 space-y-1 text-xs text-app-text-soft">
-                ${preview.summary.exclusions.map((value) => html`<li>${value}</li>`)}
-              </ul>
-            </section>`
-          : nothing
-      }
+      ${!preview ? this.renderPdfChoice() : nothing} ${preview ? this.renderPreview(preview) : nothing}
       <p class="ui-status mt-3" id="project-import-status" role="status">${this.status}</p>
       <div class="mt-5 flex justify-end gap-2">
-        <button class="button-secondary" type="button" ?disabled=${this.busy !== null} @click=${this.cancel}>Cancel</button>
-        <button class="button-secondary" id="preview-project-import" type="submit" ?disabled=${this.busy !== null}>
+        <button class="button-secondary" type="button" ?disabled=${this.busy !== null} @click=${this.cancel}>
+          ${this.standalone ? "Choose another starting point" : "Cancel"}
+        </button>
+        <button
+          class="button-secondary"
+          id="preview-project-import"
+          type="submit"
+          ?hidden=${this.standalone && preview !== null}
+          ?disabled=${this.busy !== null}
+        >
           ${this.busy === "preview" ? "Inspecting…" : "Preview import"}
         </button>
         <button
           class="button-primary"
           id="confirm-project-import"
           type="button"
-          ?disabled=${this.busy !== null || preview?.kind !== "native" || !this.projectTitle.trim()}
+          ?hidden=${this.standalone && preview === null}
+          ?disabled=${this.busy !== null || !preview || preview.kind === "legacy" || !this.projectTitle.trim()}
           @click=${this.confirm}
         >
           ${this.busy === "confirm" ? "Creating…" : "Create project"}
         </button>
       </div>
     </form>`;
+  }
+  private renderPreview(preview: ProjectImportPreview): TemplateResult {
+    return html`<section class="mt-5 border-t border-app-line pt-4" id="project-import-preview">
+      <p class="text-sm font-semibold">
+        ${preview.summary.files} files · ${preview.summary.references} linked references · ${preview.summary.images} images ·
+        ${preview.summary.pdfs} project PDFs · ${preview.summary.sharedSnapshots} shared snapshots
+      </p>
+      <p class="ui-status mt-2">Entry: ${preview.summary.entryPath || "Unavailable"}</p>
+      ${
+        preview.kind !== "legacy"
+          ? html`<p class="ui-status mt-2">
+                ${preview.reusedReferences} existing Library records reused · ${preview.newReferences} new records. Project citation aliases
+                and snapshots are preserved.
+              </p>
+              <label class="field-label mt-4"
+                >Project title<input
+                  class="field"
+                  id="project-import-title"
+                  maxlength="120"
+                  required
+                  .value=${this.projectTitle}
+                  ?disabled=${this.busy !== null}
+                  @input=${this.updateTitle}
+              /></label>`
+          : nothing
+      }
+      ${
+        preview.source
+          ? html`<div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <label class="field-label"
+                >Entry document<select
+                  class="field"
+                  id="project-import-entry"
+                  .value=${preview.summary.entryPath}
+                  ?disabled=${this.busy !== null}
+                  @change=${this.entryChanged}
+                >
+                  ${preview.source.entryCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
+                </select></label
+              >
+              <label class="field-label"
+                >Bibliography<select
+                  class="field"
+                  id="project-import-bibliography"
+                  .value=${preview.source.bibliographyPath}
+                  ?disabled=${this.busy !== null}
+                  @change=${this.bibliographyChanged}
+                >
+                  <option value="">No bibliography</option>
+                  ${preview.source.bibliographyCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
+                </select></label
+              >
+              ${this.renderPdfChoice()}
+            </div>`
+          : nothing
+      }
+      <p class="eyebrow mt-4">Excluded from this archive</p>
+      <ul class="mt-2 space-y-1 text-xs text-app-text-soft">
+        ${preview.summary.exclusions.map((value) => html`<li>${value}</li>`)}
+      </ul>
+    </section>`;
+  }
+  private selectionQuery(): URLSearchParams {
+    const query = new URLSearchParams();
+    if (this.selection.entryPath !== undefined) query.set("entryPath", this.selection.entryPath);
+    if (this.selection.bibliographyPath !== undefined) query.set("bibliographyPath", this.selection.bibliographyPath);
+    if (this.selection.includePdfs !== undefined) query.set("includePdfs", String(this.selection.includePdfs));
+    return query;
+  }
+  private renderPdfChoice(): TemplateResult {
+    return html`<label class="field-label mt-4 sm:col-span-2"
+      ><span
+        ><input
+          type="checkbox"
+          id="project-import-pdfs"
+          .checked=${this.selection.includePdfs !== false}
+          ?disabled=${this.busy !== null}
+          @change=${this.pdfsChanged}
+        />
+        Include bundled PDFs when importing a source project</span
+      ></label
+    >`;
+  }
+  protected entryChanged(event: Event): void {
+    this.selection = { ...this.selection, entryPath: (event.currentTarget as HTMLSelectElement).value };
+    void this.preview(event);
+  }
+  protected bibliographyChanged(event: Event): void {
+    this.selection = { ...this.selection, bibliographyPath: (event.currentTarget as HTMLSelectElement).value };
+    void this.preview(event);
+  }
+  protected pdfsChanged(event: Event): void {
+    this.selection = { ...this.selection, includePdfs: (event.currentTarget as HTMLInputElement).checked };
+    if (this.previewData) void this.preview(event);
   }
 }
 if (typeof customElements !== "undefined" && !customElements.get("project-import-panel"))

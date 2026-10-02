@@ -7,14 +7,17 @@ import { CollaborationSession } from "./collaboration/collaboration-session";
 import { CollaborationSocket } from "./collaboration/collaboration-socket";
 import { errorMessage } from "./platform/http";
 import { createBrowserOfflineWorkspaceSession } from "./platform/offline-workspace";
+import "./project/project-starting-point-browser";
 
-const { workspaceId, identityEmail, apiBase, capabilities, workspaceMode } = parseAppBootstrap(document.body.dataset);
-startLayoutDiagnostics();
-const elements = collectAppElements();
-const session = new CollaborationSession(new Y.Doc());
-const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
-const socket = new CollaborationSocket(session, apiBase, offline, elements);
+if (document.body.dataset.appMode !== "project-creation") {
+  const { workspaceId, identityEmail, apiBase, capabilities, workspaceMode } = parseAppBootstrap(document.body.dataset);
+  startLayoutDiagnostics();
+  const elements = collectAppElements();
+  const session = new CollaborationSession(new Y.Doc());
+  const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
+  const socket = new CollaborationSocket(session, apiBase, offline, elements);
 
-void elements.projectFileDialog
-  .startApplication(apiBase, workspaceId, workspaceMode, capabilities, elements, session, offline, socket)
-  .catch((error: unknown) => (document.body.textContent = errorMessage(error, "Kirjolab failed to start")));
+  void elements.projectFileDialog
+    .startApplication(apiBase, workspaceId, workspaceMode, capabilities, elements, session, offline, socket)
+    .catch((error: unknown) => (document.body.textContent = errorMessage(error, "Kirjolab failed to start")));
+}

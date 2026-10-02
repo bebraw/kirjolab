@@ -48,8 +48,10 @@ without copying private research or creating a live dependency on the source.
   the same path as personal templates.
 - The New project surface previews each template's bounded file and folder
   structure, bibliography presence, and publication setup. Clicking a template
-  row selects and previews it in one action; **Create project** remains the only
-  confirmation. The initial structural preview remains explicitly unselected,
+  row selects and previews it in one action. The dedicated `/projects/new`
+  surface progresses through **Starting point**, **Project setup** (title),
+  and **Review and create**. **Create project** is the only mutating confirmation.
+  Back preserves the current selection and title. The initial structural preview remains explicitly unselected,
   so pressed semantics, form state, and submit state agree. Personal templates
   can be removed there; removal hides the
   template immediately, offers **Undo** for six seconds, and only then deletes it.
@@ -61,9 +63,8 @@ without copying private research or creating a live dependency on the source.
   the fetched template catalog, optimistic hidden-template state, the six-second
   delayed commit and Undo lifecycle, its derived visible-template view, local
   selection, preview and loading presentation, create readiness and status,
-  native modal opening and closing, focus containment and restoration, local
-  cancellation, pre-import dismissal, canonical successful-result navigation,
-  server-rendered entry-trigger activation, loading-state entry, post-load
+  standalone step progression, inline import routing and progress, canonical successful-result navigation,
+  editor entry-trigger navigation, loading-state entry, post-load
   focus, load-failure presentation, a once-bound canonical workspace-catalog
   source used by every refresh path, and a typed import binding. `WorkspaceApp`
   retains catalog authority, import workflows, replacement-
@@ -75,9 +76,17 @@ without copying private research or creating a live dependency on the source.
   and error presentation, create-or-replace success wording, and shared-catalog
   refresh through its bound source. It presents success through the supplied
   global toast outlet.
-- The modal keeps Tab focus within its enabled controls. Cancel or Escape
-  returns focus to the Project disclosure; transferring into an import modal
-  gives focus to that import's first required field instead.
+- Project creation uses ordinary document focus order and a visible progress
+  indicator. Continue focuses the title field; Review focuses confirmation.
+  Cancel returns to the dashboard. Import panels render inline and keep the
+  progress indicator synchronized with setup, review, and busy states.
+  Existing modal owners retain their native modal contracts where still used.
+- The dashboard and editor New project actions use `/projects/new`; legacy
+  editor `?create=1` links redirect there. The page initializes neither the
+  manuscript editor nor project collaboration/offline state. Source ZIPs and
+  native ZIPs share **Import project ZIP**; LaTeX and GitHub remain explicit
+  starting points. [ADR-243](../../docs/adrs/implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)
+  records this boundary.
 
 ### API Contracts
 
