@@ -222,7 +222,7 @@ async function verifyIsolatedConsumer({ nodeExecutable, npmEntrypoint, npmCache,
   const installedPdfRoot = await realpath(join(consumerRoot, "node_modules/pdfjs-dist"));
   assert.equal(relative(canonicalConsumerRoot, installedPdfRoot).startsWith(".."), false, "PDF.js must be owned by the isolated consumer");
   const installedPdfManifest = JSON.parse(await readFile(join(installedPdfRoot, "package.json"), "utf8"));
-  assert.equal(installedPdfManifest.version, "6.2.108");
+  assert.equal(installedPdfManifest.version, "6.3.289");
 
   await Promise.all([
     writeFile(join(consumerRoot, "consumer.mjs"), runtimeConsumerSource),

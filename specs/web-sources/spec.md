@@ -102,6 +102,9 @@ event and captured content that supported the paper at that time.
   refinable bounded failures, and non-cacheable responses.
 - Component tests cover capture and comparison payloads, duplicate submission,
   provider errors, malformed comparisons, and identical or changed results.
+  Assert rendered progress, failure, and comparison text; valid comparison
+  fixtures include both snapshot identities so response validation reaches
+  the successful presentation path.
 - Real-`workerd` tests cover append-only capture rows, stable source identity,
   explicit web sharing, project pin preservation, repinning, migration, and
   derived access-date bibliography.

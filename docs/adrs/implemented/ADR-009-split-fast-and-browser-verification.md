@@ -37,6 +37,12 @@ remains unresolved. Newer affected versions can terminate the local Worker
 runtime partway through Playwright's suite and turn the remaining journeys into
 misleading connection failures.
 
+**2026-10-02 amendment:** Cloudflare merged the
+[EPIPE fix](https://github.com/cloudflare/workers-sdk/pull/15323) on 2026-09-07
+and closed the regression. Refresh the browser runtime to Wrangler 4.147.0
+and remove the temporary 4.116.0 hold, retaining the full browser gate as the
+local verification of the upgraded runtime.
+
 The coverage gate will also treat colocated tests and test-support files as non-source inputs when deciding whether runtime source code lacks unit coverage.
 
 ## Trigger

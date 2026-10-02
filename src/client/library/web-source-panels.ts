@@ -137,11 +137,11 @@ export class WebSnapshotComparisonPanel extends LightDomElement {
         (hunk) => html`
           <pre class="mt-3 overflow-auto rounded-sm border border-app-line bg-app-surface p-3 font-mono text-xs leading-5">
 ${[
-  `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
-  ...hunk.removed.map((line) => `- ${line}`),
-  ...hunk.added.map((line) => `+ ${line}`),
-  ...(hunk.truncated ? ["… excerpt truncated"] : []),
-].join("\n")}</pre>
+              `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
+              ...hunk.removed.map((line) => `- ${line}`),
+              ...hunk.added.map((line) => `+ ${line}`),
+              ...(hunk.truncated ? ["… excerpt truncated"] : []),
+            ].join("\n")}</pre>
         `,
       )}
     `;

@@ -1,0 +1,31 @@
+{
+  "id": "2026-10-02-dependency-refresh",
+  "title": "Refresh October dependencies and migrate the Cloudflare Vitest integration",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": [
+    "docs/adrs/implemented/ADR-009-split-fast-and-browser-verification.md",
+    "docs/adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md",
+    "docs/adrs/implemented/ADR-052-test-durable-objects-in-workers-runtime.md"
+  ],
+  "touches": [
+    "package.json",
+    "package-lock.json",
+    ".nvmrc",
+    ".github/workflows/ci.yml",
+    ".capabilities/",
+    "vitest.workers.config.mts",
+    "tsconfig.workers-test.json",
+    "worker-configuration.d.ts",
+    "docs/",
+    "specs/"
+  ],
+  "checks": [
+    "npm run worker:types:check",
+    "npm run worker:types:corpus:check",
+    "npm run typecheck",
+    "npm run security:audit",
+    "npm run ci:local"
+  ]
+}

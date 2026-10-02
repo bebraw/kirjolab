@@ -1,0 +1,221 @@
+diff --git a/package.json b/package.json
+index 3867d308..55be5276 100644
+--- a/package.json
++++ b/package.json
+@@ -3,7 +3,7 @@
+   "private": true,
+   "packageManager": "npm@11",
+   "engines": {
+-    "node": "24.20.0",
++    "node": "24.21.0",
+     "npm": ">=11 <12"
+   },
+   "devEngines": {
+@@ -18,7 +18,7 @@
+     },
+     "fast-uri": "3.1.8",
+     "postcss": {
+-      "nanoid": "3.3.18"
++      "nanoid": "3.3.19"
+     },
+     "typed-rest-client": {
+       "qs": "6.16.0"
+@@ -78,7 +78,8 @@
+       "2026-08-31-compact-agent-skills",
+       "2026-09-03-actionable-mutation-reporting",
+       "2026-09-04-bound-npm-audit-retries",
+-      "2026-10-01-patch-transitive-audit-findings"
++      "2026-10-01-patch-transitive-audit-findings",
++      "2026-10-02-dependency-refresh"
+     ]
+   },
+   "scripts": {
+@@ -146,33 +147,33 @@
+     "worker:types:corpus:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --check --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false"
+   },
+   "devDependencies": {
+-    "@cloudflare/vitest-pool-workers": "0.19.1",
++    "@cloudflare/vitest-plugin": "1.3.6",
+     "@codemirror/autocomplete": "6.20.3",
+     "@codemirror/commands": "6.10.4",
+     "@codemirror/lang-markdown": "6.5.1",
+     "@codemirror/state": "6.7.1",
+     "@codemirror/view": "6.43.7",
+-    "@playwright/test": "1.62.1",
++    "@playwright/test": "1.63.0",
+     "@replit/codemirror-vim": "6.4.0",
+     "@stryker-mutator/core": "10.0.0",
+     "@stryker-mutator/typescript-checker": "10.0.0",
+     "@stryker-mutator/vitest-runner": "10.0.0",
+     "@tailwindcss/cli": "4.3.3",
+-    "@types/node": "24.13.3",
++    "@types/node": "24.19.1",
+     "@unified-latex/unified-latex-util-parse": "1.8.4",
+     "@vitest/coverage-v8": "4.1.11",
+-    "chrome-launcher": "1.2.1",
+-    "esbuild": "0.28.1",
+-    "fallow": "3.21.0",
+-    "lighthouse": "13.4.1",
+-    "oxlint": "1.80.0",
+-    "prettier": "3.9.6",
++    "chrome-launcher": "1.2.2",
++    "esbuild": "0.28.2",
++    "fallow": "3.31.0",
++    "lighthouse": "13.5.0",
++    "oxlint": "1.86.0",
++    "prettier": "3.9.9",
+     "run-local-ci": "0.18.1",
+     "tailwindcss": "4.3.3",
+     "typescript": "npm:@typescript/typescript6@6.0.2",
+     "typescript-7": "npm:typescript@7.0.2",
+     "vitest": "4.1.11",
+-    "wrangler": "4.116.0",
++    "wrangler": "4.147.0",
+     "y-codemirror.next": "0.3.5",
+     "y-protocols": "1.0.7"
+   },
+diff --git a/.capabilities/lighthouse-performance/manifest.json b/.capabilities/lighthouse-performance/manifest.json
+index f460cd30..4e2d95d2 100644
+--- a/.capabilities/lighthouse-performance/manifest.json
++++ b/.capabilities/lighthouse-performance/manifest.json
+@@ -3,9 +3,9 @@
+   "description": "Add local Lighthouse web-quality reports and configurable category budgets.",
+   "dependencies": {
+     "dev": {
+-      "@playwright/test": "1.62.1",
+-      "chrome-launcher": "1.2.1",
+-      "lighthouse": "13.4.1"
++      "@playwright/test": "1.63.0",
++      "chrome-launcher": "1.2.2",
++      "lighthouse": "13.5.0"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/lighthouse-performance/recipes/npm.md b/.capabilities/lighthouse-performance/recipes/npm.md
+index 68988c8e..27c8dca3 100644
+--- a/.capabilities/lighthouse-performance/recipes/npm.md
++++ b/.capabilities/lighthouse-performance/recipes/npm.md
+@@ -5,7 +5,7 @@ Apply this recipe when the target repo uses npm.
+ ## Package Changes
+ 
+ ```bash
+-npm install --save-dev --save-exact @playwright/test@1.62.1 chrome-launcher@1.2.1 lighthouse@13.4.1
++npm install --save-dev --save-exact @playwright/test@1.63.0 chrome-launcher@1.2.2 lighthouse@13.5.0
+ ```
+ 
+ Add or merge:
+diff --git a/.capabilities/quality-gate/manifest.json b/.capabilities/quality-gate/manifest.json
+index de375b7b..dd6fe024 100644
+--- a/.capabilities/quality-gate/manifest.json
++++ b/.capabilities/quality-gate/manifest.json
+@@ -5,12 +5,12 @@
+   "dependencies": {
+     "dev": {
+       "@vitest/coverage-v8": "4.1.11",
+-      "oxlint": "1.80.0",
+-      "prettier": "3.9.6",
++      "oxlint": "1.86.0",
++      "prettier": "3.9.9",
+       "vitest": "4.1.11"
+     },
+     "optionalDev": {
+-      "@playwright/test": "1.62.1"
++      "@playwright/test": "1.63.0"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/quality-gate/recipes/npm.md b/.capabilities/quality-gate/recipes/npm.md
+index 3352c293..837bebc1 100644
+--- a/.capabilities/quality-gate/recipes/npm.md
++++ b/.capabilities/quality-gate/recipes/npm.md
+@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` first unless the target repo already has
+ Add the fast-gate dependencies:
+ 
+ ```bash
+-npm install --save-dev --save-exact oxlint@1.80.0 prettier@3.9.6 vitest@4.1.11 @vitest/coverage-v8@4.1.11
++npm install --save-dev --save-exact oxlint@1.86.0 prettier@3.9.9 vitest@4.1.11 @vitest/coverage-v8@4.1.11
+ ```
+ 
+ Add or merge these scripts:
+diff --git a/.capabilities/quality-gate/recipes/playwright.md b/.capabilities/quality-gate/recipes/playwright.md
+index c1149073..ab78558b 100644
+--- a/.capabilities/quality-gate/recipes/playwright.md
++++ b/.capabilities/quality-gate/recipes/playwright.md
+@@ -5,7 +5,7 @@ Use this recipe only after the user approves adding a browser gate.
+ ## Package Changes
+ 
+ ```bash
+-npm install --save-dev @playwright/test@1.59.1
++npm install --save-dev @playwright/test@1.63.0
+ ```
+ 
+ Add or merge:
+diff --git a/.capabilities/typescript-setup/manifest.json b/.capabilities/typescript-setup/manifest.json
+index 560a047e..86b4bb1a 100644
+--- a/.capabilities/typescript-setup/manifest.json
++++ b/.capabilities/typescript-setup/manifest.json
+@@ -3,7 +3,7 @@
+   "description": "Add strict no-emit TypeScript checking for npm projects.",
+   "dependencies": {
+     "dev": {
+-      "@types/node": "24.13.3",
++      "@types/node": "24.19.1",
+       "typescript": "npm:@typescript/typescript6@6.0.2",
+       "typescript-7": "npm:typescript@7.0.2"
+     }
+diff --git a/.capabilities/typescript-setup/recipes/npm.md b/.capabilities/typescript-setup/recipes/npm.md
+index 524c5488..ecd3de5c 100644
+--- a/.capabilities/typescript-setup/recipes/npm.md
++++ b/.capabilities/typescript-setup/recipes/npm.md
+@@ -7,7 +7,7 @@ Apply this recipe when the target repo uses npm.
+ Add the TypeScript dependencies:
+ 
+ ```bash
+-npm install --save-dev --save-exact @types/node@24.13.3 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
++npm install --save-dev --save-exact @types/node@24.19.1 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
+ ```
+ 
+ This keeps the TypeScript 6 compatibility package under the canonical
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index d1e97698..bcc0fc32 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -75,7 +75,7 @@ jobs:
+   quality-browser:
+     runs-on: ubuntu-latest
+     container:
+-      image: mcr.microsoft.com/playwright:v1.62.1-noble
++      image: mcr.microsoft.com/playwright:v1.63.0-noble
+       options: --ipc=host
+     steps:
+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+diff --git a/.nvmrc b/.nvmrc
+index 0f609059..166aae11 100644
+--- a/.nvmrc
++++ b/.nvmrc
+@@ -1 +1 @@
+-v24.20.0
++v24.21.0
+diff --git a/tsconfig.workers-test.json b/tsconfig.workers-test.json
+index 7f3fd422..177409fe 100644
+--- a/tsconfig.workers-test.json
++++ b/tsconfig.workers-test.json
+@@ -1,7 +1,7 @@
+ {
+   "extends": "./tsconfig.json",
+   "compilerOptions": {
+-    "types": ["node", "@cloudflare/vitest-pool-workers/types"]
++    "types": ["node", "@cloudflare/vitest-plugin/types"]
+   },
+   "include": ["worker-configuration.d.ts", "vitest.workers.config.mts", "src/**/*.workers.test.ts"],
+   "exclude": []
+diff --git a/vitest.workers.config.mts b/vitest.workers.config.mts
+index 8a0133c4..19c2b4fc 100644
+--- a/vitest.workers.config.mts
++++ b/vitest.workers.config.mts
+@@ -1,4 +1,4 @@
+-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
++import { cloudflareTest } from "@cloudflare/vitest-plugin";
+ import { defineConfig } from "vitest/config";
+ 
+ export default defineConfig({

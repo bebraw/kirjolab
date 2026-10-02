@@ -25,12 +25,21 @@ runner remains available for optional workflow and Linux-container parity.
 - `npm install` also configures the repo-managed Git hook path and enables the `pre-push` hook that runs affected-file guardrails.
 - The exact Node.js version is pinned in `package.json`, mirrored in `.nvmrc` for `nvm` users, and read directly by CI through `actions/setup-node`.
 - The repo requires npm 11 in `package.json` but does not pin one exact patch release. Local development, CI, and platforms such as Cloudflare may use different npm 11 patch versions as long as they stay inside the supported major range.
+
 - Copy `.dev.vars.example` to `.dev.vars` and replace placeholder values when a project needs local secrets.
 - Copy `.env.local-ci.example` to `.env.local-ci` only when you need machine-local overrides for optional container parity. Local CI loads that file automatically.
 - If your clone has no `origin` remote, set `GITHUB_REPO=owner/repo` in `.env.local-ci` to stop Local CI from warning while inferring the repository name.
 - If Local CI needs a non-default Docker socket or daemon, set `LOCAL_CI_DOCKER_HOST=...` in `.env.local-ci`.
 - Start a Docker runtime before running optional container Local CI.
 - Install the GitHub Actions runner image once with `docker pull ghcr.io/actions/actions-runner:latest`.
+
+Dependency refreshes must honor declared peer requirements. The October 2026
+baseline retains Vitest and V8 coverage 4.1.11 because
+`@cloudflare/vitest-plugin` 1.3.6 requires Vitest `^4.1.0`, and retains
+`@modelcontextprotocol/server` 2.0.0 because `agents` 0.25.0 requires that exact
+version. Keep Node declarations on the supported Node 24 major. Recheck these
+requirements before lifting the holds; do not use forced installs to bypass
+them.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 
@@ -168,6 +177,9 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Rebuild the content-fingerprinted application, service worker, Markdown
   runtime, and PDF.js runtime together with `npm run build:browser-shell` after
   the stylesheet exists. `npm run build` preserves the required order.
+  Both PDF display and worker builds prepend the shared conditional
+  `Promise.withResolvers` shim from `scripts/pdf-runtime-compatibility.mjs`
+  because PDF.js 6.3 compatibility builds no longer include it.
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
@@ -295,7 +307,7 @@ version from `package.json`, relies on the npm release bundled with that Node
 setup as long as it satisfies the repo's npm 11 constraint, runs
 repository-shape validation as part of the fast job, runs the browser job in the
 version-pinned Playwright container image
-`mcr.microsoft.com/playwright:v1.62.1-noble`, pins every `uses:` action
+`mcr.microsoft.com/playwright:v1.63.0-noble`, pins every `uses:` action
 reference to a full commit SHA, and cancels superseded runs on the same ref. The
 required `quality-mutation` job is GitHub- and pull-request-only, checks out full
 history, and supplies the pull request's base and head SHAs to
@@ -450,7 +462,7 @@ Durable Object integration tests use the separate
 test-only types through `tsconfig.workers-test.json`. Run them with
 `npm run test:workers`; the Cloudflare Vitest integration starts a local
 `workerd` runtime with remote binding sessions disabled. The project pins
-`@cloudflare/vitest-pool-workers` 0.18.4 alongside Vitest 4.1.8. Each test gets
+`@cloudflare/vitest-plugin` 1.3.6 alongside Vitest 4.1.11. Each test gets
 isolated local storage and can use `cloudflare:test` to inspect private Durable
 Object SQLite state or evict an instance while retaining persisted storage.
 These tests never contact deployed Cloudflare resources.

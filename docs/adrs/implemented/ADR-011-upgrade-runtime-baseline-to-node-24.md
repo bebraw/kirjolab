@@ -16,7 +16,7 @@ We will move the repo runtime baseline from Node 22 to Node 24 LTS.
 
 The template now uses:
 
-- `24.20.0` in `package.json#engines.node`
+- `24.21.0` in `package.json#engines.node`
 - the current Node 24 line of `@types/node`
 - `.nvmrc` as a convenience mirror for contributors who use `nvm`
 - the existing npm-based workflow and lockfile model

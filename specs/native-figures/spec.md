@@ -22,7 +22,8 @@ compatibility.
 - Each box has a non-empty plain-text label and finite numeric `min`, `q1`,
   `median`, `q3`, and `max` attributes.
 - Values satisfy `min <= q1 <= median <= q3 <= max`.
-- Optional figure ids follow the existing Markdown identifier vocabulary.
+- A referenceable figure uses the ordinary `::label[id]` directive immediately
+  after its container, following the existing Markdown identifier vocabulary.
 - Figure ids, labels, captions, numeric magnitudes, and total source size are
   bounded. Invalid or unsupported figures remain visible as source-like text and
   produce source-positioned diagnostics; the renderer never guesses.
@@ -34,8 +35,10 @@ compatibility.
 - Parsing produces a typed versioned figure model before rendering.
 - Valid boxplots render to deterministic inline SVG using one shared scale across
   their five-number summaries.
-- The SVG exposes a title and visible caption and remains understandable without
-  color.
+- The SVG exposes a title and visible numbered caption and remains understandable
+  without color. Figure numbering is independent from table numbering.
+- A postfix label becomes the rendered `<figure>` element's `id`. A reference
+  without custom text uses `Figure N` and links to that figure.
 - Authored data can become escaped text or finite geometry only. It cannot set
   element names, arbitrary attributes, class names, styles, links, or URLs.
 - Preview sanitization runs after figure rendering and admits only the fixed SVG

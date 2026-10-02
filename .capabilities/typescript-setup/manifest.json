@@ -3,7 +3,7 @@
   "description": "Add strict no-emit TypeScript checking for npm projects.",
   "dependencies": {
     "dev": {
-      "@types/node": "24.13.3",
+      "@types/node": "24.19.1",
       "typescript": "npm:@typescript/typescript6@6.0.2",
       "typescript-7": "npm:typescript@7.0.2"
     }

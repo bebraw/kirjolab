@@ -40,15 +40,21 @@ See :ref[evidence]{text="the evidence section"}.
 ::box[Baseline]{min=1 q1=2 median=3 q3=4 max=5}
 ::caption[Latency distribution]
 :::
-::label[result:latency]`,
+::label[result:latency]
+
+See :ref[result:latency].`,
       "",
     );
 
     expect(rendered.diagnostics).toEqual([]);
     expect(rendered.html).toContain('<figure class="native-figure native-figure-boxplot"');
     expect(rendered.html).toContain('<svg viewBox="0 0 720 130" role="img"');
-    expect(rendered.html).toContain("<figcaption>Latency distribution</figcaption>");
-    expect(rendered.html).toContain('class="semantic-label" id="result:latency"');
+    expect(rendered.html).toContain(
+      '<figcaption class="semantic-figure-caption"><span class="semantic-figure-number">Figure 1.</span> Latency distribution</figcaption>',
+    );
+    expect(rendered.html).toContain('<figure class="native-figure native-figure-boxplot" id="result:latency"');
+    expect(rendered.html).toContain('href="#result:latency"');
+    expect(rendered.html).toContain(">Figure 1</a>");
   });
 
   it("omits portable comments and diagnoses an unclosed block", () => {

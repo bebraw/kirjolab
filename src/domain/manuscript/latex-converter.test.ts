@@ -184,7 +184,7 @@ yticklabels={SSR -- FCP, Islands -- FCP}
     const rendered = renderWorkspaceMarkdown(markdown, "");
     expect(rendered.diagnostics).toEqual([]);
     expect(rendered.html).toContain('<figure class="native-figure native-figure-boxplot"');
-    expect(rendered.html).toContain('class="semantic-label" id="graph:fcp-summary"');
+    expect(rendered.html).toContain('<figure class="native-figure native-figure-boxplot" id="graph:fcp-summary"');
   });
 
   it("does not preserve TikZ disabled by a LaTeX comment environment", () => {

@@ -46,6 +46,16 @@ versioned, immutable `/pdfjs-module-6.1.200-compat-1.js` runtime asset. A shared
 imports that asset only when a PDF viewer or metadata scan first needs it,
 caches the successful module, and allows a failed load to be retried.
 
+**2026-10-02 amendment:** PDF.js 6.3.289 removes the `Promise.withResolvers`
+shim that its 6.2 compatibility build included. Preserve the existing browser
+compatibility contract by prepending one shared, conditional shim to both
+generated PDF assets through esbuild's JavaScript banner. Keep native
+implementations intact, include the banner in the display asset fingerprint,
+and verify deferred resolution, rejection, constructor behavior, and the
+existing browser scenario without native `Promise.withResolvers`. This keeps
+the PDF runtime current without raising the browser baseline or adding a
+polyfill dependency.
+
 Keep Satteri rendering in the browser under ADR-045. Do not proxy live preview
 rendering through a request-per-edit edge API, and do not maintain a private
 Satteri Wasm fork solely to force the threaded WASI artifact into Workers.

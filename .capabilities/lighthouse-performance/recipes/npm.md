@@ -5,7 +5,7 @@ Apply this recipe when the target repo uses npm.
 ## Package Changes
 
 ```bash
-npm install --save-dev --save-exact @playwright/test@1.62.1 chrome-launcher@1.2.1 lighthouse@13.4.1
+npm install --save-dev --save-exact @playwright/test@1.63.0 chrome-launcher@1.2.2 lighthouse@13.5.0
 ```
 
 Add or merge:

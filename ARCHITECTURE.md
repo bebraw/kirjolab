@@ -1624,6 +1624,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Render the active PDF page in single-page mode and only a bounded visible and
   nearby page set in continuous or spread mode through the PDF.js display
   layer; keep its worker version matched with the pinned display dependency.
+- Preserve the PDF reader's older-browser baseline in both generated PDF.js
+  assets with a shared conditional `Promise.withResolvers` shim; preserve
+  native implementations and load the shim with the lazy PDF runtime.
 - Derive each active PDF load context through one pure projection over the
   active typed context tab and authorized project, Library, and shared-reference
   snapshots. Let a bounded PDF context session apply that projection through
@@ -2101,6 +2104,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep Node Vitest responsible for fast pure-domain coverage and mutation
   feedback; keep the separate Workers Vitest project responsible for real
   Durable Object and SQLite integration behavior.
+- Use Cloudflare's `@cloudflare/vitest-plugin` for that Workers project and
+  keep Vitest and its coverage provider within the plugin's declared peer
+  range. Refresh renamed integration packages through their upstream migration
+  guide rather than overriding incompatible peer requirements.
 - Exclude browser-only orchestration from Node mutation testing only after its
   deterministic contracts are separated into mutation-tested modules; keep the
   browser binder covered by Playwright and the pre-push selector aligned with
