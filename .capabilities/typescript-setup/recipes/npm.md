@@ -7,7 +7,7 @@ Apply this recipe when the target repo uses npm.
 Add the TypeScript dependencies:
 
 ```bash
-npm install --save-dev --save-exact @types/node@24.13.3 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
+npm install --save-dev --save-exact @types/node@24.19.1 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
 ```
 
 This keeps the TypeScript 6 compatibility package under the canonical

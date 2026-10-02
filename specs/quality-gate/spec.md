@@ -19,8 +19,11 @@ failures quickly during normal development.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
-- **Browser Worker runtime:** Wrangler `4.116.0`, retained below the affected
-  releases until the upstream `wrangler dev` EPIPE regression is resolved
+- **Browser Worker runtime:** Wrangler `4.147.0`, including the upstream
+  `wrangler dev` EPIPE fix documented in ADR-009
+- **Workers test integration:** `@cloudflare/vitest-plugin` `1.3.6`, the
+  supported replacement for `@cloudflare/vitest-pool-workers`; retain Vitest
+  and V8 coverage at `4.1.11` while the plugin requires Vitest `^4.1.0`
 - **Browser discovery failure policy:** Playwright must fail when the canonical
   suite resolves to zero tests; the gate must not use `--pass-with-no-tests`.
 - **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs

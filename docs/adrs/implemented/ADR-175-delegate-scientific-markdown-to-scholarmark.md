@@ -54,6 +54,12 @@ Historical revisions remain immutable. Materialized current source and new
 imports use the Scholarmark form; the package is not required to retain
 Kirjolab's superseded syntax.
 
+**2026-10-02 amendment:** Refresh Scholarmark to 0.9.1 and adopt its documented
+native-figure rendering: postfix labels become the figure element's id,
+captions include the figure number, and references without custom text display
+`Figure N`. Keep those contracts in `specs/native-figures/spec.md` and verify
+the sanitized caption and link target through the public Markdown adapter.
+
 ## Trigger
 
 The user asked to integrate the published renderer to reduce local maintenance,

@@ -5,7 +5,7 @@ Use this recipe only after the user approves adding a browser gate.
 ## Package Changes
 
 ```bash
-npm install --save-dev @playwright/test@1.59.1
+npm install --save-dev @playwright/test@1.63.0
 ```
 
 Add or merge:

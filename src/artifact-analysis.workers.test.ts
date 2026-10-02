@@ -43,7 +43,7 @@ describe("artifact analysis queue", () => {
       kind: "pdf-highlights",
       requestedAt: "2026-07-29T00:00:00.000Z",
     };
-    const batch = createMessageBatch(queueName, [
+    const batch = createMessageBatch<unknown>(queueName, [
       { id: "invalid", timestamp: new Date(), attempts: 1, body: { version: 2 } },
       { id: "stale", timestamp: new Date(), attempts: 1, body: stale },
     ]);

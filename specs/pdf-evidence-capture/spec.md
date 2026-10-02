@@ -125,6 +125,10 @@ with an authored passage.
 - PDF.js display and worker assets must use the package's compatibility builds
   so PDF reading does not depend on newer browser APIs such as
   `Promise.withResolvers` being native.
+- Both generated assets prepend the shared compatibility banner from
+  `scripts/pdf-runtime-compatibility.mjs`. It supplies `Promise.withResolvers`
+  only when missing, preserving native implementations and constructor-aware
+  deferred resolution and rejection after PDF.js 6.3 removed its bundled shim.
 - Text extraction must consume PDF.js streams through `getReader()` instead of
   requiring `ReadableStream` async iteration, which Safari does not provide.
 - The viewer must render only the active page.

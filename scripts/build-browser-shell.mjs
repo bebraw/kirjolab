@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { pdfRuntimeCompatibilityBanner } from "./pdf-runtime-compatibility.mjs";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const fingerprintLength = 16;
@@ -59,6 +60,7 @@ export async function buildBrowserShell(root = projectRoot, mode = browserShellB
     stem: "markdown-module",
   });
   const pdfAsset = await buildFingerprintedRuntime({
+    banner: { js: pdfRuntimeCompatibilityBanner },
     entryPoint: join(root, "node_modules/pdfjs-dist/legacy/build/pdf.mjs"),
     mode,
     outputAssets,
@@ -137,10 +139,11 @@ async function buildClient(root, outfile, runtimeDefines, shellVersion, mode) {
   assertLitBuildMode(result.metafile, mode, "workspace application");
 }
 
-async function buildFingerprintedRuntime({ entryPoint, mode, outputAssets, stem }) {
+async function buildFingerprintedRuntime({ banner, entryPoint, mode, outputAssets, stem }) {
   const pending = join(outputAssets, `${stem}.pending.js`);
   await build({
     entryPoints: [entryPoint],
+    banner,
     bundle: true,
     conditions: browserShellConditions(mode),
     format: "esm",

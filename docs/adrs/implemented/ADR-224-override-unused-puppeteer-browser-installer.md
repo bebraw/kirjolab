@@ -56,6 +56,16 @@ semantics, and unconditional browser close in `finally`.
 
 Review this bridge by 2026-11-17 even if no Cloudflare release has appeared.
 
+**2026-10-02 amendment:** Refresh the Browser Run adapter to
+`@cloudflare/puppeteer@1.4.0` and scope the existing installer override to that
+version, using `@puppeteer/browsers@3.2.3`. Cloudflare 1.4.0 still pins the
+vulnerable installer at 2.2.4, so the bridge and its runtime restrictions
+remain necessary.
+
+The refreshed production audit passes, the deployment dry-run metadata excludes
+both `@puppeteer/browsers` and `extract-zip`, and a managed Browser Run smoke
+session verifies launch, request interception, page evaluation, and close.
+
 ## Consequences
 
 **Positive:**

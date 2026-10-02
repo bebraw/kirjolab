@@ -36,6 +36,14 @@ Vitest configuration. `vitest.workers.config.mts` selects only
 affected-test discovery continue to use Node for pure domain and routing
 behavior.
 
+**2026-10-02 amendment:** Follow Cloudflare's
+[package migration](https://developers.cloudflare.com/workers/testing/vitest-integration/migration-guides/migrate-to-vitest-plugin/)
+to `@cloudflare/vitest-plugin` 1.3.6. Update the configuration import and
+test-only type entry together; the configuration API and `cloudflare:test`
+utilities remain the same. Keep Vitest and V8 coverage at 4.1.11 because this
+plugin still declares Vitest `^4.1.0`; do not force Vitest 5 through that peer
+boundary.
+
 Retain Vitest's default five-second timeout for ordinary Workers scenarios.
 Give the multi-step GitHub OAuth and installation lifecycle scenario an explicit
 15-second timeout because concurrent isolates on the pinned Node runtime can

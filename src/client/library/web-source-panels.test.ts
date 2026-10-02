@@ -32,8 +32,8 @@ describe("web source panels", () => {
     const comparisonPanel = new TestWebSnapshotComparisonPanel();
     expect(capture.rootForTest()).toBe(capture);
     expect(comparisonPanel.rootForTest()).toBe(comparisonPanel);
-    expect(capture.renderForTest()).toBeDefined();
-    expect(comparisonPanel.renderForTest()).toBeDefined();
+    expect(templateText(capture.renderForTest())).toContain("Add URL");
+    expect(templateText(comparisonPanel.renderForTest())).toBe("");
   });
 
   it("owns web capture requests and emits successful refresh outcomes", async () => {
@@ -65,11 +65,18 @@ describe("web source panels", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const first = panel.captureUrl("https://example.org/source");
+    expect(templateText(panel.renderForTest())).toContain("Capturing web source…");
+    expect(templateText(panel.renderForTest())).toContain("Adding…");
     await panel.captureUrl("https://example.org/duplicate");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     resolveResponse(new Response(JSON.stringify({ error: "Capture unavailable" }), { status: 503 }));
     await first;
-    expect(panel.renderForTest()).toBeDefined();
+    expect(templateText(panel.renderForTest())).toContain("Capture unavailable");
+    expect(templateText(panel.renderForTest())).toContain("Add URL");
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await panel.captureUrl("https://example.org/retry");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(templateText(panel.renderForTest())).toContain("Web source captured privately with an immutable access timestamp.");
   });
 
   it("owns validated identical and changed snapshot comparisons", async () => {
@@ -85,15 +92,17 @@ describe("web source panels", () => {
     ]);
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(json({ comparison: comparison(true, []) }))
-      .mockResolvedValueOnce(json({ comparison: changed }));
+      .mockResolvedValueOnce(comparisonResponse("before/1", "after#1", comparison(true, [])))
+      .mockResolvedValueOnce(comparisonResponse("before-2", "after-2", changed));
     vi.stubGlobal("fetch", fetchMock);
 
-    await panel.compare("before-1", "after-1");
-    expect(panel.renderForTest()).toBeDefined();
+    await panel.compare("before/1", "after#1");
+    expect(templateText(panel.renderForTest())).toContain("No readable-text changes");
     await panel.compare("before-2", "after-2");
-    expect(panel.renderForTest()).toBeDefined();
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/library/web-snapshots/before-1/compare/after-1", {
+    const rendered = templateText(panel.renderForTest());
+    expect(rendered).toContain("1 added · 1 removed");
+    expect(rendered).toContain("@@ before 3 · after 4 @@\n- old\n+ new\n… excerpt truncated");
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/library/web-snapshots/before%2F1/compare/after%231", {
       credentials: "same-origin",
     });
   });
@@ -107,14 +116,45 @@ describe("web source panels", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await panel.compare("before", "after");
-    expect(panel.renderForTest()).toBeDefined();
+    expect(templateText(panel.renderForTest())).toContain("Comparison unavailable");
     await panel.compare("before", "after");
-    expect(panel.renderForTest()).toBeDefined();
+    expect(templateText(panel.renderForTest())).toContain("Web snapshot comparison returned an invalid result");
   });
 });
 
+function templateText(value: unknown): string {
+  if (Array.isArray(value)) {
+    const items: readonly unknown[] = value;
+    return items.map(templateText).join("");
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "strings" in value &&
+    "values" in value &&
+    Array.isArray(value.strings) &&
+    Array.isArray(value.values)
+  ) {
+    const strings: readonly unknown[] = value.strings;
+    const values: readonly unknown[] = value.values;
+    return strings.map((part, index) => `${typeof part === "string" ? part : ""}${templateText(values[index])}`).join("");
+  }
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" }, status });
+}
+
+interface ComparisonResponseFixture {
+  before: { id: string };
+  after: { id: string };
+  comparison: WebSnapshotComparison;
+}
+
+function comparisonResponse(beforeId: string, afterId: string, comparison: WebSnapshotComparison): Response {
+  const value: ComparisonResponseFixture = { before: { id: beforeId }, after: { id: afterId }, comparison };
+  return json(value);
 }
 
 function comparison(identical: boolean, hunks: WebSnapshotComparison["hunks"]): WebSnapshotComparison {
