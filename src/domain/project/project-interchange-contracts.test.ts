@@ -15,6 +15,14 @@ describe("project interchange response contracts", () => {
     };
     expect(isProjectImportPreview(preview)).toBe(true);
     expect(isProjectImportPreview({ ...preview, kind: "legacy", previewDigest: null })).toBe(true);
+    const source = {
+      ...preview,
+      kind: "source",
+      source: { entryCandidates: ["main.md"], bibliographyCandidates: [], bibliographyPath: "", includePdfs: true, skippedEntries: 1_100 },
+    };
+    expect(isProjectImportPreview(source)).toBe(true);
+    expect(isProjectImportPreview({ ...source, source: null })).toBe(false);
+    expect(isProjectImportPreview({ ...source, source: { ...source.source, entryCandidates: [] } })).toBe(false);
     for (const value of [
       null,
       {},

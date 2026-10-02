@@ -9,6 +9,7 @@ type LatexConversion = NonNullable<LatexImportPreview["conversion"]>;
 
 export class LatexImportPanel extends LightDomElement {
   static override properties = {
+    standalone: { type: Boolean },
     busy: { state: true },
     archiveSha256: { state: true },
     conversion: { state: true },
@@ -29,9 +30,11 @@ export class LatexImportPanel extends LightDomElement {
   declare private projectTitle: string;
   private previewRequestEpoch = 0;
   private bibliographyPath!: string | null;
+  declare standalone: boolean;
 
   constructor() {
     super();
+    this.standalone = false;
     this.resetState();
   }
 
@@ -55,12 +58,23 @@ export class LatexImportPanel extends LightDomElement {
 
   open(): void {
     this.reset();
-    this.dialog.showModal();
+    if (!this.standalone) this.dialog.showModal();
     this.focusTitle();
   }
 
   close(): void {
-    this.dialog.close();
+    if (this.standalone) this.dispatchEvent(new CustomEvent("project-creation-back", { bubbles: true }));
+    else this.dialog.close();
+  }
+  edit(): void {
+    this.clearPreview();
+    this.notifyCreation();
+  }
+  private notifyCreation(): void {
+    if (this.standalone)
+      this.dispatchEvent(
+        new CustomEvent("project-creation-state", { bubbles: true, detail: { step: this.conversion ? 3 : 2, busy: this.busy !== null } }),
+      );
   }
 
   focusTitle(): void {
@@ -75,6 +89,7 @@ export class LatexImportPanel extends LightDomElement {
     this.archiveSha256 = value.conversion ? value.archiveSha256 : null;
     this.previewDigest = value.conversion ? value.previewDigest : null;
     this.bibliographyPath = value.conversion?.report.bibliographyPath ?? null;
+    this.notifyCreation();
     if (!value.conversion) {
       this.status = "Choose a root document, then preview again.";
       return;
@@ -88,11 +103,13 @@ export class LatexImportPanel extends LightDomElement {
   previewFailed(message: string): void {
     this.busy = null;
     this.status = message;
+    this.notifyCreation();
   }
 
   confirmFailed(message: string): void {
     this.busy = null;
     this.status = message;
+    this.notifyCreation();
   }
 
   protected override render(): TemplateResult {
@@ -105,7 +122,7 @@ export class LatexImportPanel extends LightDomElement {
         <p class="mt-2 text-sm leading-6 text-app-text-soft">
           The server converts a bounded Overleaf ZIP into reviewable Markdown. Uploaded LaTeX is not stored or executed.
         </p>
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+        <div class="mt-5 grid gap-3 sm:grid-cols-2" ?hidden=${this.standalone && conversion !== null}>
           <label class="field-label"
             >Project title<input
               class="field"
@@ -140,6 +157,7 @@ export class LatexImportPanel extends LightDomElement {
             </select></label
           >
         </div>
+        ${this.standalone && conversion ? html`<p class="mt-4 text-sm font-semibold">${this.projectTitle}</p>` : nothing}
         <div class="mt-5 border-t border-app-line pt-4" id="latex-import-preview" aria-live="polite">
           ${
             conversion
@@ -150,15 +168,22 @@ export class LatexImportPanel extends LightDomElement {
         <p class="ui-status mt-3" id="latex-import-status" role="status">${this.status}</p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-latex-import" type="button" ?disabled=${this.busy !== null} @click=${this.cancel}>
-            Cancel
+            ${this.standalone ? "Choose another starting point" : "Cancel"}
           </button>
-          <button class="button-secondary" id="preview-latex-import" type="submit" ?disabled=${this.busy !== null}>
+          <button
+            class="button-secondary"
+            id="preview-latex-import"
+            type="submit"
+            ?hidden=${this.standalone && conversion !== null}
+            ?disabled=${this.busy !== null}
+          >
             ${this.busy === "preview" ? "Previewing…" : "Preview import"}
           </button>
           <button
             class="button-primary"
             id="confirm-latex-import"
             type="button"
+            ?hidden=${this.standalone && conversion === null}
             ?disabled=${this.busy !== null || !this.previewDigest || blocking > 0}
             @click=${this.confirm}
           >
@@ -182,6 +207,7 @@ export class LatexImportPanel extends LightDomElement {
     const requestEpoch = this.previewRequestEpoch;
     this.busy = "preview";
     this.status = "Inspecting and converting the archive on the server…";
+    this.notifyCreation();
     try {
       const query = new URLSearchParams();
       if (this.selectedRoot) query.set("root", this.selectedRoot);
@@ -216,6 +242,7 @@ export class LatexImportPanel extends LightDomElement {
       return;
     this.busy = "confirm";
     this.status = "Repeating conversion and creating the project…";
+    this.notifyCreation();
     const query = new URLSearchParams({
       title: this.projectTitle,
       archiveSha256: this.archiveSha256,

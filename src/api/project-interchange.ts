@@ -1,6 +1,5 @@
 import {
   buildProjectArchive,
-  inspectProjectArchive,
   projectArchiveBinaryKeys,
   projectArchiveExclusions,
   projectArchiveSummary,
@@ -15,6 +14,7 @@ import {
 } from "../domain/project/project-archive-seed";
 import { isSha256Hex, sha256Bytes, sha256Text } from "../domain/sha256";
 import { isCreateWorkspaceInput, type WorkspaceSnapshot } from "../domain/workspace/workspace";
+import { inspectProjectImportArchive, type ProjectSourceArchiveInspection } from "../domain/project/project-source-archive";
 import type { DocumentRoom } from "../durable-objects/document-room";
 import type { ReferenceLibrary } from "../durable-objects/reference-library";
 import type { NativeProjectImportClaim, WorkspaceCatalog } from "../durable-objects/workspace-catalog";
@@ -24,7 +24,7 @@ import type { AuthIdentity } from "../security/auth";
 import { readBoundedRequestBytes } from "./request-body";
 
 const maximumBytes = 20 * 1024 * 1024;
-type NativeInspection = Extract<ProjectArchiveInspection, { kind: "native" }>;
+type NativeInspection = Extract<ProjectArchiveInspection, { kind: "native" }> | ProjectSourceArchiveInspection;
 type RpcMethods<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? (...args: A) => Promise<Awaited<R>> : never };
 type ImportRoom = RpcMethods<
   Pick<
@@ -93,7 +93,13 @@ export async function handleProjectImportApi(request: Request, env: ProjectImpor
           preserveLimitErrorOnCancelFailure: true,
         })
       : new Uint8Array();
-    const inspection = await inspectProjectArchive(bytes);
+    const includePdfs = url.searchParams.get("includePdfs");
+    if (includePdfs !== null && includePdfs !== "true" && includePdfs !== "false") return failure("Invalid PDF import selection", 400);
+    const inspection = await inspectProjectImportArchive(bytes, {
+      ...(url.searchParams.has("entryPath") ? { entryPath: url.searchParams.get("entryPath")! } : {}),
+      ...(url.searchParams.has("bibliographyPath") ? { bibliographyPath: url.searchParams.get("bibliographyPath")! } : {}),
+      includePdfs: includePdfs !== "false",
+    });
     if (url.pathname === "/api/project-import-previews") {
       if (inspection.kind === "legacy")
         return json({
@@ -106,7 +112,7 @@ export async function handleProjectImportApi(request: Request, env: ProjectImpor
         });
       return json(await previewImport(inspection, env, identity));
     }
-    if (inspection.kind !== "native")
+    if (inspection.kind === "legacy")
       return failure(
         "Legacy source archives cannot restore a complete project. Export a Kirjolab project ZIP from the original project.",
         422,
@@ -129,15 +135,30 @@ async function previewImport(inspection: NativeInspection, env: ProjectImportEnv
   } catch (error) {
     throw new ProjectArchiveError(error instanceof Error ? error.message : "Library references require reconciliation", 409);
   }
-  const previewDigest = await sha256Text(JSON.stringify({ archiveSha256: inspection.archiveSha256, matches }));
+  const previewDigest = await sha256Text(
+    JSON.stringify({
+      archiveSha256: inspection.archiveSha256,
+      matches,
+      ...(inspection.kind === "source"
+        ? {
+            source: {
+              entryPath: inspection.summary.entryPath,
+              bibliographyPath: inspection.source.bibliographyPath,
+              includePdfs: inspection.source.includePdfs,
+            },
+          }
+        : {}),
+    }),
+  );
   return {
-    kind: "native" as const,
+    kind: inspection.kind,
     summary: inspection.summary,
     archiveSha256: inspection.archiveSha256,
     previewDigest,
     reusedReferences: matches.filter(({ referenceId }) => referenceId !== null).length,
     newReferences: matches.filter(({ referenceId }) => referenceId === null).length,
     matches,
+    ...(inspection.kind === "source" ? { source: inspection.source } : {}),
   };
 }
 

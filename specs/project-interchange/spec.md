@@ -78,10 +78,58 @@ remote reads, execute code, or reconnect source permissions.
 
 Export offers **Kirjolab project (.zip)** with current-project scope and
 exclusions, including the count of excluded live Library source grants. New
-project offers **Import Kirjolab project**. The import dialog
+project offers **Import project ZIP** on the dedicated `/projects/new` page. The import panel
 shows project title, entry document, file/reference/asset counts, Library
-matches, and exclusions before **Create project**. Errors remain in the dialog
+matches, and exclusions before **Create project**. Errors remain in the panel
 with retry available. The imported project opens with references already linked.
+
+### Source Project Import
+
+- An ordinary source ZIP does not require `manifest.json` or `project.json`.
+  Inspection generates their native contracts in memory, with deterministic
+  source identities, byte counts, and payload hashes. Confirmation reuses the
+  existing native staging and cleanup pipeline; later native export produces
+  the ordinary self-contained Kirjolab project ZIP.
+- Source import strips one common enclosing directory and preserves Markdown
+  content and relative Markdown/image paths. The inferred root uses eligible
+  source paths before PDF omission, keeping entry choices stable across previews.
+  The suggested entry prefers
+  `manuscript.md`, `main.md`, `paper.md`, `index.md`, and then a README.
+  The first level-one heading suggests the title; folder or entry name is
+  the fallback. Setup may choose any retained Markdown entry file.
+- Setup selects one `.bib` file, preferring `bibliography.bib`, or explicitly
+  omits the bibliography. Parsed entries become project references with their
+  authored citation aliases through existing Library reconciliation. Text and
+  bibliography contents are not rewritten. Publication settings start from
+  the normal default.
+- Bundled images pass existing signature and inert-SVG checks. PDFs are included
+  as project PDFs by default, with relative source paths as names; setup may
+  omit them before the first preview or during review. Omitted PDFs are never
+  inflated or counted toward retained-file and retained-byte limits; their
+  paths and local headers still pass full-archive safety validation. No
+  PDF-to-reference relationship is inferred from filenames.
+- Source archives may contain 16,384 raw ZIP entries and declare at most 64 MiB
+  expanded, but retain at most 1,024 importable files and 20 MiB of extracted
+  content and generated project metadata. Compressed input stays at 20 MiB;
+  UTF-8 Markdown and BibTeX files stay at 2 MiB each. Native state collection,
+  graph, and binary validation continues to apply.
+- `node_modules`, `.git`, `.svn`, `.hg`, `__MACOSX`, `.DS_Store`, AppleDouble
+  files, directory entries, and unsupported files are skipped before inflation.
+  Every central path and local header remains validated. The review reports
+  the skipped-entry count and fresh project-history/collaboration scope.
+- A root `manifest.json` declares a native archive and is always strictly
+  validated; corruption cannot downgrade into source import. Unrelated nested
+  manifest/project JSON files are skipped. Legacy Kirjolab source snapshots retain their
+  existing inspection-only compatibility behavior.
+- Preview responds with `kind: source`, candidate entry/bibliography paths,
+  selected bibliography, PDF inclusion, skipped count, and the usual project
+  summary and Library reconciliation. Both endpoints accept `entryPath`,
+  `bibliographyPath` (empty means none), and `includePdfs` (`true` or `false`).
+  The preview digest binds these choices as well as the archive and Library
+  matches. Confirmation repeats normalization and rejects changed setup.
+
+[ADR-243](../../docs/adrs/implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)
+records the creation and source normalization boundary.
 
 ## Verification
 

@@ -37,6 +37,7 @@ import { runScheduledPdfBlobMigration } from "./pdf-blob-migration";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderDashboardPage } from "./views/dashboard";
+import { renderProjectCreationPage } from "./views/project-creation";
 import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
 import { renderReviewPage, renderReviewsPage } from "./views/reviews";
@@ -157,6 +158,9 @@ async function handleAuthenticatedPageRequest(request: Request, url: URL, env: E
 
 async function handleWorkspacePageRequest(url: URL, env: Env | undefined, identity: AuthIdentity): Promise<Response | null> {
   const capabilities = deploymentCapabilities(env);
+  if (url.pathname === "/projects/new")
+    return htmlResponse(renderProjectCreationPage(identity.email, identity.mode, capabilities.github), 200, url);
+  if (/^\/editor(?:\/[^/]+)?$/u.test(url.pathname) && url.searchParams.get("create") === "1") return redirectResponse("/projects/new", 302);
   if (url.pathname === "/") {
     const [workspaces, library, reviews] = env
       ? await Promise.all([

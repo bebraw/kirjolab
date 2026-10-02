@@ -35,6 +35,32 @@ function request(path: string, bytes?: Uint8Array): Request {
   });
 }
 describe("native project API boundaries", () => {
+  it("previews source ZIPs without persistence and binds the selected entry to confirmation", async () => {
+    const archive = zipSync({ "main.md": strToU8("# Main"), "other.md": strToU8("# Other") });
+    const env = {
+      ...environment(),
+      REFERENCE_LIBRARIES: {
+        getByName: () => ({
+          previewProjectArchiveReferences: async () => [],
+          stageProjectArchiveReferences: unavailable,
+          rollbackProjectArchiveReferences: unavailable,
+        }),
+      },
+    };
+    const first = await handleProjectImportApi(request("/api/project-import-previews", archive), env, identity);
+    expect(first.status).toBe(200);
+    const value = await first.json<{ previewDigest: string }>();
+    expect(value).toMatchObject({
+      kind: "source",
+      summary: { title: "Main", entryPath: "main.md" },
+      source: { entryCandidates: ["main.md", "other.md"] },
+    });
+    const second = await handleProjectImportApi(request("/api/project-import-previews?entryPath=other.md", archive), env, identity);
+    expect((await second.json<{ previewDigest: string }>()).previewDigest).not.toBe(value.previewDigest);
+    expect((await handleProjectImportApi(request("/api/project-import-previews?includePdfs=invalid", archive), env, identity)).status).toBe(
+      400,
+    );
+  });
   it("rejects wrong routes, methods, media types, empty archives and declared oversized requests", async () => {
     const env = environment();
     expect((await handleProjectImportApi(request("/unknown"), env, identity)).status).toBe(404);

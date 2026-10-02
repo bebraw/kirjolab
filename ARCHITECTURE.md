@@ -8,6 +8,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 ## Global Rules
 
+- Project creation belongs to `/projects/new`, with starting point, setup,
+  and review before the editor is initialized. Normalize bounded Markdown
+  source ZIPs into validated native project metadata in memory and reuse
+  the established import pipeline. Source ZIP tolerance never weakens native
+  manifest integrity, path safety, retained content limits, ownership, or
+  cleanup. See [ADR-243](docs/adrs/implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md).
+
 - Keep Kirjolab's platform setup lightweight and reviewable. Preserve reusable
   maintenance conventions without weakening product-specific contracts.
 - Use the connected Cloudflare MCP as the current documentation, API-discovery,
@@ -368,9 +375,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   operations directly instead of accepting parallel callbacks.
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
-  entry, post-load focus, local load-failure presentation, and the one-shot
-  browser create intent with canonical query cleanup around the catalog owner's
-  canonical refresh. Bind the read-only workspace-catalog owner once so
+  entry, post-load focus, and local load-failure presentation. Editor triggers
+  navigate to `/projects/new`; the server redirects legacy create intent before
+  editor startup. Bind the read-only workspace-catalog owner once so
   trigger, settings, save-template refreshes, and internal template mutations
   read the same live projection without a parallel getter callback. Let the
   project catalog owner retain its stable `/api/workspaces` route and receive
@@ -663,7 +670,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator must not retain a duplicate copy. After application binding, let
   that owner start the project workspace in dependency order: open or restore
   the project, restore its UI route, begin ambient GitHub status refresh,
-  connect collaboration, then honor the one-shot browser creation request.
+  connect collaboration. Project creation starts on its separate page.
   Complete that project application boundary by installing the workspace-layout
   and surface-route lifecycle last, so its root-readiness publication observes
   every preceding project binding.
@@ -797,9 +804,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let every successful template-catalog refresh report that visible view through
   the component's typed template-change binding so replacement consumers cannot
   drift from the fetched or post-delete catalog.
-  Let it own Cancel and close itself before handing either import choice to the
-  coordinator, and let it navigate to the validated project-creation response's
-  canonical workspace href. The
+  Let the standalone creation surface own step progression, Cancel, and inline
+  import choice routing, and let it navigate to the validated project-creation
+  response's canonical workspace href. Its retained modal mode serves existing
+  application bindings; editor New project triggers navigate to the standalone
+  page. The
   template-save Lit dialog owns promotion requests, response validation,
   create-or-replace outcome wording, and its loading-to-ready/error lifecycle.
   The workspace-settings Lit owner closes

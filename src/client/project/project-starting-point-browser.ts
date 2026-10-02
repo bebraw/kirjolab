@@ -4,7 +4,13 @@ import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "..
 import type { AppCapabilities } from "../app/app-contracts";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
 import { LightDomElement } from "../platform/light-dom-controller";
+import { AppToast } from "../app/app-toast";
 import type { ProjectImportPanel } from "./project-import-panel";
+import type { LatexImportPanel } from "../integrations/latex/latex-import-panel";
+import type { GitHubImportPanel } from "../integrations/github/github-import-panel";
+import "./project-import-panel";
+import "../integrations/latex/latex-import-panel";
+import "../integrations/github/github-import-panel";
 import { formatCalendarDate } from "../platform/format";
 import { errorMessage, expectOk, jsonFetch } from "../platform/http";
 
@@ -36,6 +42,10 @@ export type StartingPointApplicationOwners = StartingPointWorkspaceOwners & {
 
 export class ProjectStartingPointBrowser extends LightDomElement {
   static override properties = {
+    standalone: { type: Boolean },
+    creationStep: { state: true },
+    importMode: { state: true },
+    importBusy: { state: true },
     busy: { state: true },
     templates: { state: true },
     workspaces: { state: true },
@@ -58,6 +68,10 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   declare private status: string;
   declare private projectTitle: string;
   declare private githubAvailable: boolean;
+  declare standalone: boolean;
+  declare private creationStep: number;
+  declare private importMode: StartingPointAction | null;
+  declare private importBusy: boolean;
   private parentDialog: HTMLDialogElement | null = null;
   private returnFocus: HTMLElement | null = null;
   private trigger: HTMLElement | null = null;
@@ -66,11 +80,18 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   private owners: StartingPointOwners | null = null;
   private readonly deletions = new DeferredDeletionController((message, options) => {
     const settled = this.isConnected ? this.updateComplete : Promise.resolve();
-    void settled.then(() => this.owners?.toast.show(message, options));
+    void settled.then(() => {
+      if (this.standalone) document.querySelector<AppToast>("app-toast")?.show(message, options);
+      else this.owners?.toast.show(message, options);
+    });
   });
 
   constructor() {
     super();
+    this.standalone = false;
+    this.creationStep = 1;
+    this.importMode = null;
+    this.importBusy = false;
     this.busy = false;
     this.templates = [];
     this.workspaces = [];
@@ -144,7 +165,8 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   }
 
   close(): void {
-    this.closeModal();
+    if (this.standalone) location.assign("/");
+    else this.closeModal();
   }
 
   showError(message: string): void {
@@ -211,6 +233,11 @@ export class ProjectStartingPointBrowser extends LightDomElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    if (this.standalone) {
+      this.configure({ github: document.body.dataset.githubCapability === "enabled" });
+      void this.loadCreationPage();
+      return;
+    }
     this.parentDialog = this.resolveDialog();
     this.dialog.addEventListener("keydown", this.trapFocus);
     this.dialog.addEventListener("close", this.restoreFocus);
@@ -224,6 +251,29 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   }
 
   protected override render(): TemplateResult {
+    if (this.standalone)
+      return html`<section
+        class="project-creation"
+        @project-creation-state=${this.importStateChanged}
+        @project-creation-back=${this.chooseAgain}
+      >
+        <header class="creation-header">
+          <div>
+            <p class="eyebrow">New project</p>
+            <h1 class="ui-heading">A place for your next paper.</h1>
+            <p class="ui-supporting-text">Choose where to begin, check the setup, then open your writing workspace.</p>
+          </div>
+          <a class="button-secondary" href="/" ?hidden=${this.importBusy || this.busy}>Cancel</a>
+        </header>
+        <ol class="creation-steps" aria-label="Project creation progress">
+          ${["Starting point", "Project setup", "Review and create"].map((label, index) => html`<li aria-current=${this.creationStep === index + 1 ? "step" : nothing} data-complete=${String(this.creationStep > index + 1)}><span>${String(index + 1).padStart(2, "0")}</span>${label}</li>`)}
+        </ol>
+        <div class="creation-body">${this.importMode ? this.renderImport() : this.renderStartingPoints()}</div>
+      </section>`;
+    return this.renderStartingPoints();
+  }
+
+  private renderStartingPoints(): TemplateResult {
     const templates = this.availableTemplates;
     const workspaces = this.visibleWorkspaces;
     const preview = this.startingPoint(this.previewKey);
@@ -232,10 +282,14 @@ export class ProjectStartingPointBrowser extends LightDomElement {
         <header class="template-browser-header">
           <div>
             <p class="eyebrow">New project</p>
-            <h2 class="ui-heading mt-1">Choose a starting point</h2>
-            <p class="ui-supporting-text mt-2">Browse the structure and publication setup before choosing a starting point.</p>
+            <h2 class="ui-heading mt-1">
+              ${this.standalone && this.creationStep > 1 ? (this.creationStep === 2 ? "Name your project" : this.projectTitle) : "Choose a starting point"}
+            </h2>
+            <p class="ui-supporting-text mt-2">
+              ${this.standalone && this.creationStep === 3 ? "Check the starting structure below. Your project will be an independent copy." : "Browse the structure and publication setup before choosing a starting point."}
+            </p>
           </div>
-          <label class="field-label template-title-field"
+          <label class="field-label template-title-field" ?hidden=${this.standalone && this.creationStep !== 2}
             >Project title
             <input
               class="field"
@@ -243,6 +297,7 @@ export class ProjectStartingPointBrowser extends LightDomElement {
               type="text"
               maxlength="120"
               required
+              ?disabled=${this.standalone && this.creationStep !== 2}
               placeholder="Working title"
               .value=${this.projectTitle}
               @input=${this.changeTitle}
@@ -250,7 +305,11 @@ export class ProjectStartingPointBrowser extends LightDomElement {
           </label>
         </header>
         <div class="template-browser">
-          <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
+          <section
+            class="template-browser-index"
+            aria-labelledby="template-browser-index-heading"
+            ?hidden=${this.standalone && this.creationStep > 1}
+          >
             <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
             <div class="template-choice-list" id="new-workspace-template-list">
               ${this.choiceGroup(
@@ -272,24 +331,37 @@ export class ProjectStartingPointBrowser extends LightDomElement {
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
           <div class="ui-cluster justify-end">
-            <button class="button-secondary" id="open-project-import" type="button" @click=${() => this.openImport("import-project")}>
-              Import Kirjolab project
+            <button
+              class="button-secondary"
+              id="open-project-import"
+              type="button"
+              ?hidden=${this.standalone && this.creationStep > 1}
+              @click=${() => this.openImport("import-project")}
+            >
+              ${this.standalone ? "Import project ZIP" : "Import Kirjolab project"}
             </button>
-            <button class="button-secondary" id="open-latex-import" type="button" @click=${() => this.openImport("import-latex")}>
+            <button
+              class="button-secondary"
+              id="open-latex-import"
+              type="button"
+              ?hidden=${this.standalone && this.creationStep > 1}
+              @click=${() => this.openImport("import-latex")}
+            >
               Import LaTeX
             </button>
             <button
               class="button-secondary"
               id="open-github-import"
               type="button"
-              ?hidden=${!this.githubAvailable}
+              ?hidden=${!this.githubAvailable || (this.standalone && this.creationStep > 1)}
               @click=${() => this.openImport("import-github")}
             >
               Import GitHub
             </button>
             <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${this.close}>Cancel</button>
+            ${this.standalone && this.creationStep > 1 ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${this.previousStep}>Back</button>` : nothing}
             <button class="button-primary" id="create-workspace" type="submit" ?disabled=${!this.selectedKey || this.busy}>
-              Create project
+              ${this.standalone && this.creationStep < 3 ? (this.creationStep === 1 ? "Continue" : "Review project") : "Create project"}
             </button>
           </div>
         </footer>
@@ -301,6 +373,19 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     event.preventDefault();
     if (!this.selectedKey) {
       this.status = "Choose a starting point.";
+      return;
+    }
+    if (this.standalone && this.creationStep < 3) {
+      if (this.creationStep === 2 && !this.projectTitle.trim()) {
+        this.status = "Enter a project title.";
+        return;
+      }
+      this.creationStep++;
+      this.requestUpdate();
+      void this.updateComplete.then(() => {
+        if (this.creationStep === 2) this.querySelector<HTMLInputElement>("#new-workspace-title")?.focus();
+        else this.querySelector<HTMLButtonElement>("#create-workspace")?.focus();
+      });
       return;
     }
     this.busy = true;
@@ -325,13 +410,84 @@ export class ProjectStartingPointBrowser extends LightDomElement {
 
   protected openImport(detail: StartingPointAction): void {
     if (detail === "import-github" && !this.githubAvailable) return;
+    if (this.standalone) {
+      this.importMode = detail;
+      this.creationStep = 2;
+      void this.updateComplete.then(() => {
+        if (detail === "import-github") {
+          const panel = this.querySelector<GitHubImportPanel>("github-import-panel");
+          panel?.configure({ github: this.githubAvailable });
+          panel?.open();
+        } else if (detail === "import-latex") this.querySelector<LatexImportPanel>("latex-import-panel")?.open();
+      });
+      return;
+    }
     this.close();
     if (detail === "import-project") this.owners?.projectImportPanel?.open();
     else if (detail === "import-latex") this.owners?.latexImportPanel.open();
     else this.owners?.gitHubImportPanel.open();
   }
 
-  private readonly openFromTrigger = (): void => void this.openFromBoundTrigger();
+  private readonly openFromTrigger = (): void => location.assign("/projects/new");
+
+  protected async loadCreationPage(): Promise<void> {
+    this.startLoading();
+    try {
+      const response = await fetch("/api/workspaces", { credentials: "same-origin" });
+      await expectOk(response);
+      const values: unknown = await response.json();
+      if (!isWorkspaceSummaries(values)) throw new Error("Project catalog returned invalid data");
+      await this.refresh(values);
+      this.status = "Choose a template, an existing project, or import your writing.";
+      const source = new URL(location.href).searchParams.get("source");
+      if (source === "github" && this.githubAvailable) this.openImport("import-github");
+    } catch (error) {
+      this.showError(errorMessage(error, "Could not load project starting points."));
+    }
+  }
+  protected previousStep(): void {
+    if (this.busy || this.importBusy) return;
+    const step = Math.max(1, this.creationStep - 1);
+    if (this.importMode && this.creationStep === 3) {
+      this.querySelector<ProjectImportPanel>("project-import-panel")?.edit();
+      this.querySelector<LatexImportPanel>("latex-import-panel")?.edit();
+      this.querySelector<GitHubImportPanel>("github-import-panel")?.edit();
+    }
+    this.creationStep = step;
+  }
+  protected chooseAgain(): void {
+    if (this.importBusy) return;
+    this.importMode = null;
+    this.creationStep = 1;
+  }
+  protected importStateChanged(event: CustomEvent<unknown>): void {
+    const detail = event.detail;
+    if (
+      typeof detail !== "object" ||
+      detail === null ||
+      !("step" in detail) ||
+      !("busy" in detail) ||
+      (detail.step !== 2 && detail.step !== 3) ||
+      typeof detail.busy !== "boolean"
+    )
+      return;
+    this.creationStep = detail.step;
+    this.importBusy = detail.busy;
+  }
+  private renderImport(): TemplateResult {
+    return html`${this.creationStep === 3 ? html`<button class="button-secondary mb-4" type="button" ?disabled=${this.importBusy} @click=${this.previousStep}>Back to setup</button>` : nothing}
+    ${
+      this.importMode === "import-project"
+        ? html`<project-import-panel standalone></project-import-panel>`
+        : this.importMode === "import-latex"
+          ? html`<latex-import-panel standalone></latex-import-panel>`
+          : html`<div class="p-5">
+              <p class="eyebrow">GitHub project</p>
+              <h2 class="ui-heading mt-1">Import a Markdown repository</h2>
+              <github-import-panel standalone></github-import-panel>
+            </div>`
+    }`;
+  }
 
   protected showModal(): void {
     this.dialog.showModal();

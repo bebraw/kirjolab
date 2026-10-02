@@ -31,6 +31,7 @@ export interface GitHubConnectionPresentation {
 
 export class GitHubImportPanel extends LightDomElement {
   static override properties = {
+    standalone: { type: Boolean },
     projectTitleValue: { state: true },
     installations: { state: true },
     installationId: { state: true },
@@ -75,9 +76,11 @@ export class GitHubImportPanel extends LightDomElement {
   private browserResultInitialized = false;
   private capabilityConfigured = false;
   private lifecycleConnected = false;
+  declare standalone: boolean;
 
   constructor() {
     super();
+    this.standalone = false;
     this.projectTitleValue = "";
     this.installations = [];
     this.installationId = "";
@@ -126,7 +129,7 @@ export class GitHubImportPanel extends LightDomElement {
   open(): void {
     if (!this.available) return;
     this.resetPreview();
-    this.dialog.showModal();
+    if (!this.standalone) this.dialog.showModal();
     this.focusTitle();
     void this.refreshConnection();
   }
@@ -143,7 +146,18 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   close(): void {
-    this.dialog.close();
+    if (this.standalone) this.dispatchEvent(new CustomEvent("project-creation-back", { bubbles: true }));
+    else this.dialog.close();
+  }
+  edit(): void {
+    this.resetPreview();
+    this.notifyCreation();
+  }
+  private notifyCreation(): void {
+    if (this.standalone)
+      this.dispatchEvent(
+        new CustomEvent("project-creation-state", { bubbles: true, detail: { step: this.preview ? 3 : 2, busy: this.working } }),
+      );
   }
 
   resetPreview(): void {
@@ -311,6 +325,7 @@ export class GitHubImportPanel extends LightDomElement {
     this.status = "Reading the selected commit…";
     this.working = true;
     this.canConfirm = false;
+    this.notifyCreation();
   }
 
   showPreview(preview: GitHubImportPreview): void {
@@ -318,23 +333,27 @@ export class GitHubImportPanel extends LightDomElement {
     this.status = `${preview.commitSha.slice(0, 10)} previewed. Confirm to create the project.`;
     this.working = false;
     this.canConfirm = true;
+    this.notifyCreation();
   }
 
   showPreviewError(message: string): void {
     this.status = message;
     this.working = false;
+    this.notifyCreation();
   }
 
   beginCreation(): void {
     this.status = "Creating the project…";
     this.working = true;
     this.canConfirm = false;
+    this.notifyCreation();
   }
 
   showCreationError(message: string): void {
     this.status = message;
     this.working = false;
     this.canConfirm = true;
+    this.notifyCreation();
   }
 
   override connectedCallback(): void {
@@ -352,19 +371,31 @@ export class GitHubImportPanel extends LightDomElement {
     if (!this.available) return html``;
     const ready = Boolean(this.installationId && this.repositoryId && this.branch);
     return html`
-      <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
+      <section
+        class="mt-5 border-y border-app-line py-4"
+        aria-labelledby="github-connection-heading"
+        ?hidden=${this.standalone && this.preview !== null}
+      >
         <p class="field-label" id="github-connection-heading">GitHub account</p>
         <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status" aria-live="polite">${this.connectionMessage}</p>
         <div class="mt-3 flex flex-wrap gap-2">
-          <a class="button-primary" href="/api/github/connect?returnTo=%2F%3FgithubImport%3D1" ?hidden=${this.connected}>Connect GitHub</a>
-          <a class="button-secondary" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" ?hidden=${!this.connected}
+          <a
+            class="button-primary"
+            href=${this.standalone ? "/api/github/connect?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/connect?returnTo=%2F%3FgithubImport%3D1"}
+            ?hidden=${this.connected}
+            >Connect GitHub</a
+          >
+          <a
+            class="button-secondary"
+            href=${this.standalone ? "/api/github/install?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/install?returnTo=%2F%3FgithubImport%3D1"}
+            ?hidden=${!this.connected}
             >Manage repository access</a
           >
           <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.disconnect}>Disconnect account</button>
         </div>
       </section>
       <form id="github-import-form" @submit=${this.previewImport}>
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+        <div class="mt-5 grid gap-3 sm:grid-cols-2" ?hidden=${this.standalone && this.preview !== null}>
           <label class="field-label"
             >Project title<input
               class="field"
@@ -443,6 +474,7 @@ export class GitHubImportPanel extends LightDomElement {
             ><input class="field" id="github-entry-path" placeholder="main.md" .value=${this.entryPath} @input=${this.updateEntryPath}
           /></label>
         </div>
+        ${this.standalone && this.preview ? html`<p class="mt-4 text-sm font-semibold">${this.projectTitleValue}</p>` : null}
         <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
           ${
             this.preview
@@ -460,11 +492,25 @@ export class GitHubImportPanel extends LightDomElement {
         </div>
         <p class="ui-status mt-3" id="github-import-status" role="status">${this.status}</p>
         <div class="mt-5 flex justify-end gap-2">
-          <button class="button-secondary" type="button" @click=${this.requestCancel}>Cancel</button>
-          <button class="button-secondary" id="preview-github-import" type="submit" ?disabled=${!ready || this.working}>
+          <button class="button-secondary" type="button" ?disabled=${this.working} @click=${this.requestCancel}>
+            ${this.standalone ? "Choose another starting point" : "Cancel"}
+          </button>
+          <button
+            class="button-secondary"
+            id="preview-github-import"
+            type="submit"
+            ?hidden=${this.standalone && this.preview !== null}
+            ?disabled=${!ready || this.working}
+          >
             Preview import
           </button>
-          <button class="button-primary" type="button" ?disabled=${!this.canConfirm || this.working} @click=${this.confirmImport}>
+          <button
+            class="button-primary"
+            type="button"
+            ?hidden=${this.standalone && this.preview === null}
+            ?disabled=${!this.canConfirm || this.working}
+            @click=${this.confirmImport}
+          >
             Create project
           </button>
         </div>

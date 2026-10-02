@@ -1,4 +1,91 @@
 @layer components {
+  .creation-shell {
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: clamp(1.25rem, 4vw, 3.5rem);
+  }
+
+  .creation-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  .creation-header h1 {
+    margin-block: 0.5rem 0.75rem;
+    font-size: clamp(2rem, 4vw, 3rem);
+  }
+
+  .creation-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-block: 2rem;
+    border-bottom: 1px solid var(--color-app-line);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+  }
+
+  .creation-steps li {
+    padding: 0.75rem 0.5rem;
+    color: var(--color-app-text-soft);
+    border-bottom: 2px solid transparent;
+  }
+
+  .creation-steps span {
+    margin-right: 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+  }
+
+  .creation-steps [aria-current="step"] {
+    border-color: var(--color-app-accent);
+    color: var(--color-app-ink);
+    font-weight: 700;
+  }
+
+  .creation-body {
+    border: 1px solid var(--color-app-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--color-app-paper);
+  }
+
+  .project-creation .template-browser-form {
+    max-height: none;
+  }
+
+  .project-creation .template-browser {
+    min-height: 25rem;
+    overflow: visible;
+  }
+
+  .project-creation .template-browser-index {
+    max-height: 28rem;
+  }
+
+  .project-creation .template-browser:has(.template-browser-index[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-creation [hidden] {
+    display: none !important;
+  }
+
+  .project-creation .template-browser-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (max-width: 36rem) {
+    .creation-steps li {
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .creation-header {
+      gap: 0.75rem;
+    }
+  }
+
   .new-workspace-dialog {
     width: min(28rem, calc(100vw - 2rem));
     padding: 0;
@@ -273,6 +360,10 @@
   }
 
   @media (max-width: 44rem) {
+    .project-creation .template-browser-index {
+      max-height: 16rem;
+    }
+
     .template-dialog {
       overflow: auto;
     }

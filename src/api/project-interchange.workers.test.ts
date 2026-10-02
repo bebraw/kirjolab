@@ -24,6 +24,63 @@ const request = (path: string, bytes: Uint8Array) =>
   });
 
 describe("native project import", () => {
+  it("normalizes a source project, checks setup changes and creates one exportable project with PDFs and linked references", async () => {
+    const owner = { ...identity, ownerKey: crypto.randomUUID() };
+    const rich = projectArchiveResearchFixture();
+    const entries: Record<string, Uint8Array> = {
+      "paper/manuscript.md": strToU8("# Imported source\n\nEvidence :cite[Writer2026]."),
+      "paper/notes/results.md": strToU8("# Results\nOriginal notes."),
+      "paper/bibliography.bib": strToU8(
+        "@article{Writer2026,title={Source evidence},author={Writer, Ada},year={2026},doi={10.1000/source-import}}",
+      ),
+      "paper/references/source.pdf": rich.binaries.get("old/pdf")!,
+      "paper/figures/result.png": rich.binaries.get("old/image")!,
+    };
+    for (let index = 0; index < 1_100; index++) entries[`paper/node_modules/p/${index}.js`] = strToU8("ignored");
+    const archive = zipSync(entries);
+    const catalog = env.WORKSPACE_CATALOGS.getByName(owner.ownerKey);
+    const before = await catalog.listWorkspaces();
+    const preview = await handleProjectImportApi(request("/api/project-import-previews", archive), env, owner);
+    expect(preview.status).toBe(200);
+    const value = await preview.json<{ archiveSha256: string; previewDigest: string }>();
+    expect(await catalog.listWorkspaces()).toEqual(before);
+    expect((await env.REFERENCE_LIBRARIES.getByName(owner.ownerKey).getSnapshot()).references).toEqual([]);
+    const changed = new URLSearchParams({
+      archiveSha256: value.archiveSha256,
+      previewDigest: value.previewDigest,
+      title: "Changed setup",
+      attemptId: crypto.randomUUID(),
+      entryPath: "notes/results.md",
+    });
+    expect((await handleProjectImportApi(request(`/api/project-imports?${changed}`, archive), env, owner)).status).toBe(409);
+    expect(await catalog.listWorkspaces()).toEqual(before);
+    const query = new URLSearchParams({
+      archiveSha256: value.archiveSha256,
+      previewDigest: value.previewDigest,
+      title: "Reviewed source",
+      attemptId: crypto.randomUUID(),
+      entryPath: "manuscript.md",
+      bibliographyPath: "bibliography.bib",
+      includePdfs: "true",
+    });
+    const result = await handleProjectImportApi(request(`/api/project-imports?${query}`, archive), env, owner);
+    expect(result.status).toBe(201);
+    const created = await result.json<{ workspace: { id: string } }>();
+    const room = env.DOCUMENT_ROOMS.getByName(created.workspace.id);
+    const snapshot = await room.getSnapshot(created.workspace.id);
+    expect(snapshot.title).toBe("Reviewed source");
+    expect(snapshot.files.map(({ path }) => path)).toEqual(["manuscript.md", "notes/results.md"]);
+    expect(snapshot.pdfs).toMatchObject([{ name: "references/source.pdf" }]);
+    expect(snapshot.projectReferences).toMatchObject([{ citationAlias: "Writer2026", snapshot: { title: "Source evidence" } }]);
+    expect(snapshot.assets).toMatchObject([{ path: "figures/result.png" }]);
+    const retry = await handleProjectImportApi(request(`/api/project-imports?${query}`, archive), env, owner);
+    expect(await retry.json()).toMatchObject({ workspace: { id: created.workspace.id } });
+    const exported = await exportNativeProject("/export/project.zip", created.workspace.id, room, env);
+    expect(exported.status).toBe(200);
+    const restored = await inspectProjectArchive(new Uint8Array(await exported.arrayBuffer()));
+    expect(restored.kind).toBe("native");
+    expect(restored.summary).toMatchObject({ title: "Reviewed source", files: 2, references: 1, pdfs: 1, images: 1 });
+  });
   it("previews without writes and persists exact project state with already-linked references", async () => {
     const archive = await buildProjectArchive(projectArchiveFixture(), new Map());
     const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);

@@ -13,6 +13,7 @@ describe("worker", () => {
       { path: "/library/pdfs/:id", purpose: "Routable private library PDF reader" },
       { path: "/editor", purpose: "Resume a writing project" },
       { path: "/editor/:id", purpose: "Stable writing-project editor" },
+      { path: "/projects/new", purpose: "Stepwise writing-project creation" },
       { path: "/review", purpose: "Evidence review catalog" },
       { path: "/review/:id", purpose: "Independent collaborative evidence review" },
       { path: "/workspaces/:id", purpose: "Legacy writing-project redirect" },
@@ -64,7 +65,18 @@ describe("worker", () => {
 
     const createResponse = await handleRequest(new Request("http://example.com/editor?create=1"));
     expect(createResponse.status).toBe(302);
-    expect(createResponse.headers.get("location")).toBe("/editor/demo?create=1");
+    expect(createResponse.headers.get("location")).toBe("/projects/new");
+  });
+
+  it("renders stepwise project creation without an editor or modal shell", async () => {
+    const response = await handleRequest(new Request("http://example.com/projects/new"));
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('data-app-mode="project-creation"');
+    expect(body).toContain("project-starting-point-browser standalone");
+    expect(body).not.toContain("<dialog");
+    expect(body).not.toContain('id="source-editor"');
+    expect((await handleRequest(new Request("http://example.com/editor/demo?create=1"))).headers.get("location")).toBe("/projects/new");
   });
 
   it("renders a stable writing-project editor", async () => {

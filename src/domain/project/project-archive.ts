@@ -245,7 +245,7 @@ function decodeJson(bytes: Uint8Array, max: number): unknown {
   }
 }
 
-function validateProjectArchiveGraph(project: ProjectArchiveState, payloads: ReadonlyMap<string, Uint8Array>): void {
+export function validateProjectArchiveGraph(project: ProjectArchiveState, payloads: ReadonlyMap<string, Uint8Array>): void {
   validateProjectPaths(project);
   validateProjectAliases(project);
   validateProjectRelationships(project, validateProjectIdentities(project));

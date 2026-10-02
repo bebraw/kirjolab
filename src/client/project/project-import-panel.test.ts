@@ -38,6 +38,18 @@ class Panel extends ProjectImportPanel {
   cancelEvent(event: Event): void {
     this.preventBusyCancel(event);
   }
+  pdfsForTest(checked: boolean): void {
+    this.pdfsChanged(targetEvent({ checked }));
+  }
+  entryForTest(value: string): void {
+    this.entryChanged(targetEvent({ value }));
+  }
+  bibliographyForTest(value: string): void {
+    this.bibliographyChanged(targetEvent({ value }));
+  }
+  cancelForTest(): void {
+    this.cancel();
+  }
   view() {
     return this.render();
   }
@@ -53,6 +65,79 @@ afterEach(() => {
 });
 
 describe("native project import panel", () => {
+  it("lets setup omit PDFs before the first preview and resets the choice for a new archive", async () => {
+    const panel = new Panel();
+    panel.standalone = true;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(preview));
+    panel.select(new File(["zip"], "paper.zip"));
+    expect(JSON.stringify(panel.view())).toContain("project-import-pdfs");
+    panel.pdfsForTest(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await panel.inspect();
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("includePdfs=false");
+    panel.edit();
+    panel.select(new File(["other"], "other.zip"));
+    await panel.inspect();
+    expect(String(fetchMock.mock.calls[1]![0])).not.toContain("includePdfs=false");
+  });
+
+  it("reviews source setup on the standalone page and confirms the same selected options", async () => {
+    const panel = new Panel();
+    panel.standalone = true;
+    const states: unknown[] = [];
+    panel.addEventListener("project-creation-state", (event) => {
+      if (event instanceof CustomEvent) states.push(event.detail);
+    });
+    const source: ProjectImportPreview = {
+      ...preview,
+      kind: "source",
+      source: {
+        entryCandidates: ["paper.md", "notes.md"],
+        bibliographyCandidates: ["refs.bib"],
+        bibliographyPath: "refs.bib",
+        includePdfs: true,
+        skippedEntries: 1_100,
+      },
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(source))
+      .mockResolvedValueOnce(Response.json({ ...source, source: { ...source.source, includePdfs: false } }))
+      .mockResolvedValueOnce(Response.json({ ...source, source: { ...source.source, includePdfs: false, bibliographyPath: "" } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          ...source,
+          summary: { ...source.summary, entryPath: "notes.md" },
+          source: { ...source.source, includePdfs: false, bibliographyPath: "" },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ workspace: { href: "/editor/source-project" } }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
+    panel.select(new File(["zip"], "paper.zip"));
+    await panel.inspect();
+    expect(states).toContainEqual({ step: 3, busy: false });
+    panel.pdfsForTest(false);
+    await vi.waitFor(() => expect(states.at(-1)).toEqual({ step: 3, busy: false }));
+    expect(String(fetchMock.mock.calls[1]![0])).toContain("includePdfs=false");
+    panel.bibliographyForTest("");
+    await vi.waitFor(() => expect(states.at(-1)).toEqual({ step: 3, busy: false }));
+    expect(String(fetchMock.mock.calls[2]![0])).toContain("bibliographyPath=");
+    panel.entryForTest("notes.md");
+    await vi.waitFor(() => expect(states.at(-1)).toEqual({ step: 3, busy: false }));
+    await panel.create();
+    const url = new URL(String(fetchMock.mock.calls[4]![0]), "https://example.test");
+    expect(url.searchParams.get("entryPath")).toBe("notes.md");
+    expect(url.searchParams.get("includePdfs")).toBe("false");
+    expect(url.searchParams.get("bibliographyPath")).toBe("");
+    expect(assign).toHaveBeenCalledWith("/editor/source-project");
+    panel.edit();
+    expect(states.at(-1)).toEqual({ step: 2, busy: false });
+    const back = vi.fn();
+    panel.addEventListener("project-creation-back", back);
+    panel.cancelForTest();
+    expect(back).toHaveBeenCalledOnce();
+  });
   it("previews scope, preserves one attempt across failed confirmation and navigates after retry", async () => {
     const panel = new Panel(),
       archive = new File(["zip"], "project.zip");
