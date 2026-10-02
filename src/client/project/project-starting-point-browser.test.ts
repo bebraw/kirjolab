@@ -58,9 +58,25 @@ function templateText(value: unknown): string {
 }
 
 function binding(template: TemplateResult, marker: string): unknown {
-  const index = template.strings.findIndex((part) => part.includes(marker));
-  if (index < 0) throw new Error(`Missing rendered binding: ${marker}`);
-  return template.values[index];
+  const result = findBinding(template, marker);
+  if (!result) throw new Error(`Missing rendered binding: ${marker}`);
+  return result.value;
+}
+
+function findBinding(template: unknown, marker: string): { value: unknown } | null {
+  if (Array.isArray(template)) {
+    for (const child of template) {
+      const result = findBinding(child, marker);
+      if (result) return result;
+    }
+  }
+  if (!isTemplateResult(template, 1)) return null;
+  for (let index = 0; index < template.strings.length; index++) {
+    if (template.strings[index]?.includes(marker)) return { value: template.values[index] };
+    const result = findBinding(template.values[index], marker);
+    if (result) return result;
+  }
+  return null;
 }
 
 class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {

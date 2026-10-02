@@ -61,22 +61,7 @@ export async function inspectProjectImportArchive(
   // Choices must not change the inferred root or invalidate an already selected entry.
   const prefix = commonWrapper(archive.entryPaths.filter(includeSourcePath));
   const files = new Map(paths.map((path) => [path.slice(prefix.length), archive.files.get(path)!]));
-  const entryCandidates = [...files.keys()].filter((path) => path.endsWith(".md"));
-  if (!entryCandidates.length) throw new ProjectArchiveError("This ZIP contains no Markdown files. Use Import LaTeX for a LaTeX project.");
-  const entryPath = selection.entryPath ?? suggestedEntry(entryCandidates);
-  if (!entryCandidates.includes(entryPath)) throw new ProjectArchiveError("Choose an entry file present in the source archive");
-  const bibliographyCandidates = [...files.keys()].filter((path) => path.endsWith(".bib"));
-  const bibliographyPath =
-    selection.bibliographyPath ?? bibliographyCandidates.find((path) => path === "bibliography.bib") ?? bibliographyCandidates[0] ?? "";
-  if (bibliographyPath && !bibliographyCandidates.includes(bibliographyPath))
-    throw new ProjectArchiveError("Choose a bibliography present in the source archive");
-  const source: ProjectSourceSummary = {
-    entryCandidates,
-    bibliographyCandidates,
-    bibliographyPath,
-    includePdfs: selection.includePdfs !== false,
-    skippedEntries: archive.skippedEntries,
-  };
+  const { source, entryPath } = sourceChoices(files, selection, archive.skippedEntries);
   const hash = await sha256Bytes(bytes);
   const { project, payloads } = sourceProject(files, source, entryPath, hash, prefix);
   const projectBytes = new TextEncoder().encode(JSON.stringify(project));
@@ -101,6 +86,30 @@ export async function inspectProjectImportArchive(
   for (const [path, content] of payloads)
     manifest.payloads.push({ id: path, path, bytes: content.byteLength, sha256: await sha256Bytes(content) });
   return { kind: "source", project, payloads, manifest, summary: projectArchiveSummary(project, exclusions), archiveSha256: hash, source };
+}
+
+function sourceChoices(
+  files: ReadonlyMap<string, Uint8Array>,
+  selection: ProjectSourceSelection,
+  skippedEntries: number,
+): { source: ProjectSourceSummary; entryPath: string } {
+  const entryCandidates = [...files.keys()].filter((path) => path.endsWith(".md"));
+  if (!entryCandidates.length) throw new ProjectArchiveError("This ZIP contains no Markdown files. Use Import LaTeX for a LaTeX project.");
+  const entryPath = selection.entryPath ?? suggestedEntry(entryCandidates);
+  if (!entryCandidates.includes(entryPath)) throw new ProjectArchiveError("Choose an entry file present in the source archive");
+  const bibliographyCandidates = [...files.keys()].filter((path) => path.endsWith(".bib"));
+  const bibliographyPath =
+    selection.bibliographyPath ?? bibliographyCandidates.find((path) => path === "bibliography.bib") ?? bibliographyCandidates[0] ?? "";
+  if (bibliographyPath && !bibliographyCandidates.includes(bibliographyPath))
+    throw new ProjectArchiveError("Choose a bibliography present in the source archive");
+  const source: ProjectSourceSummary = {
+    entryCandidates,
+    bibliographyCandidates,
+    bibliographyPath,
+    includePdfs: selection.includePdfs !== false,
+    skippedEntries,
+  };
+  return { source, entryPath };
 }
 
 function includeSourcePath(path: string): boolean {

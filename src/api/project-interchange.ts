@@ -14,7 +14,11 @@ import {
 } from "../domain/project/project-archive-seed";
 import { isSha256Hex, sha256Bytes, sha256Text } from "../domain/sha256";
 import { isCreateWorkspaceInput, type WorkspaceSnapshot } from "../domain/workspace/workspace";
-import { inspectProjectImportArchive, type ProjectSourceArchiveInspection } from "../domain/project/project-source-archive";
+import {
+  inspectProjectImportArchive,
+  type ProjectSourceArchiveInspection,
+  type ProjectSourceSelection,
+} from "../domain/project/project-source-archive";
 import type { DocumentRoom } from "../durable-objects/document-room";
 import type { ReferenceLibrary } from "../durable-objects/reference-library";
 import type { NativeProjectImportClaim, WorkspaceCatalog } from "../durable-objects/workspace-catalog";
@@ -93,13 +97,7 @@ export async function handleProjectImportApi(request: Request, env: ProjectImpor
           preserveLimitErrorOnCancelFailure: true,
         })
       : new Uint8Array();
-    const includePdfs = url.searchParams.get("includePdfs");
-    if (includePdfs !== null && includePdfs !== "true" && includePdfs !== "false") return failure("Invalid PDF import selection", 400);
-    const inspection = await inspectProjectImportArchive(bytes, {
-      ...(url.searchParams.has("entryPath") ? { entryPath: url.searchParams.get("entryPath")! } : {}),
-      ...(url.searchParams.has("bibliographyPath") ? { bibliographyPath: url.searchParams.get("bibliographyPath")! } : {}),
-      includePdfs: includePdfs !== "false",
-    });
+    const inspection = await inspectProjectImportArchive(bytes, sourceSelection(url));
     if (url.pathname === "/api/project-import-previews") {
       if (inspection.kind === "legacy")
         return json({
@@ -124,6 +122,17 @@ export async function handleProjectImportApi(request: Request, env: ProjectImpor
       error instanceof ProjectArchiveError ? error.status : 503,
     );
   }
+}
+
+function sourceSelection(url: URL): ProjectSourceSelection {
+  const includePdfs = url.searchParams.get("includePdfs");
+  if (includePdfs !== null && includePdfs !== "true" && includePdfs !== "false")
+    throw new ProjectArchiveError("Invalid PDF import selection", 400);
+  return {
+    ...(url.searchParams.has("entryPath") ? { entryPath: url.searchParams.get("entryPath")! } : {}),
+    ...(url.searchParams.has("bibliographyPath") ? { bibliographyPath: url.searchParams.get("bibliographyPath")! } : {}),
+    includePdfs: includePdfs !== "false",
+  };
 }
 
 async function previewImport(inspection: NativeInspection, env: ProjectImportEnvironment, identity: AuthIdentity) {

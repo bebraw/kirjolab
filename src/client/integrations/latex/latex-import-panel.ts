@@ -66,6 +66,8 @@ export class LatexImportPanel extends LightDomElement {
     if (this.standalone) this.dispatchEvent(new CustomEvent("project-creation-back", { bubbles: true }));
     else this.dialog.close();
   }
+  // ProjectStartingPointBrowser calls this through its typed custom-element lookup.
+  // fallow-ignore-next-line unused-class-member
   edit(): void {
     this.clearPreview();
     this.notifyCreation();

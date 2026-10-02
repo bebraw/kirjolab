@@ -279,31 +279,7 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     const preview = this.startingPoint(this.previewKey);
     return html`
       <form class="template-browser-form" id="new-workspace-form" @submit=${this.create}>
-        <header class="template-browser-header">
-          <div>
-            <p class="eyebrow">New project</p>
-            <h2 class="ui-heading mt-1">
-              ${this.standalone && this.creationStep > 1 ? (this.creationStep === 2 ? "Name your project" : this.projectTitle) : "Choose a starting point"}
-            </h2>
-            <p class="ui-supporting-text mt-2">
-              ${this.standalone && this.creationStep === 3 ? "Check the starting structure below. Your project will be an independent copy." : "Browse the structure and publication setup before choosing a starting point."}
-            </p>
-          </div>
-          <label class="field-label template-title-field" ?hidden=${this.standalone && this.creationStep !== 2}
-            >Project title
-            <input
-              class="field"
-              id="new-workspace-title"
-              type="text"
-              maxlength="120"
-              required
-              ?disabled=${this.standalone && this.creationStep !== 2}
-              placeholder="Working title"
-              .value=${this.projectTitle}
-              @input=${this.changeTitle}
-            />
-          </label>
-        </header>
+        ${this.renderStartingPointHeader()}
         <div class="template-browser">
           <section
             class="template-browser-index"
@@ -328,44 +304,80 @@ export class ProjectStartingPointBrowser extends LightDomElement {
           </section>
         </div>
         <input id="new-workspace-template-id" type="hidden" .value=${this.selectedKey} />
-        <footer class="template-browser-footer">
-          <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
-          <div class="ui-cluster justify-end">
-            <button
-              class="button-secondary"
-              id="open-project-import"
-              type="button"
-              ?hidden=${this.standalone && this.creationStep > 1}
-              @click=${() => this.openImport("import-project")}
-            >
-              ${this.standalone ? "Import project ZIP" : "Import Kirjolab project"}
-            </button>
-            <button
-              class="button-secondary"
-              id="open-latex-import"
-              type="button"
-              ?hidden=${this.standalone && this.creationStep > 1}
-              @click=${() => this.openImport("import-latex")}
-            >
-              Import LaTeX
-            </button>
-            <button
-              class="button-secondary"
-              id="open-github-import"
-              type="button"
-              ?hidden=${!this.githubAvailable || (this.standalone && this.creationStep > 1)}
-              @click=${() => this.openImport("import-github")}
-            >
-              Import GitHub
-            </button>
-            <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${this.close}>Cancel</button>
-            ${this.standalone && this.creationStep > 1 ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${this.previousStep}>Back</button>` : nothing}
-            <button class="button-primary" id="create-workspace" type="submit" ?disabled=${!this.selectedKey || this.busy}>
-              ${this.standalone && this.creationStep < 3 ? (this.creationStep === 1 ? "Continue" : "Review project") : "Create project"}
-            </button>
-          </div>
-        </footer>
+        ${this.renderStartingPointFooter()}
       </form>
+    `;
+  }
+
+  private renderStartingPointHeader(): TemplateResult {
+    return html`
+      <header class="template-browser-header">
+        <div>
+          <p class="eyebrow">New project</p>
+          <h2 class="ui-heading mt-1">
+            ${this.standalone && this.creationStep > 1 ? (this.creationStep === 2 ? "Name your project" : this.projectTitle) : "Choose a starting point"}
+          </h2>
+          <p class="ui-supporting-text mt-2">
+            ${this.standalone && this.creationStep === 3 ? "Check the starting structure below. Your project will be an independent copy." : "Browse the structure and publication setup before choosing a starting point."}
+          </p>
+        </div>
+        <label class="field-label template-title-field" ?hidden=${this.standalone && this.creationStep !== 2}
+          >Project title
+          <input
+            class="field"
+            id="new-workspace-title"
+            type="text"
+            maxlength="120"
+            required
+            ?disabled=${this.standalone && this.creationStep !== 2}
+            placeholder="Working title"
+            .value=${this.projectTitle}
+            @input=${this.changeTitle}
+          />
+        </label>
+      </header>
+    `;
+  }
+
+  private renderStartingPointFooter(): TemplateResult {
+    return html`
+      <footer class="template-browser-footer">
+        <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
+        <div class="ui-cluster justify-end">
+          <button
+            class="button-secondary"
+            id="open-project-import"
+            type="button"
+            ?hidden=${this.standalone && this.creationStep > 1}
+            @click=${() => this.openImport("import-project")}
+          >
+            ${this.standalone ? "Import project ZIP" : "Import Kirjolab project"}
+          </button>
+          <button
+            class="button-secondary"
+            id="open-latex-import"
+            type="button"
+            ?hidden=${this.standalone && this.creationStep > 1}
+            @click=${() => this.openImport("import-latex")}
+          >
+            Import LaTeX
+          </button>
+          <button
+            class="button-secondary"
+            id="open-github-import"
+            type="button"
+            ?hidden=${!this.githubAvailable || (this.standalone && this.creationStep > 1)}
+            @click=${() => this.openImport("import-github")}
+          >
+            Import GitHub
+          </button>
+          <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${this.close}>Cancel</button>
+          ${this.standalone && this.creationStep > 1 ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${this.previousStep}>Back</button>` : nothing}
+          <button class="button-primary" id="create-workspace" type="submit" ?disabled=${!this.selectedKey || this.busy}>
+            ${this.standalone && this.creationStep < 3 ? (this.creationStep === 1 ? "Continue" : "Review project") : "Create project"}
+          </button>
+        </div>
+      </footer>
     `;
   }
 

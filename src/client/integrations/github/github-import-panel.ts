@@ -149,6 +149,8 @@ export class GitHubImportPanel extends LightDomElement {
     if (this.standalone) this.dispatchEvent(new CustomEvent("project-creation-back", { bubbles: true }));
     else this.dialog.close();
   }
+  // ProjectStartingPointBrowser calls this through its typed custom-element lookup.
+  // fallow-ignore-next-line unused-class-member
   edit(): void {
     this.resetPreview();
     this.notifyCreation();
@@ -371,125 +373,11 @@ export class GitHubImportPanel extends LightDomElement {
     if (!this.available) return html``;
     const ready = Boolean(this.installationId && this.repositoryId && this.branch);
     return html`
-      <section
-        class="mt-5 border-y border-app-line py-4"
-        aria-labelledby="github-connection-heading"
-        ?hidden=${this.standalone && this.preview !== null}
-      >
-        <p class="field-label" id="github-connection-heading">GitHub account</p>
-        <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status" aria-live="polite">${this.connectionMessage}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <a
-            class="button-primary"
-            href=${this.standalone ? "/api/github/connect?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/connect?returnTo=%2F%3FgithubImport%3D1"}
-            ?hidden=${this.connected}
-            >Connect GitHub</a
-          >
-          <a
-            class="button-secondary"
-            href=${this.standalone ? "/api/github/install?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/install?returnTo=%2F%3FgithubImport%3D1"}
-            ?hidden=${!this.connected}
-            >Manage repository access</a
-          >
-          <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.disconnect}>Disconnect account</button>
-        </div>
-      </section>
+      ${this.renderConnection()}
       <form id="github-import-form" @submit=${this.previewImport}>
-        <div class="mt-5 grid gap-3 sm:grid-cols-2" ?hidden=${this.standalone && this.preview !== null}>
-          <label class="field-label"
-            >Project title<input
-              class="field"
-              id="github-import-title"
-              maxlength="120"
-              required
-              placeholder="Scalability book"
-              .value=${this.projectTitleValue}
-              @input=${this.updateTitle}
-          /></label>
-          <label class="field-label"
-            >Account<select
-              class="field"
-              id="github-installation-id"
-              required
-              ?disabled=${this.installations.length === 0}
-              .value=${this.installationId}
-              @change=${this.updateInstallation}
-            >
-              ${
-                this.installations.length === 0
-                  ? html`<option value="">${this.installationPlaceholder}</option>`
-                  : this.installations.map(
-                      (installation) =>
-                        html`<option value=${String(installation.id)}>
-                          ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
-                        </option>`,
-                    )
-              }
-            </select></label
-          >
-          <label class="field-label"
-            >Repository<select
-              class="field"
-              id="github-repository"
-              required
-              ?disabled=${this.repositories.length === 0}
-              .value=${this.repositoryId}
-              @change=${this.updateRepository}
-            >
-              ${
-                this.repositories.length === 0
-                  ? html`<option value="">${this.repositoryPlaceholder}</option>`
-                  : this.repositories.map(
-                      (repository) =>
-                        html`<option value=${String(repository.id)}>
-                          ${repository.fullName}${repository.private ? " · private" : ""}
-                        </option>`,
-                    )
-              }
-            </select></label
-          >
-          <label class="field-label"
-            >Branch<select
-              class="field"
-              id="github-branch"
-              required
-              ?disabled=${this.branches.length === 0}
-              .value=${this.branch}
-              @change=${this.updateBranch}
-            >
-              ${
-                this.branches.length === 0
-                  ? html`<option value="">${this.branchPlaceholder}</option>`
-                  : this.branches.map(
-                      (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
-                    )
-              }
-            </select></label
-          >
-          <label class="field-label"
-            >Folder<input class="field" id="github-root-path" placeholder="book" .value=${this.rootPath} @input=${this.updateRootPath}
-          /></label>
-          <label class="field-label sm:col-span-2"
-            >Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span
-            ><input class="field" id="github-entry-path" placeholder="main.md" .value=${this.entryPath} @input=${this.updateEntryPath}
-          /></label>
-        </div>
+        ${this.renderPicker()}
         ${this.standalone && this.preview ? html`<p class="mt-4 text-sm font-semibold">${this.projectTitleValue}</p>` : null}
-        <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
-          ${
-            this.preview
-              ? html`
-                  <p class="text-sm font-semibold text-app-text">
-                    ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
-                  </p>
-                  <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
-                    ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
-                    ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
-                  </ul>
-                `
-              : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`
-          }
-        </div>
+        ${this.renderPreview()}
         <p class="ui-status mt-3" id="github-import-status" role="status">${this.status}</p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" type="button" ?disabled=${this.working} @click=${this.requestCancel}>
@@ -515,6 +403,136 @@ export class GitHubImportPanel extends LightDomElement {
           </button>
         </div>
       </form>
+    `;
+  }
+
+  private renderConnection(): TemplateResult {
+    return html`
+      <section
+        class="mt-5 border-y border-app-line py-4"
+        aria-labelledby="github-connection-heading"
+        ?hidden=${this.standalone && this.preview !== null}
+      >
+        <p class="field-label" id="github-connection-heading">GitHub account</p>
+        <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status" aria-live="polite">${this.connectionMessage}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a
+            class="button-primary"
+            href=${this.standalone ? "/api/github/connect?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/connect?returnTo=%2F%3FgithubImport%3D1"}
+            ?hidden=${this.connected}
+            >Connect GitHub</a
+          >
+          <a
+            class="button-secondary"
+            href=${this.standalone ? "/api/github/install?returnTo=%2Fprojects%2Fnew%3Fsource%3Dgithub" : "/api/github/install?returnTo=%2F%3FgithubImport%3D1"}
+            ?hidden=${!this.connected}
+            >Manage repository access</a
+          >
+          <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.disconnect}>Disconnect account</button>
+        </div>
+      </section>
+    `;
+  }
+
+  private renderPicker(): TemplateResult {
+    return html`
+      <div class="mt-5 grid gap-3 sm:grid-cols-2" ?hidden=${this.standalone && this.preview !== null}>
+        <label class="field-label"
+          >Project title<input
+            class="field"
+            id="github-import-title"
+            maxlength="120"
+            required
+            placeholder="Scalability book"
+            .value=${this.projectTitleValue}
+            @input=${this.updateTitle}
+        /></label>
+        <label class="field-label"
+          >Account<select
+            class="field"
+            id="github-installation-id"
+            required
+            ?disabled=${this.installations.length === 0}
+            .value=${this.installationId}
+            @change=${this.updateInstallation}
+          >
+            ${
+              this.installations.length === 0
+                ? html`<option value="">${this.installationPlaceholder}</option>`
+                : this.installations.map(
+                    (installation) =>
+                      html`<option value=${String(installation.id)}>
+                        ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
+                      </option>`,
+                  )
+            }
+          </select></label
+        >
+        <label class="field-label"
+          >Repository<select
+            class="field"
+            id="github-repository"
+            required
+            ?disabled=${this.repositories.length === 0}
+            .value=${this.repositoryId}
+            @change=${this.updateRepository}
+          >
+            ${
+              this.repositories.length === 0
+                ? html`<option value="">${this.repositoryPlaceholder}</option>`
+                : this.repositories.map(
+                    (repository) =>
+                      html`<option value=${String(repository.id)}>${repository.fullName}${repository.private ? " · private" : ""}</option>`,
+                  )
+            }
+          </select></label
+        >
+        <label class="field-label"
+          >Branch<select
+            class="field"
+            id="github-branch"
+            required
+            ?disabled=${this.branches.length === 0}
+            .value=${this.branch}
+            @change=${this.updateBranch}
+          >
+            ${
+              this.branches.length === 0
+                ? html`<option value="">${this.branchPlaceholder}</option>`
+                : this.branches.map(
+                    (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
+                  )
+            }
+          </select></label
+        >
+        <label class="field-label"
+          >Folder<input class="field" id="github-root-path" placeholder="book" .value=${this.rootPath} @input=${this.updateRootPath}
+        /></label>
+        <label class="field-label sm:col-span-2"
+          >Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span
+          ><input class="field" id="github-entry-path" placeholder="main.md" .value=${this.entryPath} @input=${this.updateEntryPath}
+        /></label>
+      </div>
+    `;
+  }
+
+  private renderPreview(): TemplateResult {
+    return html`
+      <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
+        ${
+          this.preview
+            ? html`
+                <p class="text-sm font-semibold text-app-text">
+                  ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
+                </p>
+                <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
+                  ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
+                  ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
+                </ul>
+              `
+            : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`
+        }
+      </div>
     `;
   }
 

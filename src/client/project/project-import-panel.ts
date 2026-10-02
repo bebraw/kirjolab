@@ -199,70 +199,7 @@ export class ProjectImportPanel extends LightDomElement {
           ?disabled=${this.busy !== null}
           @change=${this.archiveChanged}
       /></label>
-      ${!preview ? this.renderPdfChoice() : nothing}
-      ${
-        preview
-          ? html`<section class="mt-5 border-t border-app-line pt-4" id="project-import-preview">
-              <p class="text-sm font-semibold">
-                ${preview.summary.files} files · ${preview.summary.references} linked references · ${preview.summary.images} images ·
-                ${preview.summary.pdfs} project PDFs · ${preview.summary.sharedSnapshots} shared snapshots
-              </p>
-              <p class="ui-status mt-2">Entry: ${preview.summary.entryPath || "Unavailable"}</p>
-              ${
-                preview.kind !== "legacy"
-                  ? html`<p class="ui-status mt-2">
-                        ${preview.reusedReferences} existing Library records reused · ${preview.newReferences} new records. Project citation
-                        aliases and snapshots are preserved.
-                      </p>
-                      <label class="field-label mt-4"
-                        >Project title<input
-                          class="field"
-                          id="project-import-title"
-                          maxlength="120"
-                          required
-                          .value=${this.projectTitle}
-                          ?disabled=${this.busy !== null}
-                          @input=${this.updateTitle}
-                      /></label>`
-                  : nothing
-              }
-              ${
-                preview.source
-                  ? html`<div class="mt-4 grid gap-3 sm:grid-cols-2">
-                      <label class="field-label"
-                        >Entry document<select
-                          class="field"
-                          id="project-import-entry"
-                          .value=${preview.summary.entryPath}
-                          ?disabled=${this.busy !== null}
-                          @change=${this.entryChanged}
-                        >
-                          ${preview.source.entryCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
-                        </select></label
-                      >
-                      <label class="field-label"
-                        >Bibliography<select
-                          class="field"
-                          id="project-import-bibliography"
-                          .value=${preview.source.bibliographyPath}
-                          ?disabled=${this.busy !== null}
-                          @change=${this.bibliographyChanged}
-                        >
-                          <option value="">No bibliography</option>
-                          ${preview.source.bibliographyCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
-                        </select></label
-                      >
-                      ${this.renderPdfChoice()}
-                    </div>`
-                  : nothing
-              }
-              <p class="eyebrow mt-4">Excluded from this archive</p>
-              <ul class="mt-2 space-y-1 text-xs text-app-text-soft">
-                ${preview.summary.exclusions.map((value) => html`<li>${value}</li>`)}
-              </ul>
-            </section>`
-          : nothing
-      }
+      ${!preview ? this.renderPdfChoice() : nothing} ${preview ? this.renderPreview(preview) : nothing}
       <p class="ui-status mt-3" id="project-import-status" role="status">${this.status}</p>
       <div class="mt-5 flex justify-end gap-2">
         <button class="button-secondary" type="button" ?disabled=${this.busy !== null} @click=${this.cancel}>
@@ -289,6 +226,67 @@ export class ProjectImportPanel extends LightDomElement {
         </button>
       </div>
     </form>`;
+  }
+  private renderPreview(preview: ProjectImportPreview): TemplateResult {
+    return html`<section class="mt-5 border-t border-app-line pt-4" id="project-import-preview">
+      <p class="text-sm font-semibold">
+        ${preview.summary.files} files · ${preview.summary.references} linked references · ${preview.summary.images} images ·
+        ${preview.summary.pdfs} project PDFs · ${preview.summary.sharedSnapshots} shared snapshots
+      </p>
+      <p class="ui-status mt-2">Entry: ${preview.summary.entryPath || "Unavailable"}</p>
+      ${
+        preview.kind !== "legacy"
+          ? html`<p class="ui-status mt-2">
+                ${preview.reusedReferences} existing Library records reused · ${preview.newReferences} new records. Project citation aliases
+                and snapshots are preserved.
+              </p>
+              <label class="field-label mt-4"
+                >Project title<input
+                  class="field"
+                  id="project-import-title"
+                  maxlength="120"
+                  required
+                  .value=${this.projectTitle}
+                  ?disabled=${this.busy !== null}
+                  @input=${this.updateTitle}
+              /></label>`
+          : nothing
+      }
+      ${
+        preview.source
+          ? html`<div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <label class="field-label"
+                >Entry document<select
+                  class="field"
+                  id="project-import-entry"
+                  .value=${preview.summary.entryPath}
+                  ?disabled=${this.busy !== null}
+                  @change=${this.entryChanged}
+                >
+                  ${preview.source.entryCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
+                </select></label
+              >
+              <label class="field-label"
+                >Bibliography<select
+                  class="field"
+                  id="project-import-bibliography"
+                  .value=${preview.source.bibliographyPath}
+                  ?disabled=${this.busy !== null}
+                  @change=${this.bibliographyChanged}
+                >
+                  <option value="">No bibliography</option>
+                  ${preview.source.bibliographyCandidates.map((path) => html`<option value=${path}>${path}</option>`)}
+                </select></label
+              >
+              ${this.renderPdfChoice()}
+            </div>`
+          : nothing
+      }
+      <p class="eyebrow mt-4">Excluded from this archive</p>
+      <ul class="mt-2 space-y-1 text-xs text-app-text-soft">
+        ${preview.summary.exclusions.map((value) => html`<li>${value}</li>`)}
+      </ul>
+    </section>`;
   }
   private selectionQuery(): URLSearchParams {
     const query = new URLSearchParams();
