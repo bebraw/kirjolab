@@ -164,6 +164,42 @@ describe("reference library API", () => {
     expect(fixture.library.attachPdf).not.toHaveBeenCalled();
   });
 
+  it("reports a challenged PDF as an upstream failure without storing or attaching it", async () => {
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    fixture.library.getReferences.mockResolvedValue([{ ...reference, doi: "10.1145/3604801" }]);
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      return url.startsWith("https://api.openalex.org/")
+        ? Response.json({
+            id: "https://openalex.org/W4380787522",
+            best_oa_location: { is_oa: true, pdf_url: "https://dl.acm.org/doi/pdf/10.1145/3604801" },
+          })
+        : new Response("<html>Challenge</html>", { status: 403, headers: { "cf-mitigated": "challenge" } });
+    });
+    const env = { ...fixture.env, OPENALEX_API_KEY: "key" };
+    const discovery = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/open-pdf/discover`, { method: "POST" }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    const discovered = (await discovery.json()) as { candidate: { provider: "openalex"; fingerprint: string } };
+
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/open-pdf/import`, discovered.candidate),
+      env,
+      identity,
+      fetchExternal,
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "PDF host dl.acm.org requires browser verification (HTTP 403)." });
+    expect(bucket.size).toBe(0);
+    expect(fixture.library.attachPdf).not.toHaveBeenCalled();
+    expect(fixture.sendArtifactAnalysis).not.toHaveBeenCalled();
+  });
+
   it("returns only the selected owner library and supports archived navigation", async () => {
     const fixture = apiFixture();
     const response = await handleReferenceLibraryApi(

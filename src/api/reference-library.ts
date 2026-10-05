@@ -84,7 +84,12 @@ import {
   searchCrossrefWorks,
 } from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
-import { discoverOpenAccessPdf, downloadOpenAccessPdf, refetchOpenAccessPdfCandidate } from "../integrations/open-access-pdf";
+import {
+  discoverOpenAccessPdf,
+  downloadOpenAccessPdf,
+  OpenAccessPdfDownloadError,
+  refetchOpenAccessPdfCandidate,
+} from "../integrations/open-access-pdf";
 import { fetchOpenAlexWork, searchOpenAlexWorks } from "../integrations/openalex";
 import {
   fetchSemanticScholarCitations,
@@ -415,16 +420,12 @@ export async function handleReferenceLibraryApi(
     const topLevelResponse = await handleLibraryTopLevelRoutes(context);
     return topLevelResponse ?? (await handleLibraryReferenceRoutes(context));
   } catch (error) {
+    if (error instanceof OpenAccessPdfDownloadError) return jsonError(error.message, 502);
     const message = error instanceof Error ? error.message : "Reference library operation failed";
-    const status =
-      error instanceof CrossrefUnavailableError || error instanceof SemanticScholarUnavailableError
-        ? 503
-        : /changed|already|mutation conflict|before deleting|before identifying/iu.test(message)
-          ? 409
-          : /not found/iu.test(message)
-            ? 404
-            : 400;
-    return jsonError(message, status);
+    if (error instanceof CrossrefUnavailableError || error instanceof SemanticScholarUnavailableError) return jsonError(message, 503);
+    if (/changed|already|mutation conflict|before deleting|before identifying/iu.test(message)) return jsonError(message, 409);
+    if (/not found/iu.test(message)) return jsonError(message, 404);
+    return jsonError(message, 400);
   }
 }
 
