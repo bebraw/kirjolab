@@ -57,14 +57,22 @@ export class OpenAccessPdfDialog extends LightDomHost {
         <p>${this.reference?.title ?? "Library reference"}</p>
       </header>
       <div class="ui-dialog-body open-access-pdf-body">
+        ${this.error ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>` : nothing}
         ${
           this.pending
-            ? html`<p role="status">Checking trusted scholarly providers…</p>`
-            : this.error
-              ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>`
-              : candidate
-                ? this.renderCandidate(candidate)
+            ? html`<p role="status">${candidate ? "Downloading the reviewed PDF…" : "Checking trusted scholarly providers…"}</p>`
+            : candidate
+              ? this.renderCandidate(candidate)
+              : this.error
+                ? nothing
                 : html`<p role="status">No provider supplied a directly downloadable open PDF for this DOI.</p>`
+        }
+        ${
+          this.error && candidate
+            ? html`<p class="open-access-pdf-note">
+                Open the PDF location or provider landing page in your browser, download the PDF, then upload it to the Library.
+              </p>`
+            : nothing
         }
       </div>
       <footer class="ui-dialog-actions">

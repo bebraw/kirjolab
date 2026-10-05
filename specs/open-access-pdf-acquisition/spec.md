@@ -32,6 +32,15 @@ does not itself grant sharing rights.
   browser credentials, owner cookies, or publisher authentication.
 - A response must be successful `application/pdf`, start with `%PDF-`, and fit
   within 25 MiB. Declared and streamed sizes are both bounded.
+- Failed HTTP downloads identify the final host and HTTP status; a Cloudflare
+  challenge response explicitly reports that the host requires browser
+  verification. Connection failures identify the host without exposing raw
+  network errors, URL query strings, or upstream response bodies. These upstream
+  failures return HTTP 502 and store or attach no artifact.
+- After an import failure, the dialog retains the reviewed provider evidence,
+  PDF link, and landing-page link. It explains how to download through the
+  researcher's browser and upload to the Library manually. An OA metadata flag
+  does not guarantee that a host allows anonymous server downloads.
 - The R2 object's custom metadata retains provider, provider record identity,
   final URL, observed license, manuscript version, retrieval time, and SHA-256
   content fingerprint. The Library artifact uses that fingerprint for
@@ -57,9 +66,14 @@ does not itself grant sharing rights.
 - API tests prove metadata refetch, stale-fingerprint rejection, private R2
   storage, atomic attachment, provenance, and both analysis jobs.
 - UI tests keep the provider review and explicit import as separate actions.
+- Regression tests cover challenged and refused downloads, connection failures,
+  no storage or analysis on download failure, and retained manual recovery links.
 
 ## History
 
 - 2026-07-30: Implemented ADR-195 with OpenAlex-first/Unpaywall fallback
   discovery, fingerprint-verified import, provenance-bearing private storage,
   and Library review controls.
+- 2026-10-05: Diagnosed ACM's challenged download for DOI `10.1145/3604801`;
+  report upstream host/status and browser-verification failures explicitly and
+  retain the reviewed links for manual recovery.

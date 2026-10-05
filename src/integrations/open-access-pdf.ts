@@ -21,6 +21,8 @@ export interface DownloadedOpenAccessPdf {
   readonly fingerprint: string;
 }
 
+export class OpenAccessPdfDownloadError extends Error {}
+
 export async function discoverOpenAccessPdf(
   doiValue: string,
   config: OpenAccessPdfConfig,
@@ -48,10 +50,18 @@ export async function refetchOpenAccessPdfCandidate(
 export async function downloadOpenAccessPdf(urlValue: string, fetcher: Fetcher = fetch): Promise<DownloadedOpenAccessPdf> {
   let url = safePublicHttpsUrl(urlValue);
   for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
-    const response = await fetcher(url, {
-      redirect: "manual",
-      headers: { accept: "application/pdf", "user-agent": "Kirjolab/0.1" },
-    });
+    let response: Response;
+    try {
+      response = await fetcher(url, {
+        redirect: "manual",
+        headers: { accept: "application/pdf", "user-agent": "Kirjolab/0.1" },
+      });
+    } catch {
+      throw new OpenAccessPdfDownloadError(`Could not connect to PDF host ${url.hostname}.`);
+    }
+    if (response.headers.get("cf-mitigated") === "challenge") {
+      throw new OpenAccessPdfDownloadError(`PDF host ${url.hostname} requires browser verification (HTTP ${response.status}).`);
+    }
     if (response.status >= 300 && response.status < 400) {
       if (redirects === maximumRedirects) throw new Error("Open PDF has too many redirects");
       const location = response.headers.get("location");
@@ -59,7 +69,9 @@ export async function downloadOpenAccessPdf(urlValue: string, fetcher: Fetcher =
       url = safePublicHttpsUrl(new URL(location, url).toString());
       continue;
     }
-    if (!response.ok) throw new Error("Open PDF download failed");
+    if (!response.ok) {
+      throw new OpenAccessPdfDownloadError(`PDF host ${url.hostname} refused the download (HTTP ${response.status}).`);
+    }
     if (response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/pdf") {
       throw new Error("Open PDF response is not application/pdf");
     }
