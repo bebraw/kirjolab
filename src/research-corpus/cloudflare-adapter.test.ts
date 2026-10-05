@@ -133,6 +133,7 @@ function fixture() {
     reserveArtifactAnalysisQueuePublication: vi.fn(async () => ({ analysis: queued, shouldPublish: true })),
     confirmArtifactAnalysisQueuePublication: vi.fn(async () => true),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
+    attachPdf: vi.fn(async () => ({ reference, artifact, created: true })),
   };
   const getByName = vi.fn(() => library);
   const queue = { send: vi.fn(async () => queueSendResponse()) };

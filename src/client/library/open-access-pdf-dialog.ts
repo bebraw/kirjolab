@@ -11,26 +11,35 @@ import { LightDomHost } from "../platform/light-dom-controller";
 export const openAccessPdfImportedEvent = "open-access-pdf-imported";
 
 export class OpenAccessPdfDialog extends LightDomHost {
-  static override properties = { candidate: { state: true }, error: { state: true }, pending: { state: true }, reference: { state: true } };
+  static override properties = {
+    attachmentAvailable: { state: true },
+    candidate: { state: true },
+    error: { state: true },
+    pending: { state: true },
+    reference: { state: true },
+  };
 
+  declare private attachmentAvailable: boolean;
   declare private candidate: OpenAccessPdfCandidate | null;
   declare private error: string;
-  declare private pending: boolean;
+  declare private pending: "discover" | "import" | "upload" | null;
   declare private reference: BibliographicRecord | null;
 
   constructor() {
     super();
+    this.attachmentAvailable = false;
     this.candidate = null;
     this.error = "";
-    this.pending = false;
+    this.pending = null;
     this.reference = null;
   }
 
   async open(reference: BibliographicRecord): Promise<void> {
     this.reference = reference;
+    this.attachmentAvailable = false;
     this.candidate = null;
     this.error = "";
-    this.pending = true;
+    this.pending = "discover";
     this.dialog()?.showModal();
     try {
       const response = await fetch(`/api/library/references/${reference.id}/open-pdf/discover`, {
@@ -44,48 +53,68 @@ export class OpenAccessPdfDialog extends LightDomHost {
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Open PDF discovery failed";
     } finally {
-      this.pending = false;
+      this.pending = null;
     }
   }
 
   protected override render(): TemplateResult {
     const candidate = this.candidate;
-    return html`<dialog class="ui-dialog open-access-pdf-dialog" @close=${this.reset}>
+    return html`<dialog class="ui-dialog open-access-pdf-dialog" @close=${this.reset} @cancel=${this.cancel}>
       <header class="ui-dialog-header">
         <p class="eyebrow">Open-access acquisition</p>
         <h2>Find open PDF</h2>
         <p>${this.reference?.title ?? "Library reference"}</p>
       </header>
       <div class="ui-dialog-body open-access-pdf-body">
-        ${this.error ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>` : nothing}
+        ${this.error ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>` : nothing} ${this.renderReview()}
         ${
-          this.pending
-            ? html`<p role="status">${candidate ? "Downloading the reviewed PDF…" : "Checking trusted scholarly providers…"}</p>`
-            : candidate
-              ? this.renderCandidate(candidate)
-              : this.error
-                ? nothing
-                : html`<p role="status">No provider supplied a directly downloadable open PDF for this DOI.</p>`
-        }
-        ${
-          this.error && candidate
-            ? html`<p class="open-access-pdf-note">
-                Open the PDF location or provider landing page in your browser, download the PDF, then upload it to the Library.
-              </p>`
+          this.attachmentAvailable
+            ? html`<p class="open-access-pdf-note" id="open-access-pdf-upload-help">
+                  Open the PDF location or provider landing page in your browser, download the PDF, then attach it here to this reference.
+                  Maximum size: 25 MB.
+                </p>
+                <input
+                  class="sr-only"
+                  id="open-access-pdf-upload"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  aria-label="Attach PDF to this reference"
+                  aria-describedby="open-access-pdf-upload-help"
+                  ?disabled=${Boolean(this.pending)}
+                  @change=${this.selectPdf}
+                />`
             : nothing
         }
       </div>
       <footer class="ui-dialog-actions">
-        <button class="button-secondary" type="button" @click=${this.close}>Close</button>
+        <button class="button-secondary" type="button" ?disabled=${Boolean(this.pending)} @click=${this.close}>Close</button>
         ${
           candidate
-            ? html`<button class="button-primary" type="button" ?disabled=${this.pending} @click=${this.importCandidate}>
-                ${this.pending ? "Importing…" : "Import private PDF"}
+            ? html`<button
+                class=${this.attachmentAvailable ? "button-secondary" : "button-primary"}
+                type="button"
+                ?disabled=${Boolean(this.pending)}
+                @click=${this.importCandidate}
+              >
+                ${this.pending === "import" ? "Importing…" : "Import private PDF"}
               </button>`
             : nothing
         }
+        ${this.attachmentAvailable ? html`<button class="button-primary" type="button" ?disabled=${Boolean(this.pending)} aria-busy=${this.pending === "upload" ? "true" : "false"} @click=${this.choosePdf}>${this.pending === "upload" ? "Attaching…" : "Attach PDF"}</button>` : nothing}
       </footer>
     </dialog>`;
+  }
+
+  private renderReview(): TemplateResult {
+    const messages = {
+      discover: "Checking trusted scholarly providers…",
+      import: "Downloading the reviewed PDF…",
+      upload: "Attaching the selected PDF…",
+    };
+    return html`
+      ${this.pending ? html`<p role="status">${messages[this.pending]}</p>` : nothing}
+      ${this.candidate ? this.renderCandidate(this.candidate) : this.pending || this.error ? nothing : html`<p role="status">No provider supplied a directly downloadable open PDF for this DOI.</p>`}
+    `;
   }
 
   private renderCandidate(candidate: OpenAccessPdfCandidate): TemplateResult {
@@ -118,7 +147,7 @@ export class OpenAccessPdfDialog extends LightDomHost {
     const reference = this.reference;
     const candidate = this.candidate;
     if (!reference || !candidate || this.pending) return;
-    this.pending = true;
+    this.pending = "import";
     this.error = "";
     try {
       const response = await fetch(`/api/library/references/${reference.id}/open-pdf/import`, {
@@ -138,18 +167,70 @@ export class OpenAccessPdfDialog extends LightDomHost {
         }),
       );
     } catch (error) {
+      this.attachmentAvailable = true;
       this.error = error instanceof Error ? error.message : "Open PDF import failed";
     } finally {
-      this.pending = false;
+      this.pending = null;
     }
   }
+
+  protected selectPdf(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    void this.uploadPdf(input.files?.[0] ?? null).finally(() => {
+      input.value = "";
+    });
+  }
+
+  async uploadPdf(file: File | null): Promise<void> {
+    const reference = this.reference;
+    if (!file || !reference || !this.attachmentAvailable || this.pending) return;
+    if (file.type !== "application/pdf" && !(file.type === "" && /\.pdf$/iu.test(file.name))) {
+      this.error = "Choose a PDF file.";
+      return;
+    }
+    if (file.size === 0 || file.size > 25 * 1024 * 1024) {
+      this.error = file.size === 0 ? "Choose a non-empty PDF file." : "PDF exceeds the 25 MB limit";
+      return;
+    }
+    this.pending = "upload";
+    this.error = "";
+    try {
+      const response = await fetch(`/api/library/references/${encodeURIComponent(reference.id)}/pdfs`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(file.name) },
+        body: file,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isPdfDraftResult(value)) throw new Error("PDF attachment returned an invalid response");
+      this.dialog()?.close();
+      this.dispatchEvent(
+        new CustomEvent<string>(openAccessPdfImportedEvent, {
+          bubbles: true,
+          detail: value.created ? "PDF attached; analysis is queued." : "This PDF was already attached to this reference.",
+        }),
+      );
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : "PDF attachment failed";
+    } finally {
+      this.pending = null;
+    }
+  }
+
+  private readonly choosePdf = (): void => this.querySelector<HTMLInputElement>("#open-access-pdf-upload")?.click();
+
+  private readonly cancel = (event: Event): void => {
+    if (this.pending) event.preventDefault();
+  };
 
   private readonly close = (): void => this.dialog()?.close();
 
   private readonly reset = (): void => {
+    this.attachmentAvailable = false;
     this.candidate = null;
     this.error = "";
-    this.pending = false;
+    this.pending = null;
     this.reference = null;
   };
 

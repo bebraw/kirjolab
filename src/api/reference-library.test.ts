@@ -91,6 +91,70 @@ const citationNetwork: CitationNetwork = { projectId: null, nodes: [], edges: []
 afterEach(() => vi.unstubAllGlobals());
 
 describe("reference library API", () => {
+  it("attaches a manual PDF to the selected owner reference without creating a draft", async () => {
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    const response = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/pdfs`, {
+        method: "POST",
+        headers: { "content-type": "application/pdf", "content-length": "9", "x-file-name": "downloaded%20paper.pdf" },
+        body: "%PDF-test",
+      }),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(201);
+    expect(fixture.getByName).toHaveBeenCalledWith(identity.ownerKey);
+    expect(fixture.library.attachPdf).toHaveBeenCalledWith(
+      reference.id,
+      expect.objectContaining({ referenceId: reference.id, name: "downloaded paper.pdf", rights: "private", size: 9 }),
+    );
+    expect(fixture.library.createPdfDraft).not.toHaveBeenCalled();
+    expect(bucket.size).toBe(1);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(3);
+    await expect(response.json()).resolves.toMatchObject({ reference: { id: reference.id }, created: true });
+  });
+
+  it.each(["missing", "deleted"])("rejects a manual attachment to a %s reference before storing the file", async (state) => {
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    fixture.library.getReferences.mockResolvedValueOnce(state === "missing" ? [] : [{ ...reference, deletedAt: now }]);
+    const response = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/pdfs`, {
+        method: "POST",
+        headers: { "content-type": "application/pdf", "content-length": "9" },
+        body: "%PDF-test",
+      }),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(404);
+    expect(bucket.size).toBe(0);
+    expect(fixture.library.attachPdf).not.toHaveBeenCalled();
+    expect(fixture.sendArtifactAnalysis).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual attachment identity conflicts reviewable without creating a draft or queuing analysis", async () => {
+    const fixture = apiFixture();
+    fixture.library.attachPdf.mockRejectedValueOnce(new Error("This PDF is already attached to another Library reference"));
+    const response = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/pdfs`, {
+        method: "POST",
+        headers: { "content-type": "application/pdf", "content-length": "9" },
+        body: "%PDF-test",
+      }),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "This PDF is already attached to another Library reference" });
+    expect(fixture.library.createPdfDraft).not.toHaveBeenCalled();
+    expect(fixture.sendArtifactAnalysis).not.toHaveBeenCalled();
+  });
+
   it("discovers, fingerprint-verifies, stores, attaches, and queues an open PDF", async () => {
     const bucket = new MemoryR2Bucket();
     const fixture = apiFixture(bucket);

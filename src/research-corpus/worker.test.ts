@@ -121,6 +121,9 @@ describe("Research Corpus Worker", () => {
 
 function fixture(overrides: Partial<Pick<ResearchCorpusEnvironment, "AUTH_MODE" | "CORPUS_ALLOWED_ORIGINS">> = {}) {
   const library: CorpusLibraryAuthority = {
+    attachPdf: vi.fn(async () => {
+      throw new Error("not used");
+    }),
     createPdfDraft: vi.fn(async () => {
       throw new Error("not used");
     }),

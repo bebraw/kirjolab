@@ -97,7 +97,8 @@ describe("open access PDF dialog", () => {
     ]) {
       expect(rendered).toContain(text);
     }
-    expect(rendered).not.toContain("download the PDF, then upload it to the Library");
+    expect(rendered).not.toContain("download the PDF, then attach it here");
+    expect(rendered).not.toContain("Attach PDF");
     expect(fetcher).toHaveBeenNthCalledWith(1, `/api/library/references/${reference.id}/open-pdf/discover`, {
       method: "POST",
       credentials: "same-origin",
@@ -125,7 +126,7 @@ describe("open access PDF dialog", () => {
     const rendered = templateText(element.renderForTest());
     expect(rendered).toContain("No provider supplied a directly downloadable open PDF for this DOI.");
     expect(rendered).not.toContain("Import private PDF");
-    expect(rendered).not.toContain("download the PDF, then upload it to the Library");
+    expect(rendered).not.toContain("download the PDF, then attach it here");
     await element.importForTest();
     expect(element.nativeDialog.close).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledOnce();
@@ -149,8 +150,120 @@ describe("open access PDF dialog", () => {
     expect(rendered).toContain(message);
     expect(rendered).toContain(candidate.pdfUrl);
     expect(rendered).toContain(candidate.landingUrl);
-    expect(rendered).toContain("download the PDF, then upload it to the Library");
+    expect(rendered).toContain("download the PDF, then attach it here");
+    expect(rendered).toContain("Attach PDF");
+    expect(rendered).toContain('type="file"');
     expect(element.nativeDialog.close).not.toHaveBeenCalled();
+  });
+
+  it("uploads a manual PDF directly onto the reviewed reference after a download failure", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ candidate }))
+      .mockResolvedValueOnce(Response.json({ error: "Download refused" }, { status: 502 }))
+      .mockResolvedValueOnce(Response.json({ reference, artifact: { ...artifact, rights: "private" }, created: true }));
+    vi.stubGlobal("fetch", fetcher);
+    const element = new TestOpenAccessPdfDialog();
+    const imported = vi.fn();
+    element.addEventListener(openAccessPdfImportedEvent, imported);
+    await element.open(reference);
+    await element.importForTest();
+    const file = new File(["%PDF-test"], "downloaded paper.pdf", { type: "application/pdf" });
+
+    await element.uploadPdf(file);
+
+    expect(fetcher).toHaveBeenLastCalledWith(`/api/library/references/${reference.id}/pdfs`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/pdf", "x-file-name": "downloaded%20paper.pdf" },
+      body: file,
+    });
+    expect(imported).toHaveBeenCalledOnce();
+    expect(imported.mock.calls[0]?.[0]).toMatchObject({ bubbles: true, detail: "PDF attached; analysis is queued." });
+    expect(element.nativeDialog.close).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["server failure", () => Response.json({ error: "Upload unavailable" }, { status: 503 }), "Upload unavailable"],
+    ["invalid response", () => Response.json({ invalid: true }), "PDF attachment returned an invalid response"],
+    [
+      "non-Error rejection",
+      () => {
+        throw "offline";
+      },
+      "PDF attachment failed",
+    ],
+  ] as const)("retains the review and permits the same PDF to be retried after an attachment %s", async (_label, response, message) => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ candidate }))
+      .mockResolvedValueOnce(Response.json({ error: "Download refused" }, { status: 502 }))
+      .mockImplementationOnce(response)
+      .mockResolvedValueOnce(Response.json({ reference, artifact, created: false }));
+    vi.stubGlobal("fetch", fetcher);
+    const element = new TestOpenAccessPdfDialog();
+    const imported = vi.fn();
+    element.addEventListener(openAccessPdfImportedEvent, imported);
+    await element.open(reference);
+    await element.importForTest();
+    const file = new File(["%PDF-test"], "downloaded.pdf");
+
+    await element.uploadPdf(file);
+
+    const rendered = templateText(element.renderForTest());
+    for (const text of [message, candidate.pdfUrl, candidate.landingUrl, "Attach PDF"]) expect(rendered).toContain(text);
+    expect(element.nativeDialog.close).not.toHaveBeenCalled();
+    expect(imported).not.toHaveBeenCalled();
+
+    await element.uploadPdf(file);
+
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(imported.mock.calls[0]?.[0]).toMatchObject({ detail: "This PDF was already attached to this reference." });
+    expect(element.nativeDialog.close).toHaveBeenCalledOnce();
+  });
+
+  it("rejects invalid attachments locally and prevents uploads before failure or during another operation", async () => {
+    const upload = deferredResponse();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ candidate }))
+      .mockResolvedValueOnce(Response.json({ error: "Download refused" }, { status: 502 }))
+      .mockReturnValueOnce(upload.promise)
+      .mockResolvedValueOnce(Response.json({ candidate: null }));
+    vi.stubGlobal("fetch", fetcher);
+    const element = new TestOpenAccessPdfDialog();
+    const file = new File(["%PDF-test"], "downloaded.pdf", { type: "application/pdf" });
+    await element.uploadPdf(file);
+    await element.open(reference);
+    await element.uploadPdf(file);
+    expect(fetcher).toHaveBeenCalledOnce();
+    await element.importForTest();
+    await element.uploadPdf(null);
+    for (const [invalid, message] of [
+      [new File(["text"], "notes.txt", { type: "text/plain" }), "Choose a PDF file."],
+      [new File([], "empty.pdf", { type: "application/pdf" }), "Choose a non-empty PDF file."],
+      [new File([new Uint8Array(25 * 1024 * 1024 + 1)], "oversize.pdf", { type: "application/pdf" }), "PDF exceeds the 25 MB limit"],
+    ] as const) {
+      await element.uploadPdf(invalid);
+      expect(templateText(element.renderForTest())).toContain(message);
+    }
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    const uploading = element.uploadPdf(file);
+    const pending = templateText(element.renderForTest());
+    expect(pending).toContain("Attaching the selected PDF…");
+    expect(pending).toContain("Attaching…");
+    expect(pending).toContain(candidate.pdfUrl);
+    await element.uploadPdf(file);
+    await element.importForTest();
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    upload.resolve(Response.json({ error: "Upload unavailable" }, { status: 503 }));
+    await uploading;
+
+    await element.open({ ...reference, title: "Another paper" });
+    expect(templateText(element.renderForTest())).not.toContain("Attach PDF");
+    await element.uploadPdf(file);
+    expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
   it("shows Unpaywall evidence and unknown rights without inventing a landing link", async () => {
@@ -244,7 +357,7 @@ describe("open access PDF dialog", () => {
     expect(rendered).not.toContain("Checking trusted scholarly providers…");
     expect(rendered).not.toContain("No provider supplied");
     expect(rendered).not.toContain("Import private PDF");
-    expect(rendered).not.toContain("download the PDF, then upload it to the Library");
+    expect(rendered).not.toContain("download the PDF, then attach it here");
   });
 
   it.each([

@@ -258,6 +258,10 @@
     font-weight: 650;
   }
 
+  .open-access-pdf-dialog .ui-dialog-actions {
+    flex-wrap: wrap;
+  }
+
   .open-access-pdf-dialog .ui-dialog-header > p:last-child,
   .open-access-pdf-note {
     margin-top: 0.35rem;

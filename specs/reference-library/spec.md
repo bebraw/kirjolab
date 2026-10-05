@@ -664,6 +664,11 @@ memory and makes citation aliases compete with stable source identity.
 - `POST /api/library/pdfs` stores a private PDF under an owner-scoped R2 key and
   atomically creates its editable library draft. The legacy identify route
   remains available for artifacts created before this flow.
+- `POST /api/library/references/{id}/pdfs` uses the same bounded upload ingestion
+  to attach a private PDF directly to an existing owner reference, without
+  creating a draft. The failed open-PDF download dialog offers this manual
+  recovery action. Repeats on that reference reuse the artifact; PDFs already
+  attached to another reference remain a conflict.
 - `PUT /api/library/pdfs/{id}/rights` records private, unknown, or shareable
   artifact rights.
 - `GET /api/library/pdfs/{id}` streams an artifact only when it occurs in the
