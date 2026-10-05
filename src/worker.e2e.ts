@@ -3971,6 +3971,103 @@ test("lets a member link and revoke their private PDF source for a project refer
   await member.close();
 });
 
+test("attaches a PDF in the failed-download dialog and retries without creating another Library source", async ({ page }) => {
+  const title = `Manual PDF recovery ${Date.now()}`;
+  await page.goto("/library");
+  const imported = await page.request.post("/api/library/import", {
+    headers: { origin: new URL(page.url()).origin },
+    data: {
+      bibtex: `@article{manualRecovery, title = {${title}}, author = {Writer, Ada}, year = {2026}, doi = {10.5555/manual.${Date.now()}}}`,
+    },
+  });
+  expect(imported.status()).toBe(201);
+  const importedValue: unknown = await imported.json();
+  if (!Array.isArray(importedValue) || !isRecord(importedValue[0]) || !isRecord(importedValue[0].reference)) {
+    throw new Error("Expected the imported Library reference");
+  }
+  const referenceId = importedValue[0].reference.id;
+  if (typeof referenceId !== "string") throw new Error("Expected a Library reference ID");
+  await page.route(`**/api/library/references/${referenceId}/open-pdf/discover`, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        candidate: {
+          provider: "openalex",
+          providerRecordId: "https://openalex.org/W1",
+          landingUrl: "https://repository.example/paper",
+          pdfUrl: "https://repository.example/paper.pdf",
+          license: "",
+          version: "publishedVersion",
+          fingerprint: `sha256:${"a".repeat(64)}`,
+        },
+      }),
+    }),
+  );
+  await page.route(`**/api/library/references/${referenceId}/open-pdf/import`, (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "PDF host repository.example refused the download (HTTP 403)." }),
+    }),
+  );
+  let releaseFailure = (): void => undefined;
+  const failure = new Promise<void>((resolve) => {
+    releaseFailure = resolve;
+  });
+  let failOnce = true;
+  await page.route(`**/api/library/references/${referenceId}/pdfs`, async (route) => {
+    if (failOnce) {
+      failOnce = false;
+      await failure;
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Temporary attachment failure" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.reload();
+  const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: title });
+  await card.getByRole("button", { name: "Find PDF", exact: true }).click();
+  const dialog = page.locator(".open-access-pdf-dialog");
+  await expect(dialog.getByRole("button", { name: "Attach PDF", exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Import private PDF", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("HTTP 403");
+  await expect(dialog.getByRole("link", { name: "Review exact PDF location" })).toBeVisible();
+  const file = { name: "downloaded-paper.pdf", mimeType: "application/pdf", buffer: createEvidencePdf(title) };
+  const [firstChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    dialog.getByRole("button", { name: "Attach PDF", exact: true }).click(),
+  ]);
+  await firstChooser.setFiles(file);
+  await expect(dialog.getByRole("status")).toHaveText("Attaching the selected PDF…");
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  releaseFailure();
+  await expect(dialog.getByRole("alert")).toHaveText("Temporary attachment failure");
+  await expect(dialog.locator("#open-access-pdf-upload")).toHaveValue("");
+  await expect(dialog.getByRole("link", { name: "Provider landing page" })).toBeVisible();
+  const [retryChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    dialog.getByRole("button", { name: "Attach PDF", exact: true }).click(),
+  ]);
+  await retryChooser.setFiles(file);
+  await expect(dialog).toBeHidden();
+  await expect(card.getByRole("button", { name: `Open ${title} PDF`, exact: true })).toBeVisible();
+  const library = (await (await page.request.get("/api/library")).json()) as {
+    references: Array<{ id: string; title: string }>;
+    artifacts: Array<{ referenceId: string; name: string; rights: string }>;
+  };
+  expect(library.references.filter((item) => item.title === title)).toEqual([expect.objectContaining({ id: referenceId })]);
+  expect(library.references.some((item) => item.title === "downloaded paper")).toBe(false);
+  expect(library.artifacts.filter((item) => item.referenceId === referenceId)).toEqual([
+    expect.objectContaining({ name: "downloaded-paper.pdf", rights: "private" }),
+  ]);
+});
+
 test("uploads a bounded PDF batch with partial success and retry", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Batch PDF intake");
   const requestedFiles: string[] = [];

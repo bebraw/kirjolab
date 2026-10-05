@@ -7,11 +7,13 @@ export interface LibraryPdfIngestInput {
   readonly body: ReadableStream<Uint8Array>;
   readonly name: string;
   readonly ownerKey: string;
+  readonly referenceId?: string;
   readonly size: number;
 }
 
 export interface LibraryPdfIngestAuthority extends ArtifactAnalysisJobLibrary {
   createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftResult>;
+  attachPdf(referenceId: string, artifact: LibraryPdfArtifact): Promise<PdfDraftResult>;
 }
 
 export interface LibraryPdfIngestDependencies {
@@ -32,7 +34,7 @@ export async function ingestLibraryPdf(input: LibraryPdfIngestInput, dependencie
   const blob = reservation?.blob ?? (await storePdfBlob(dependencies.storage, bytes));
   const artifact: LibraryPdfArtifact = {
     id,
-    referenceId: null,
+    referenceId: input.referenceId ?? null,
     name: input.name,
     contentType: "application/pdf",
     size: input.size,
@@ -41,7 +43,9 @@ export async function ingestLibraryPdf(input: LibraryPdfIngestInput, dependencie
     rights: "private",
     createdAt: (dependencies.now ?? (() => new Date()))().toISOString(),
   };
-  const draft = await dependencies.authority.createPdfDraft(artifact, input.actor);
+  const draft = input.referenceId
+    ? await dependencies.authority.attachPdf(input.referenceId, artifact)
+    : await dependencies.authority.createPdfDraft(artifact, input.actor);
   if (draft.created) await reservation?.commit();
   else await reservation?.release();
   await Promise.all([

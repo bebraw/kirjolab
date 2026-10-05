@@ -694,6 +694,12 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
   if (suffix === "/pdfs" && request.method === "POST") {
     return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
   }
+  const attachmentMatch = /^\/references\/([0-9a-f-]{36})\/pdfs$/iu.exec(suffix);
+  if (attachmentMatch?.[1] && request.method === "POST") {
+    const reference = (await library.getReferences([attachmentMatch[1]]))[0];
+    if (!reference || reference.deletedAt) return jsonError("Library reference not found", 404);
+    return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library, reference.id);
+  }
   const referenceReviewResponse = await handleLibraryPdfReferenceReviewRoute(context);
   if (referenceReviewResponse) return referenceReviewResponse;
   const analysisResponse = await handleLibraryPdfAnalysisRoute(context);
@@ -1828,6 +1834,7 @@ async function uploadLibraryPdf(
   actor: string,
   env: ReferenceLibraryApiEnv,
   library: ReferenceLibraryApi,
+  referenceId?: string,
 ): Promise<Response> {
   if (request.headers.get("content-type")?.split(";", 1)[0] !== "application/pdf") return jsonError("Only PDF uploads are supported", 415);
   if (!request.body) return jsonError("PDF body is required", 400);
@@ -1840,6 +1847,7 @@ async function uploadLibraryPdf(
       body: request.body,
       name: normalizePdfFilename(request.headers.get("x-file-name") ?? "paper.pdf"),
       ownerKey,
+      ...(referenceId ? { referenceId } : {}),
       size,
     },
     {
