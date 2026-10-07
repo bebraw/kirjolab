@@ -41,6 +41,15 @@ version. Keep Node declarations on the supported Node 24 major. Recheck these
 requirements before lifting the holds; do not use forced installs to bypass
 them.
 
+The sole MCP compatibility exception pins the existing client and SDK peers to
+`@modelcontextprotocol/client` 2.2.0 and `@modelcontextprotocol/sdk` 1.31.0,
+with shared `@modelcontextprotocol/core` 2.2.0, through npm overrides. Agents
+0.25.0 still pins vulnerable earlier releases, and even 0.26.0 retains those
+pins. Keep the direct server at 2.0.0, recheck the dependency graph, audit,
+type checks, MCP contract tests, and full native CI after any change, and remove
+the bridge when upstream peer requirements accept patched versions. See
+[ADR-245](./adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md).
+
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 
 ## Docker Compose Evaluation

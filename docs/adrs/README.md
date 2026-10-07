@@ -33,6 +33,8 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-245](./implemented/ADR-245-override-vulnerable-mcp-client-peers.md)                  | Implemented          | Override existing vulnerable MCP client peers without changing Agents or the direct MCP server.                 |
+| [ADR-244](./implemented/ADR-244-report-unavailable-legacy-history-images.md)              | Implemented          | Report unavailable pre-retention-fix historical images while backing up current owner state.                    |
 | [ADR-243](./implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)  | Implemented          | Create projects on a dedicated stepwise page and normalize bounded Markdown ZIPs into native metadata.          |
 | [ADR-241](./implemented/ADR-241-add-lossless-native-project-archives.md)                  | Implemented          | Preserve current project state through paired native ZIP export and import.                                     |
 | [ADR-242](./implemented/ADR-242-scope-reference-imports-to-active-project.md)             | Implemented          | Default editor BibTeX imports and Library browsing to the active project's reference set.                       |
@@ -204,7 +206,7 @@ No accepted-but-unimplemented ADRs.
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                        | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.            |
 | [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)               | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.                  |
 | [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)              | Implemented          | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.                          |
-| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md)             | Implemented          | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                             |
+| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md)             | Partially superseded | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                             |
 | [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)                         | Implemented          | Use semantic light/dark tokens with a browser-local system-aware preference.                                    |
 | [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)              | Implemented          | Prewarm dependencies once and give parallel local CI jobs isolated writable views.                              |
 | [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)                         | Implemented          | Keep duplicated and vendored skill references outside the Prettier ownership boundary.                          |

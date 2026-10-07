@@ -11,6 +11,7 @@ import {
   type ReviewCatalogRecord,
 } from "../review/review-catalog";
 import { parseReviewBackupReference } from "../review/review-backup";
+import { isOwnedBinaryKey } from "./backup-projection";
 import {
   legacyOwnerBackupSchemaVersion,
   maximumOwnerBackupBytes,
@@ -44,7 +45,43 @@ export function parseOwnerBackupManifest(json: string): ParsedOwnerBackupManifes
 function isOwnerBackupManifest(value: unknown): value is OwnerBackupManifest {
   if (!isRecord(value) || value.schemaVersion !== ownerBackupSchemaVersion) return false;
   if (!isManifestEnvelope(value) || !isOwnerBackupState(value.state)) return false;
-  return value.binaries.every(isBackupBinary);
+  return value.binaries.every(isBackupBinary) && hasValidHistoricalGaps(value.state, value.binaries);
+}
+
+function hasValidHistoricalGaps(state: OwnerBackupState, binaries: readonly BackupBinaryObject[]): boolean {
+  const gaps = state.unavailableHistoricalBinaries;
+  if (gaps === undefined) return true;
+  if (!Array.isArray(gaps) || !gaps.every((key): key is string => typeof key === "string")) return false;
+  if (new Set(gaps).size !== gaps.length) return false;
+  const workspaceIds: string[] = [];
+  const currentKeys = new Set<string>();
+  for (const workspace of state.workspaces) {
+    if (!isRecord(workspace.summary) || typeof workspace.summary.id !== "string") return false;
+    const keys = currentWorkspaceBinaryKeys(workspace.snapshot);
+    if (keys === null) return false;
+    workspaceIds.push(workspace.summary.id);
+    for (const key of keys) currentKeys.add(key);
+  }
+  return gaps.every(
+    (key) =>
+      /\/assets\/[a-f0-9-]{36}$/iu.test(key) &&
+      isOwnedBinaryKey(state.ownerKey, workspaceIds, key) &&
+      !currentKeys.has(key) &&
+      !binaries.some((binary) => binary.sourceKey === key),
+  );
+}
+
+function currentWorkspaceBinaryKeys(snapshot: unknown): string[] | null {
+  if (!isRecord(snapshot)) return null;
+  const keys: string[] = [];
+  for (const references of [snapshot.assets, snapshot.pdfs]) {
+    if (!Array.isArray(references)) return null;
+    for (const reference of references) {
+      if (!isRecord(reference) || typeof reference.objectKey !== "string") return null;
+      keys.push(reference.objectKey);
+    }
+  }
+  return keys;
 }
 
 function isProjectAssociatedReviewOwnerBackupManifest(value: unknown): value is ProjectAssociatedReviewOwnerBackupManifest {

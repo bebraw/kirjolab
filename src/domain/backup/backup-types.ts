@@ -31,6 +31,7 @@ export interface OwnerBackupState {
   readonly templates?: readonly ProjectTemplateRecord[];
   readonly workspaces: readonly OwnerWorkspaceBackup[];
   readonly reviews: readonly OwnerReviewBackup[];
+  readonly unavailableHistoricalBinaries?: readonly string[];
 }
 
 export interface ProjectAssociatedReviewOwnerWorkspaceBackup {
@@ -130,6 +131,7 @@ export interface OwnerBackupStatus {
   readonly lastCheckedAt: string | null;
   readonly lastBackedUpAt: string | null;
   readonly error: string | null;
+  readonly unavailableHistoricalBinaries: readonly string[];
 }
 
 export interface OwnerBackupDrillStatus {
@@ -142,6 +144,7 @@ export interface OwnerBackupDrillStatus {
   readonly binariesChecked: number;
   readonly reviewsChecked: number;
   readonly error: string | null;
+  readonly unavailableHistoricalBinaries: readonly string[];
 }
 
 export interface BackupBinaryReferences {

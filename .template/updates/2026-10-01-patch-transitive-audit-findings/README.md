@@ -11,6 +11,30 @@ These releases fix URI authority parsing, HTTP parsing and rendering, and IP
 address classification issues. They retain the installed major versions and
 satisfy their parent dependencies' existing constraints.
 
+## October 7 MCP Supplement
+
+For projects using Agents 0.25.0's exact MCP peers, add targeted npm overrides
+for `@modelcontextprotocol/client` 2.2.0, `@modelcontextprotocol/sdk` 1.31.0,
+and shared `@modelcontextprotocol/core` 2.2.0. These fix
+[GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h).
+Keep the existing Agents and direct MCP server pins. Agents 0.26.0 still
+declares the vulnerable peers, so a normal compatible lockfile refresh cannot
+clear this finding.
+
+This is an explicit compatibility bridge outside the exact peer/core pins.
+Record the rationale in a local ADR, verify MCP contracts and type checks as
+well as the production audit and full native CI, and remove it when upstream
+accepts patched peers. Review by November 7, 2026. Do not add these overrides
+to projects without the affected installed MCP dependency graph. Existing
+OAuth clients must also follow the advisory's issuer-bound credential upgrade
+instructions; Kirjolab uses only the server path.
+
+The supplemental patch updates the three existing MCP lockfile entries without
+changing direct dependencies. Preserve newer security fixes in downstream
+projects instead of applying its older lockfile contexts mechanically.
+If this update ID is already recorded, apply only the MCP supplement rather
+than replaying the original URI, HTTP, and IP address patch.
+
 ## Apply
 
 1. Check and apply `patch.diff` against the target project's existing pins and

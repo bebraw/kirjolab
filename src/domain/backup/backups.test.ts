@@ -117,6 +117,47 @@ function expectInvalidManifest(manifest: unknown): void {
 }
 
 describe("owner backup projection", () => {
+  it("round trips explicit historical image gaps and rejects active, duplicated, or foreign gaps", () => {
+    const key = `${reviewId}/assets/${ownerId}`;
+    const workspace = { summary: { id: reviewId }, snapshot: { assets: [], pdfs: [] } };
+    const manifest = {
+      ...ownerManifest(),
+      state: { ...emptyState, workspaces: [workspace], unavailableHistoricalBinaries: [key] },
+    };
+    expect(parseOwnerBackupManifest(JSON.stringify(manifest))).toEqual(manifest);
+    for (const gaps of [
+      null,
+      [null],
+      [key, key],
+      ["other/assets/" + ownerId],
+      [`${reviewId}/paper.pdf`],
+      [`${reviewId}/../assets/${ownerId}`],
+    ]) {
+      expectInvalidManifest({ ...manifest, state: { ...manifest.state, unavailableHistoricalBinaries: gaps } });
+    }
+    for (const invalidWorkspace of [
+      { ...workspace, summary: null },
+      { ...workspace, summary: { id: null } },
+      { ...workspace, snapshot: null },
+      { ...workspace, snapshot: { assets: null, pdfs: [] } },
+      { ...workspace, snapshot: { assets: [null], pdfs: [] } },
+      { ...workspace, snapshot: { assets: [{ objectKey: 1 }], pdfs: [] } },
+      { ...workspace, snapshot: { assets: [{ objectKey: key }], pdfs: [] } },
+      { ...workspace, snapshot: { assets: [], pdfs: [{ objectKey: key }] } },
+    ]) {
+      expectInvalidManifest({ ...manifest, state: { ...manifest.state, workspaces: [invalidWorkspace] } });
+    }
+    expectInvalidManifest({
+      ...manifest,
+      binaries: [{ sourceKey: key, sourceEtag: "etag", size: 3, uploadedAt: timestamp, backupKey: "backups/blobs/image" }],
+    });
+  });
+
+  it("includes historical gaps in the owner digest", async () => {
+    const digest = await ownerBackupDigest(emptyState, []);
+    expect(await ownerBackupDigest({ ...emptyState, unavailableHistoricalBinaries: ["workspace/assets/legacy"] }, [])).not.toBe(digest);
+  });
+
   it("computes a stable digest independent of object property insertion order", async () => {
     const reordered = {
       workspaces: [],

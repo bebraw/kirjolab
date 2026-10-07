@@ -916,6 +916,7 @@ export class DocumentRoom extends DurableObject<Env> {
     snapshot: WorkspaceSnapshot;
     revisionSeed: string;
     retainedBinaryObjectKeys: string[];
+    legacyHistoricalImageObjectKeys: string[];
     bookmark: string | null;
   }> {
     const snapshot = this.getSnapshot(workspaceId);
@@ -923,7 +924,7 @@ export class DocumentRoom extends DurableObject<Env> {
     return {
       snapshot,
       revisionSeed,
-      retainedBinaryObjectKeys: this.#retainedBinaryObjectKeys(snapshot),
+      ...this.#retainedBinaryObjects(snapshot),
       bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE),
     };
   }
@@ -3422,17 +3423,38 @@ export class DocumentRoom extends DurableObject<Env> {
     );
   }
 
-  #retainedBinaryObjectKeys(snapshot: WorkspaceSnapshot): string[] {
+  #retainedBinaryObjects(snapshot: WorkspaceSnapshot): {
+    retainedBinaryObjectKeys: string[];
+    legacyHistoricalImageObjectKeys: string[];
+  } {
     const keys = new Set<string>([
       ...snapshot.pdfs.map(({ objectKey }) => objectKey),
       ...snapshot.assets.map(({ objectKey }) => objectKey),
     ]);
-    for (const row of this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+    // Conservatively exclude the entire day the retention fix was introduced.
+    const cutoff = Date.parse("2026-07-31T00:00:00.000Z");
+    const legacyImages = new Set<string>();
+    const legacyRemovals = new Set<string>();
+    const requiredImages = new Set(snapshot.assets.map(({ objectKey }) => objectKey));
+    let previousImages = new Set<string>();
+    for (const row of this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision").toArray()) {
       const revision = parseStoredProjectRevision(row.snapshot_json);
       for (const pdf of revisionRows(revision, "pdfs")) keys.add(sqlString(pdf, "object_key"));
-      for (const asset of revisionRows(revision, "project_assets")) keys.add(sqlString(asset, "object_key"));
+      const timestamp = Date.parse(row.created_at);
+      const legacyRevision = Number.isFinite(timestamp) && new Date(timestamp).toISOString() === row.created_at && timestamp < cutoff;
+      const revisionImages = new Set(revisionRows(revision, "project_assets").map((asset) => sqlString(asset, "object_key")));
+      recordRemovedHistoricalImages(previousImages, revisionImages, legacyRevision ? legacyRemovals : requiredImages);
+      previousImages = revisionImages;
+      for (const key of revisionImages) {
+        keys.add(key);
+        if (legacyRevision) legacyImages.add(key);
+        else requiredImages.add(key);
+      }
     }
-    return [...keys].sort();
+    return {
+      retainedBinaryObjectKeys: [...keys].sort(),
+      legacyHistoricalImageObjectKeys: [...legacyImages].filter((key) => legacyRemovals.has(key) && !requiredImages.has(key)).sort(),
+    };
   }
 
   #githubTrackedFiles(): GitHubSyncBaseFile[] {
@@ -4455,6 +4477,16 @@ function restoreSqlRow(row: StoredSqlRow): Record<string, SqlStorageValue> {
   const restored: Record<string, SqlStorageValue> = {};
   for (const [key, value] of Object.entries(row)) restored[key] = isStoredBlob(value) ? decodeBase64(value.blob) : value;
   return restored;
+}
+
+function recordRemovedHistoricalImages(
+  previousImages: ReadonlySet<string>,
+  revisionImages: ReadonlySet<string>,
+  removedImages: Set<string>,
+): void {
+  for (const key of previousImages) {
+    if (!revisionImages.has(key)) removedImages.add(key);
+  }
 }
 
 function revisionRows(state: StoredProjectRevision, table: RevisionTable): Record<string, SqlStorageValue>[] {

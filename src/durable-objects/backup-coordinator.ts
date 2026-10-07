@@ -21,6 +21,7 @@ import {
   type OwnerReviewBackup,
   type OwnerWorkspaceBackup,
 } from "../domain/backup/backups";
+import type { ParsedOwnerBackupManifest } from "../domain/backup/backup-types";
 import { digestFromPdfBlobKey } from "../pdf-blob";
 import { localOwnerId } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
@@ -81,6 +82,15 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 4,
+    name: "report-unavailable-legacy-history-images",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE backup_status ADD COLUMN unavailable_history_json TEXT NOT NULL DEFAULT '[]'");
+      sql.exec("ALTER TABLE backup_drills ADD COLUMN unavailable_history_json TEXT NOT NULL DEFAULT '[]'");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface OwnerRow extends Record<string, SqlStorageValue> {
@@ -98,6 +108,7 @@ interface StatusRow extends Record<string, SqlStorageValue> {
   last_checked_at: string;
   last_backed_up_at: string | null;
   error: string | null;
+  unavailable_history_json: string;
 }
 
 interface DrillRow extends Record<string, SqlStorageValue> {
@@ -110,6 +121,7 @@ interface DrillRow extends Record<string, SqlStorageValue> {
   binaries_checked: number;
   reviews_checked: number;
   error: string | null;
+  unavailable_history_json: string;
 }
 
 export interface ScheduledBackupSummary {
@@ -118,6 +130,7 @@ export interface ScheduledBackupSummary {
   readonly unchanged: number;
   readonly failed: number;
   readonly truncated: boolean;
+  readonly ownersWithHistoricalGaps: number;
 }
 
 export class BackupCoordinator extends DurableObject<Env> {
@@ -158,6 +171,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     const backup = this.getStatus(ownerKey);
     let binariesChecked = 0;
     let reviewsChecked = 0;
+    let unavailableHistoricalBinaries: readonly string[] = backup.unavailableHistoricalBinaries;
     try {
       if (!backup.manifestKey || !backup.digest) throw new Error("No successful backup is available");
       const manifestObject = await this.env.PAPERS.get(backup.manifestKey);
@@ -165,6 +179,7 @@ export class BackupCoordinator extends DurableObject<Env> {
       if (manifestObject.size > maximumOwnerBackupBytes) throw new Error("Owner backup manifest exceeds 10 MiB");
       const manifestJson = await manifestObject.text();
       const manifest = parseOwnerBackupManifest(manifestJson);
+      unavailableHistoricalBinaries = historicalGapsFromManifest(manifest);
       if (manifest.state.ownerKey !== ownerKey || manifest.digest !== backup.digest)
         throw new Error("Backup manifest identity does not match status");
       if ((await ownerBackupDigest(manifest.state, manifest.binaries, manifest.schemaVersion)) !== manifest.digest)
@@ -206,6 +221,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         binariesChecked,
         reviewsChecked,
         null,
+        unavailableHistoricalBinaries,
       );
     } catch (error) {
       this.#recordDrill(
@@ -218,6 +234,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         binariesChecked,
         reviewsChecked,
         backupError(error),
+        unavailableHistoricalBinaries,
       );
     }
     return this.getRecoveryDrillStatus(ownerKey);
@@ -239,11 +256,28 @@ export class BackupCoordinator extends DurableObject<Env> {
     const owners = this.ctx.storage.sql
       .exec<OwnerRow>("SELECT * FROM backup_owners ORDER BY owner_key LIMIT ?", maximumOwnersPerRun + 1)
       .toArray();
-    const summary = { checked: 0, created: 0, unchanged: 0, failed: 0, truncated: owners.length > maximumOwnersPerRun };
+    const summary = {
+      checked: 0,
+      created: 0,
+      unchanged: 0,
+      failed: 0,
+      truncated: owners.length > maximumOwnersPerRun,
+      ownersWithHistoricalGaps: 0,
+    };
     for (const owner of owners.slice(0, maximumOwnersPerRun)) {
       const status = await this.#backupOwner(owner);
       summary.checked += 1;
       summary[status.outcome === "never" ? "failed" : status.outcome] += 1;
+      if (status.outcome !== "failed" && status.unavailableHistoricalBinaries.length > 0) {
+        summary.ownersWithHistoricalGaps += 1;
+        console.warn(
+          JSON.stringify({
+            event: "backup-owner-history-gap",
+            ownerKey: owner.owner_key,
+            sourceKeys: status.unavailableHistoricalBinaries,
+          }),
+        );
+      }
       if (status.outcome === "failed") {
         console.error(
           JSON.stringify({
@@ -260,13 +294,28 @@ export class BackupCoordinator extends DurableObject<Env> {
   async #backupOwner(owner: OwnerRow): Promise<OwnerBackupStatus> {
     const checkedAt = new Date().toISOString();
     try {
-      const { state, recovery, retainedBinaryObjectKeys } = await this.#ownerState(owner);
-      const binaries = await this.#binaryObjects(state, retainedBinaryObjectKeys);
+      const { state: currentState, recovery, retainedBinaryObjectKeys, legacyHistoricalImageObjectKeys } = await this.#ownerState(owner);
+      const { binaries, unavailableHistoricalBinaries } = await this.#binaryObjects(
+        currentState,
+        retainedBinaryObjectKeys,
+        legacyHistoricalImageObjectKeys,
+      );
+      const state: OwnerBackupState =
+        unavailableHistoricalBinaries.length > 0 ? { ...currentState, unavailableHistoricalBinaries } : currentState;
       for (const binary of binaries) await this.#ensureBinaryCopy(binary);
       const digest = await ownerBackupDigest(state, binaries);
       const previous = this.getStatus(owner.owner_key);
       if (previous.digest === digest && previous.manifestKey) {
-        this.#recordStatus(owner.owner_key, "unchanged", digest, previous.manifestKey, checkedAt, previous.lastBackedUpAt, null);
+        this.#recordStatus(
+          owner.owner_key,
+          "unchanged",
+          digest,
+          previous.manifestKey,
+          checkedAt,
+          previous.lastBackedUpAt,
+          null,
+          unavailableHistoricalBinaries,
+        );
         return this.getStatus(owner.owner_key);
       }
 
@@ -285,7 +334,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         httpMetadata: { contentType: "application/json; charset=utf-8" },
         customMetadata: { schemaVersion: ownerBackupSchemaVersion, digest },
       });
-      this.#recordStatus(owner.owner_key, "created", digest, manifestKey, checkedAt, checkedAt, null);
+      this.#recordStatus(owner.owner_key, "created", digest, manifestKey, checkedAt, checkedAt, null, unavailableHistoricalBinaries);
       return this.getStatus(owner.owner_key);
     } catch (error) {
       const previous = this.getStatus(owner.owner_key);
@@ -297,6 +346,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         checkedAt,
         previous.lastBackedUpAt,
         backupError(error),
+        previous.unavailableHistoricalBinaries,
       );
       return this.getStatus(owner.owner_key);
     }
@@ -306,6 +356,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     state: OwnerBackupState;
     recovery: OwnerBackupRecovery;
     retainedBinaryObjectKeys: string[];
+    legacyHistoricalImageObjectKeys: string[];
   }> {
     const catalog = this.env.WORKSPACE_CATALOGS.getByName(owner.owner_key);
     const reviewCatalog = this.env.REVIEW_CATALOGS.getByName(owner.owner_key);
@@ -329,6 +380,7 @@ export class BackupCoordinator extends DurableObject<Env> {
 
     const workspaces: OwnerWorkspaceBackup[] = [];
     const retainedBinaryObjectKeys = new Set<string>();
+    const legacyHistoricalImageObjectKeys = new Set<string>();
     const recoveryWorkspaces: OwnerBackupRecovery["workspaces"][number][] = [];
     for (const summary of catalogBackup.workspaces) {
       const storageKey = summary.id === "demo" ? `${owner.owner_key}:demo` : summary.id;
@@ -343,6 +395,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         revisionSeed: documentBackup.revisionSeed,
       });
       for (const objectKey of documentBackup.retainedBinaryObjectKeys) retainedBinaryObjectKeys.add(objectKey);
+      for (const objectKey of documentBackup.legacyHistoricalImageObjectKeys) legacyHistoricalImageObjectKeys.add(objectKey);
       recoveryWorkspaces.push({
         workspaceId: summary.id,
         access: accessBackup.bookmark,
@@ -398,19 +451,33 @@ export class BackupCoordinator extends DurableObject<Env> {
         reviews: recoveryReviews,
       },
       retainedBinaryObjectKeys: [...retainedBinaryObjectKeys].sort(),
+      legacyHistoricalImageObjectKeys: [...legacyHistoricalImageObjectKeys].sort(),
     };
   }
 
-  async #binaryObjects(state: OwnerBackupState, retainedBinaryObjectKeys: readonly string[]): Promise<BackupBinaryObject[]> {
+  async #binaryObjects(
+    state: OwnerBackupState,
+    retainedBinaryObjectKeys: readonly string[],
+    legacyHistoricalImageObjectKeys: readonly string[],
+  ): Promise<{ binaries: BackupBinaryObject[]; unavailableHistoricalBinaries: string[] }> {
     const workspaceIds = state.workspaces.map((workspace) => workspace.summary.id);
     const binaries: BackupBinaryObject[] = [];
-    const sourceKeys = new Set([...referencedBinaryKeys(state), ...retainedBinaryObjectKeys]);
+    const unavailableHistoricalBinaries: string[] = [];
+    const currentKeys = new Set(referencedBinaryKeys(state));
+    const legacyKeys = new Set(legacyHistoricalImageObjectKeys);
+    const sourceKeys = new Set([...currentKeys, ...retainedBinaryObjectKeys]);
     for (const sourceKey of [...sourceKeys].sort()) {
       if (!isOwnedBinaryKey(state.ownerKey, workspaceIds, sourceKey) && !digestFromPdfBlobKey(sourceKey)) {
         throw new Error("Backup source key is outside owner scope");
       }
       const source = await this.env.PAPERS.head(sourceKey);
-      if (!source) throw new Error(`A referenced backup source is missing: ${sourceKey}`);
+      if (!source) {
+        if (!currentKeys.has(sourceKey) && legacyKeys.has(sourceKey)) {
+          unavailableHistoricalBinaries.push(sourceKey);
+          continue;
+        }
+        throw new Error(`A referenced backup source is missing: ${sourceKey}`);
+      }
       binaries.push({
         sourceKey,
         sourceEtag: source.etag,
@@ -419,7 +486,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         backupKey: await backupBlobKey(state.ownerKey, sourceKey, source.etag, source.size),
       });
     }
-    return binaries;
+    return { binaries, unavailableHistoricalBinaries };
   }
 
   async #ensureBinaryCopy(binary: BackupBinaryObject): Promise<void> {
@@ -446,18 +513,20 @@ export class BackupCoordinator extends DurableObject<Env> {
     checkedAt: string,
     backedUpAt: string | null,
     error: string | null,
+    unavailableHistoricalBinaries: readonly string[] = [],
   ): void {
     this.ctx.storage.sql.exec(
       `INSERT INTO backup_status
-       (owner_key, outcome, digest, manifest_key, last_checked_at, last_backed_up_at, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+       (owner_key, outcome, digest, manifest_key, last_checked_at, last_backed_up_at, error, unavailable_history_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(owner_key) DO UPDATE SET
          outcome = excluded.outcome,
          digest = excluded.digest,
          manifest_key = excluded.manifest_key,
          last_checked_at = excluded.last_checked_at,
          last_backed_up_at = excluded.last_backed_up_at,
-         error = excluded.error`,
+         error = excluded.error,
+         unavailable_history_json = excluded.unavailable_history_json`,
       ownerKey,
       outcome,
       digest,
@@ -465,6 +534,7 @@ export class BackupCoordinator extends DurableObject<Env> {
       checkedAt,
       backedUpAt,
       error,
+      JSON.stringify(unavailableHistoricalBinaries),
     );
   }
 
@@ -478,11 +548,12 @@ export class BackupCoordinator extends DurableObject<Env> {
     binariesChecked: number,
     reviewsChecked: number,
     error: string | null,
+    unavailableHistoricalBinaries: readonly string[] = [],
   ): void {
     this.ctx.storage.sql.exec(
       `INSERT INTO backup_drills
-       (owner_key, outcome, digest, manifest_key, recovery_identity, checked_at, binaries_checked, reviews_checked, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (owner_key, outcome, digest, manifest_key, recovery_identity, checked_at, binaries_checked, reviews_checked, error, unavailable_history_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(owner_key) DO UPDATE SET
          outcome = excluded.outcome,
          digest = excluded.digest,
@@ -491,7 +562,8 @@ export class BackupCoordinator extends DurableObject<Env> {
          checked_at = excluded.checked_at,
          binaries_checked = excluded.binaries_checked,
          reviews_checked = excluded.reviews_checked,
-         error = excluded.error`,
+         error = excluded.error,
+         unavailable_history_json = excluded.unavailable_history_json`,
       ownerKey,
       outcome,
       digest,
@@ -501,6 +573,7 @@ export class BackupCoordinator extends DurableObject<Env> {
       binariesChecked,
       reviewsChecked,
       error,
+      JSON.stringify(unavailableHistoricalBinaries),
     );
   }
 }
@@ -515,6 +588,7 @@ function statusFromRow(row: StatusRow): OwnerBackupStatus {
     lastCheckedAt: row.last_checked_at,
     lastBackedUpAt: row.last_backed_up_at,
     error: row.error,
+    unavailableHistoricalBinaries: historicalBinariesFromJson(row.unavailable_history_json),
   };
 }
 
@@ -527,6 +601,7 @@ function emptyStatus(ownerKey: string): OwnerBackupStatus {
     lastCheckedAt: null,
     lastBackedUpAt: null,
     error: null,
+    unavailableHistoricalBinaries: [],
   };
 }
 
@@ -541,6 +616,7 @@ function drillStatusFromRow(row: DrillRow): OwnerBackupDrillStatus {
     binariesChecked: row.binaries_checked,
     reviewsChecked: row.reviews_checked,
     error: row.error,
+    unavailableHistoricalBinaries: historicalBinariesFromJson(row.unavailable_history_json),
   };
 }
 
@@ -555,6 +631,7 @@ function emptyDrillStatus(ownerKey: string): OwnerBackupDrillStatus {
     binariesChecked: 0,
     reviewsChecked: 0,
     error: null,
+    unavailableHistoricalBinaries: [],
   };
 }
 
@@ -562,6 +639,18 @@ function normalizedOwnerKey(value: string): string {
   const ownerKey = value.trim().toLowerCase();
   if (!/^[a-f0-9]{64}$/u.test(ownerKey)) throw new Error("Backup owner key is invalid");
   return ownerKey;
+}
+
+function historicalGapsFromManifest(manifest: ParsedOwnerBackupManifest): readonly string[] {
+  return manifest.schemaVersion === ownerBackupSchemaVersion ? (manifest.state.unavailableHistoricalBinaries ?? []) : [];
+}
+
+function historicalBinariesFromJson(json: string): string[] {
+  const value: unknown = JSON.parse(json);
+  if (!Array.isArray(value) || !value.every((key): key is string => typeof key === "string")) {
+    throw new Error("Stored historical backup gaps are invalid");
+  }
+  return value;
 }
 
 function backupIdentity(owner: OwnerRow): AuthIdentity {
