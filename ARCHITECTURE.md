@@ -766,6 +766,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project-scoped image objects while revisions need them. Authorize downloads
   through current metadata, include historical binary keys in owner backups,
   and reclaim project-scoped objects only on permanent project deletion.
+- Preserve legacy history metadata when an image's bytes were lost before
+  retention was fixed. Back up current state with a digest-protected gap ledger
+  only for unavailable images referenced exclusively by revisions with canonical
+  UTC timestamps before `2026-07-31T00:00:00.000Z`. Require all current binaries,
+  newer or undated image
+  references or removal checkpoints, and PDFs; report legacy gaps in backup status, recovery drills,
+  and scheduled warnings. See
+  [ADR-244](docs/adrs/implemented/ADR-244-report-unavailable-legacy-history-images.md).
 - Store one immutable R2 PDF blob per verified SHA-256 digest across Libraries
   and projects. Keep Library artifact and project PDF identities separate; the
   digest-keyed Durable Object tracks their references, reconciles incomplete
@@ -2089,6 +2097,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Stryker's exit status and keep bounded affected runs capable of emitting
   individual mutant details.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
+- Pin the existing MCP client and SDK peers to patched versions with the
+  matching shared core while Agents declares vulnerable exact peer pins.
+  Keep the direct MCP server pin, validate the override through MCP tests and
+  native CI, and remove it when upstream accepts patched peers. See
+  [ADR-245](docs/adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md).
 - Keep `npm audit` as the full-tree runtime dependency gate and fail closed
   locally and on pushes to `main`. Pull-request CI may accept only an exhausted,
   recognized npm registry transport failure after the same job has passed

@@ -17,6 +17,7 @@ const createdStatus: OwnerBackupStatus = {
   lastCheckedAt: "2026-07-13T00:00:00.000Z",
   lastBackedUpAt: "2026-07-13T00:00:00.000Z",
   error: null,
+  unavailableHistoricalBinaries: [],
 };
 
 const verifiedDrill: OwnerBackupDrillStatus = {
@@ -29,9 +30,23 @@ const verifiedDrill: OwnerBackupDrillStatus = {
   binariesChecked: 2,
   reviewsChecked: 1,
   error: null,
+  unavailableHistoricalBinaries: [],
 };
 
 describe("backup API", () => {
+  it("exposes historical gaps in both backup and recovery status", async () => {
+    const gaps = ["workspace/assets/legacy-image"];
+    const coordinator = coordinatorApi();
+    coordinator.getStatus.mockResolvedValueOnce({ ...createdStatus, unavailableHistoricalBinaries: gaps });
+    coordinator.getRecoveryDrillStatus.mockResolvedValueOnce({ ...verifiedDrill, unavailableHistoricalBinaries: gaps });
+    const env = environment(coordinator);
+    for (const path of ["/api/backups", "/api/backups/drill"]) {
+      const response = await handleBackupApi(new Request(`https://write.kirjolab.test${path}`), env, identity);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ unavailableHistoricalBinaries: gaps, error: null });
+    }
+  });
+
   it("returns private owner status and starts an explicit backup", async () => {
     const coordinator = {
       getStatus: vi.fn(async () => createdStatus),

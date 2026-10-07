@@ -76,7 +76,14 @@ continues to use a narrow source revision for stale-selection checks.
   references them, current downloads authorize through active metadata, and
   permanent project deletion reclaims the complete project object prefix.
 - Owner backups include the R2 keys referenced by retained revisions even when
-  those binaries are absent from the current snapshot.
+  those binaries are absent from the current snapshot. Images physically deleted
+  before the retention fix may remain unavailable in legacy history. Only images
+  referenced exclusively by revisions with canonical UTC timestamps before
+  `2026-07-31T00:00:00.000Z` and absent from current state can be recorded as
+  explicit backup gaps; current references,
+  newer or undated history, later removal checkpoints, and PDFs still require their bytes. The
+  [production operations contract](../production-operations/spec.md) defines
+  gap reporting without pruning historical metadata.
 
 ### API Contracts
 
@@ -115,7 +122,8 @@ continues to use a narrow source revision for stale-selection checks.
 - Restore must preserve every older revision and milestone.
 - Deleted PDFs and images must return 404 from current resource routes, restore
   with their original bytes from an older revision, and remain covered by the
-  immutable backup binary ledger.
+  immutable backup binary ledger. This guarantee applies to retained bytes;
+  explicitly reported legacy image gaps cannot reconstruct lost bytes.
 - Seed must not inherit workspace membership or point research shares at the
   source workspace id.
 - Seeded and duplicated projects must own independent R2 objects for every

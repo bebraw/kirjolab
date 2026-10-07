@@ -16,8 +16,141 @@ import { builtInProjectTemplate } from "../domain/project/project-templates";
 import { defaultReviewProtocol } from "../domain/review/review-study";
 import { BackupCoordinator } from "./backup-coordinator";
 import { BackupRecovery } from "./backup-recovery";
+import { DocumentRoom } from "./document-room";
 
 describe("BackupCoordinator in the Workers runtime", () => {
+  it("backs up current state while explicitly recording a missing image from legacy-only history", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = "legacy-image-owner@example.test";
+    const workspaceId = crypto.randomUUID();
+    const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`legacy-image-${crypto.randomUUID()}`);
+    await env.WORKSPACE_CATALOGS.getByName(ownerKey).registerWorkspace(workspaceId, "Legacy image fixture");
+    await env.WORKSPACE_ACCESS.getByName(workspaceId).initializeOwner(ownerEmail);
+    await room.initializeWorkspace("Legacy image fixture");
+    const assetId = crypto.randomUUID();
+    const sourceKey = `${workspaceId}/assets/${assetId}`;
+    await room.registerProjectAsset(workspaceId, {
+      id: assetId,
+      path: "figures/legacy.png",
+      mediaType: "image/png",
+      size: 3,
+      objectKey: sourceKey,
+      fingerprint: "test:legacy-image",
+      createdAt: "2026-07-17T08:07:37.000Z",
+      updatedAt: "2026-07-17T08:07:37.000Z",
+    });
+    await room.deleteProjectAsset(workspaceId, assetId);
+    await runInDurableObject(room, (_instance: DocumentRoom, state) => {
+      state.storage.sql.exec("UPDATE project_revisions SET created_at = ?", "2026-07-17T08:31:51.000Z");
+    });
+    await coordinator.registerOwner(ownerKey, ownerEmail);
+
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await expect(coordinator.runScheduledBackups()).resolves.toEqual({
+        checked: 1,
+        created: 1,
+        unchanged: 0,
+        failed: 0,
+        truncated: false,
+        ownersWithHistoricalGaps: 1,
+      });
+      expect(warning).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(warning.mock.calls[0]?.[0]))).toEqual({
+        event: "backup-owner-history-gap",
+        ownerKey,
+        sourceKeys: [sourceKey],
+      });
+    } finally {
+      warning.mockRestore();
+    }
+    const created = await coordinator.getStatus(ownerKey);
+    expect(created).toMatchObject({ outcome: "created", error: null, unavailableHistoricalBinaries: [sourceKey] });
+    const object = await env.PAPERS.get(created.manifestKey!);
+    if (!object) throw new Error("Expected a backup manifest despite the historical gap");
+    const manifest = parseOwnerBackupManifest(await object.text());
+    expect(manifest.state).toMatchObject({ unavailableHistoricalBinaries: [sourceKey] });
+    expect(manifest.state.workspaces[0]?.snapshot.assets).toEqual([]);
+    expect(manifest.binaries).toEqual([]);
+    const artifacts = await backupArtifactCount(ownerKey);
+    await expect(coordinator.runOwnerBackup(ownerKey, ownerEmail)).resolves.toMatchObject({
+      outcome: "unchanged",
+      manifestKey: created.manifestKey,
+      unavailableHistoricalBinaries: [sourceKey],
+    });
+    expect(await backupArtifactCount(ownerKey)).toBe(artifacts);
+    await expect(coordinator.runRecoveryDrill(ownerKey)).resolves.toMatchObject({
+      outcome: "verified",
+      error: null,
+      binariesChecked: 0,
+      unavailableHistoricalBinaries: [sourceKey],
+    });
+
+    await env.PAPERS.put(sourceKey, "png");
+    const repaired = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
+    expect(repaired).toMatchObject({ outcome: "created", unavailableHistoricalBinaries: [] });
+    expect(repaired.digest).not.toBe(created.digest);
+    const repairedObject = await env.PAPERS.get(repaired.manifestKey!);
+    if (!repairedObject) throw new Error("Expected a repaired backup manifest");
+    const repairedManifest = parseOwnerBackupManifest(await repairedObject.text());
+    expect(repairedManifest.state).not.toHaveProperty("unavailableHistoricalBinaries");
+    expect(repairedManifest.binaries).toEqual([expect.objectContaining({ sourceKey, size: 3 })]);
+  });
+
+  it.each([
+    { lastReferencedAt: "2026-07-17T08:31:51.000Z", deleted: false, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "2026-07-31T00:00:00.000Z", deleted: true, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "2026-10-07T00:00:00.000Z", deleted: true, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "invalid", deleted: true, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "123", deleted: true, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "2026-02-31T00:00:00.000Z", deleted: true, mixedHistory: false, legacyReference: false },
+    { lastReferencedAt: "2026-10-07T00:00:00.000Z", deleted: true, mixedHistory: true, legacyReference: true },
+    { lastReferencedAt: "2026-10-07T00:00:00.000Z", deleted: true, mixedHistory: false, legacyReference: true },
+  ])(
+    "fails missing current images and newer or unclassifiable history: $lastReferencedAt, deleted=$deleted, mixed=$mixedHistory, legacy=$legacyReference",
+    async ({ lastReferencedAt, deleted, mixedHistory, legacyReference }) => {
+      const ownerKey = await sha256Hex(crypto.randomUUID());
+      const ownerEmail = "required-image-owner@example.test";
+      const workspaceId = crypto.randomUUID();
+      const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+      const coordinator = env.BACKUP_COORDINATOR.getByName(`required-image-${crypto.randomUUID()}`);
+      await env.WORKSPACE_CATALOGS.getByName(ownerKey).registerWorkspace(workspaceId, "Required image fixture");
+      await env.WORKSPACE_ACCESS.getByName(workspaceId).initializeOwner(ownerEmail);
+      await room.initializeWorkspace("Required image fixture");
+      const assetId = crypto.randomUUID();
+      const sourceKey = `${workspaceId}/assets/${assetId}`;
+      await room.registerProjectAsset(workspaceId, {
+        id: assetId,
+        path: "figures/required.png",
+        mediaType: "image/png",
+        size: 3,
+        objectKey: sourceKey,
+        fingerprint: "test:required-image",
+        createdAt: "2026-07-17T08:07:37.000Z",
+        updatedAt: "2026-07-17T08:07:37.000Z",
+      });
+      if (mixedHistory) await room.renameWorkspace("Later required image fixture");
+      if (deleted) await room.deleteProjectAsset(workspaceId, assetId);
+      await runInDurableObject(room, (_instance: DocumentRoom, state) => {
+        state.storage.sql.exec("UPDATE project_revisions SET created_at = ?", lastReferencedAt);
+        if (legacyReference) {
+          state.storage.sql.exec(
+            "UPDATE project_revisions SET created_at = ? WHERE revision = (SELECT MIN(revision) FROM project_revisions WHERE instr(snapshot_json, ?) > 0)",
+            "2026-07-17T08:31:51.000Z",
+            sourceKey,
+          );
+        }
+      });
+      await expect(coordinator.runOwnerBackup(ownerKey, ownerEmail)).resolves.toMatchObject({
+        outcome: "failed",
+        error: `A referenced backup source is missing: ${sourceKey}`,
+        unavailableHistoricalBinaries: [],
+      });
+      expect(await backupArtifactCount(ownerKey)).toBe(0);
+    },
+  );
+
   it("creates immutable owner backups only when state changes and reports source failures", async () => {
     const ownerKey = await sha256Hex(crypto.randomUUID());
     const ownerEmail = "owner@example.test";
@@ -252,6 +385,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
         unchanged: 0,
         failed: 1,
         truncated: false,
+        ownersWithHistoricalGaps: 0,
       });
       expect(errorLog).toHaveBeenCalledOnce();
       expect(JSON.parse(String(errorLog.mock.calls[0]?.[0]))).toEqual({
@@ -295,6 +429,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
       unchanged: 0,
       failed: 0,
       truncated: false,
+      ownersWithHistoricalGaps: 0,
     });
     const status = await coordinator.getStatus(ownerKey);
     expect(status).toMatchObject({ outcome: "created", error: null });
@@ -564,6 +699,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
       { version: 1, name: "create-backup-coordinator" },
       { version: 2, name: "record-isolated-recovery-drills" },
       { version: 3, name: "count-verified-review-recoveries" },
+      { version: 4, name: "report-unavailable-legacy-history-images" },
     ]);
   });
 });

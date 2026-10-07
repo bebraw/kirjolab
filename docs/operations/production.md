@@ -229,6 +229,20 @@ The daily Cron Trigger runs at 02:17 UTC and applies the same check to every
 registered hosted owner. A failed scheduled owner causes an error log rather
 than advancing its last known-good manifest.
 
+Both backup and drill status include `unavailableHistoricalBinaries`. An empty
+array means no legacy image gaps were recorded. A nonempty array identifies
+image bytes already lost before the July 31, 2026 retention fix: those keys are
+absent from current state and referenced only by revisions with canonical UTC
+timestamps before `2026-07-31T00:00:00.000Z`. Current data and available bytes are still backed up;
+the v3 manifest includes the same ledger in its digest. Scheduled logs emit
+`backup-owner-history-gap` warnings and count `ownersWithHistoricalGaps` instead
+of failing the owner for these legacy images. Missing current images, newer or
+undated historical references or removal checkpoints, and PDFs still fail the backup.
+
+To close a gap, recover the original image from an external copy and restore it
+at the reported source key. The next backup copies its bytes and clears the
+ledger. Preserve historical revisions; do not prune them to silence a warning.
+
 Current manifests use `kirjolab-owner-backup-v3`. Independent reviews are a
 top-level collection beside workspaces. Each entry retains its catalog record,
 ReviewAccess membership and complete project-link ledger, revision seed, and an
@@ -260,6 +274,10 @@ authority digests, and every pinned revision. The reported review count must
 equal the number of non-null top-level review payload references in the
 manifest. A missing, wrong-sized, non-canonical, out-of-owner-scope, or
 digest-mismatched payload fails the drill.
+
+A drill reporting `verified` with `unavailableHistoricalBinaries` verifies the
+logical manifest and included bytes. It cannot reconstruct the historical
+images listed in that ledger.
 
 The isolated identities are derived from the immutable manifest digest, so a
 repeated drill is idempotent for the same manifest. The drill never addresses
@@ -300,6 +318,18 @@ next-session and undo behavior in its
 [SQLite Durable Object PITR API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/#pitr-point-in-time-recovery-api).
 
 ## Versions and Rollback
+
+The October 7, 2026 legacy-image backup repair deployed as Worker version
+`0d810e2c-a763-43ec-a623-6086ff1e3aa2`, from the working tree based on commit
+`ddcdf74ac211f73b308f2d1a4209c65cef0264dd`. Its backup coordinator source SHA-256
+is `be250a7785eaf6654ac3dd29e9eb9a8e3c0629462a92dffd074f7f7bb1219b49`, and
+its document room source SHA-256 is
+`5ec8cc506ef71aabf37544aecafc1202ee16df6587f5aa393ef5df6068b7ab90`.
+An authenticated owner backup was created at `2026-10-07T06:43:41.288Z`, a repeat
+was unchanged, and the isolated drill verified 27 binaries and one review while
+reporting one unavailable legacy image. The strict production preflight and
+full native CI passed, with a temporary equivalent E2E port configuration
+because the companion occupied the default test port.
 
 Inspect releases:
 

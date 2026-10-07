@@ -1,6 +1,6 @@
 # ADR-090: Combine PITR with Change-Aware R2 Backups
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-244](./ADR-244-report-unavailable-legacy-history-images.md)
 
 **Date:** 2026-07-13
 

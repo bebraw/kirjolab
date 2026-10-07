@@ -63,8 +63,21 @@ not be operated under this production runbook or its recovery claims.
   referenced R2 object identities. It writes a new manifest only when that
   digest differs from the last successful backup.
 - Binary backup objects are immutable and content-addressed under a reserved
-  `backups/` prefix. A manifest is committed only after every referenced binary
-  is present in that prefix.
+  `backups/` prefix. A manifest is committed only after every required referenced
+  binary is present in that prefix. The sole exception is an unavailable image
+  referenced only by retained project revisions with canonical UTC timestamps
+  strictly before `2026-07-31T00:00:00.000Z`, when deletion still removed history bytes. Images
+  referenced by current state, any newer or undated revision, and all PDFs
+  remain required. Removal checkpoints must also establish that the image was
+  deleted before the cutoff; an old image deleted later remains required.
+  Logical history is preserved without rewriting references.
+- A v3 manifest with this exception includes a sorted, unique
+  `state.unavailableHistoricalBinaries` source-key ledger in its stable digest.
+  It is omitted when empty, preserving existing manifest digests. Owner backup
+  and recovery-drill status always return the ledger, including an empty array.
+  Restoring an original source object clears its gap and creates a complete
+  binary copy on the next run. See
+  [ADR-244](../../docs/adrs/implemented/ADR-244-report-unavailable-legacy-history-images.md).
 - Owner manifests use `kirjolab-owner-backup-v3`. Independent reviews are a
   top-level owner collection beside workspaces. Each entry retains its catalog
   record, independent access and link ledger, exact revision seed, and a
@@ -95,10 +108,21 @@ not be operated under this production runbook or its recovery claims.
   links, locators, and pinned revisions.
 - Backup payloads and logs never contain Access tokens. R2 paths use opaque
   owner keys rather than email addresses.
+- The production audit remains a blocking runtime dependency check. A narrow
+  npm override pins existing MCP client 2.2.0, SDK 1.31.0, and shared core
+  2.2.0 while Agents declares vulnerable exact peer pins; the direct server
+  remains 2.0.0. Validate MCP contracts, type checks, and native CI before
+  release, and remove the bridge once upstream accepts patched versions.
 - A scheduled owner failure emits one structured `backup-owner-failed` event
   with the opaque owner key and bounded failure reason, never the owner email.
   Missing referenced R2 sources include the exact source key in owner status
   and in that operator-facing event so repair can target the absent object.
+- A successful scheduled owner with unavailable legacy history images emits
+  `backup-owner-history-gap` with its opaque owner key and source-key ledger.
+  The scheduled summary counts `ownersWithHistoricalGaps`; these warnings do
+  not fail current-state backup. A verified recovery drill verifies the logical
+  manifest and included binaries while reporting the same gaps; it does not
+  claim to recover absent historical image bytes.
 
 ## Contract
 
@@ -122,7 +146,10 @@ not be operated under this production runbook or its recovery claims.
       missing source key without logging owner email or authentication data.
 - [x] An unchanged owner state produces no new manifest or binary write.
 - [x] A changed owner state produces one stable, versioned manifest after all
-      referenced binary backup objects are available.
+      required referenced binary backup objects are available.
+- [x] Missing images referenced only by pre-retention-fix history are recorded
+      explicitly in the manifest, status, drill, and scheduled warning, while
+      missing current images, newer history, and PDFs still fail the owner.
 - [x] Backup status is available only to the authenticated owner and is
       non-cacheable.
 - [x] Durable Object recovery bookmarks are included for every backed-up
@@ -196,6 +223,26 @@ not be operated under this production runbook or its recovery claims.
 - Then every referenced binary and review payload has an immutable
   content-addressed backup object and exactly one new manifest records the
   changed stable digest, payload references, and recovery bookmarks
+
+**Unavailable legacy historical image**
+
+- Given an image is absent from R2 and current state, and every retained revision
+  referencing it has a canonical UTC timestamp before `2026-07-31T00:00:00.000Z`
+- And its removal checkpoints have canonical UTC timestamps before that cutoff
+- When the scheduled trigger runs
+- Then current logical state and available binaries are backed up, the missing
+  image key is included in the manifest's digest-protected gap ledger and owner
+  status, and a structured warning reports the gap without failing the owner
+- And an unchanged run writes no new artifact, a recovery drill reports the
+  same unavailable bytes, and restoring the source clears the gap next run
+
+**Missing required binary**
+
+- Given a current image, any image referenced by a newer or undated revision,
+  or any PDF is absent from R2
+- When the owner backup runs
+- Then the owner fails with the exact source key and its previous successful
+  manifest remains authoritative
 
 **Fail-closed deployment**
 
