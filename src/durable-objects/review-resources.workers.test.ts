@@ -223,23 +223,22 @@ describe("ReviewAccess in the Workers runtime", () => {
     const target = env.REVIEW_ACCESS.getByName(`review-access-restore-${crypto.randomUUID()}`);
     const reviewId = crypto.randomUUID();
     const owner = await source.initializeOwner(reviewId, "owner@example.test");
-    await source.addMember(owner.email, "member@example.test");
+    const member = await source.addMember(owner.email, "member@example.test");
     const historical = await source.createProjectLink(owner.email, "project-history");
-    await source.unlinkProject(owner.email, historical.id);
-    await source.createProjectLink(owner.email, "project-active");
+    const unlinked = await source.unlinkProject(owner.email, historical.id);
+    const active = await source.createProjectLink(owner.email, "project-active");
 
     const backup = await source.getBackupSnapshot(owner.email);
-    expect(backup).toMatchObject({
+    expect(backup).toEqual({
       reviewId,
       legacySeededAt: null,
       deletedAt: null,
-      members: [owner, expect.objectContaining({ email: "member@example.test", role: "member" })],
-      projectLinks: [
-        expect.objectContaining({ workspaceId: "project-history", status: "unlinked" }),
-        expect.objectContaining({ workspaceId: "project-active", status: "active" }),
-      ],
+      members: [owner, member],
+      // Equal creation times are ordered by UUID, so insertion order is not guaranteed.
+      projectLinks: expect.arrayContaining([unlinked, active]),
       bookmark: null,
     });
+    expect(backup.projectLinks).toHaveLength(2);
 
     const { bookmark: _bookmark, ...state } = backup;
     await target.restoreBackupSnapshot(state);

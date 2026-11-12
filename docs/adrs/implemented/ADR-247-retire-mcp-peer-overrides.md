@@ -26,6 +26,16 @@ Upgrade Agents to 0.28.1 and the direct MCP server to 2.3.1. Remove the client,
 core, and SDK npm overrides; resolve client/core 2.3.1 and SDK 1.32.1 through
 the upstream dependency graph. Keep direct Zod at patched 4.6.7.
 
+**2026-11-12 dependency refresh:** Advance to Agents 0.33.0 and MCP server,
+client, and core 2.4.0 within the same peer-compatible policy. Agents declares
+the legacy SDK as an optional peer, so the regenerated lockfile omits it.
+The stateless `agents/mcp/server` integration does not need that SDK. Keep
+Zod at 4.6.7 and leave the three MCP overrides absent. The
+[Agents release notes](https://github.com/cloudflare/agents/releases/tag/agents%400.31.0)
+describe the optional peers; the
+[MCP 2.4.0 release notes](https://github.com/modelcontextprotocol/typescript-sdk/releases/tag/v2.4.0)
+describe the protocol changes covered by the existing verification boundary.
+
 Future Agents/MCP updates must satisfy declared peers and retain patched
 implementations. Regenerate the lockfile without forced installs, advisory
 suppression, or a lower audit threshold. Preserve unrelated security overrides

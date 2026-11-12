@@ -16,11 +16,22 @@ We will move the repo runtime baseline from Node 22 to Node 24 LTS.
 
 The template now uses:
 
-- `24.21.0` in `package.json#engines.node`
+- `24.22.1` in `package.json#engines.node`
 - the current Node 24 line of `@types/node`
 - `.nvmrc` as a convenience mirror for contributors who use `nvm`
 - the existing npm-based workflow and lockfile model
 - the same CI behavior, with `actions/setup-node` continuing to read the version from `package.json`
+
+**2026-11-12 deployment amendment:** Temporarily pin Node 24.22.1 with the
+user's approval after two Cloudflare builds failed during installation of
+24.22.3, before npm ran. The build environment already provided 24.22.1.
+The failure does not establish which installer or catalog caused the problem.
+The November 11 [24.22.3 security release](https://nodejs.org/en/blog/release/v24.22.3)
+remains deferred; the temporary pin does not include that release's security
+fixes. Keep the exact pin aligned across package metadata, `.nvmrc`, and the
+evaluation image. Revisit it when Cloudflare can install the security release
+and verify the native quality gate and hosted deployment before lifting the
+hold. The Node 24 and npm 11 policies are unchanged.
 
 ## Trigger
 

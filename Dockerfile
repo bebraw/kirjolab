@@ -1,4 +1,4 @@
-FROM node:24.21.0-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 
 ENV CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false \
     KIRJOLAB_BROWSER_SHELL_MODE=production \

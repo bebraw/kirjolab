@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { strToU8, zipSync } from "fflate";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { latexArchiveMaximumCompressedBytes } from "../domain/manuscript/latex-import";
 import {
   convertLatexProject,
@@ -20,6 +20,11 @@ const identity = {
 } satisfies AuthIdentity;
 
 describe("LaTeX import API in the Workers runtime", () => {
+  beforeAll(async () => {
+    // The first RPC loads the shared Worker module graph; keep that cold start in fixture setup.
+    await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces();
+  });
+
   it("previews without mutation and creates only the reviewed archive", async () => {
     const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);
     const workspacesBeforePreview = await catalog.listWorkspaces();

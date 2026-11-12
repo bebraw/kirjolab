@@ -44,8 +44,8 @@ test("keeps bare corpus deployment fail-closed and develops with both Worker con
 test("pins the supported stateless MCP runtime as direct dependencies", async () => {
   const packageJson = await readJson("package.json");
 
-  assert.equal(packageJson.dependencies?.agents, "0.28.1");
-  assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.3.1");
+  assert.equal(packageJson.dependencies?.agents, "0.33.0");
+  assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.4.0");
   assert.equal(packageJson.dependencies?.["@valibot/to-json-schema"], "1.8.0");
   assert.equal(packageJson.dependencies?.zod, "4.6.7");
   for (const name of ["@modelcontextprotocol/client", "@modelcontextprotocol/core", "@modelcontextprotocol/sdk"]) {

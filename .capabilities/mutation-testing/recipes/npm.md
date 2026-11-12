@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` and `.capabilities/quality-gate/` first 
 Add the mutation testing dependencies:
 
 ```bash
-npm install --save-dev @stryker-mutator/core@10.0.0 @stryker-mutator/typescript-checker@10.0.0 @stryker-mutator/vitest-runner@10.0.0
+npm install --save-dev @stryker-mutator/core@10.1.1 @stryker-mutator/typescript-checker@10.1.1 @stryker-mutator/vitest-runner@10.1.1
 ```
 
 Add or merge this script:

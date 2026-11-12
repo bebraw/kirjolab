@@ -4,7 +4,7 @@
 
 **Date:** 2026-08-17
 
-**Review by:** 2026-11-17
+**Bridge retired:** 2026-11-12
 
 **Amends:** [ADR-178](./ADR-178-queue-private-artifact-analysis.md)
 
@@ -66,6 +66,34 @@ The refreshed production audit passes, the deployment dry-run metadata excludes
 both `@puppeteer/browsers` and `extract-zip`, and a managed Browser Run smoke
 session verifies launch, request interception, page evaluation, and close.
 
+**2026-11-12 amendment:** Upgrade to `@cloudflare/puppeteer@2.0.0` and remove
+the version-qualified installer override. This completes the bridge review
+before its 2026-11-17 deadline. The
+[Cloudflare release](https://github.com/cloudflare/browser-run/releases/tag/cloudflare-puppeteer-v2.0.0)
+rebases the adapter on Puppeteer 25.10.0 and removes its `@puppeteer/browsers`
+dependency. The published package has no browser-installer or `extract-zip`
+runtime references, so an unsupported transitive replacement is no longer
+necessary.
+
+The existing adapter uses the supported `launch`, request-interception, page
+evaluation, and `close` APIs without source changes. Cloudflare's
+[Puppeteer guidance](https://developers.cloudflare.com/browser-run/puppeteer/)
+requires current generated `BrowserRun` binding types and Node.js compatibility;
+Wrangler 4.161.0 and the existing `nodejs_compat` flag satisfy those requirements.
+
+A temporary local Worker using the real Browser Run binding verified the
+production queue adapter against a synthetic two-page PDF. Both pages returned
+the expected native text, the message was acknowledged without retry or OCR,
+and the production interception helper fulfilled the exact PDF and worker URLs
+while aborting an unrecognized URL. Explicit browser close disconnected the
+client, and a bounded check confirmed removal from the active-session listing.
+The check did not deploy a Worker or access existing documents or storage.
+
+The production dependency audit reports zero vulnerabilities. Both Worker
+deployment dry runs pass; the main Worker bundle is 5,487.38 KiB uncompressed
+and 1,616.57 KiB gzipped. Full native CI also passes, including 188 Workers tests,
+99 browser tests, and 92.91% line coverage.
+
 ## Consequences
 
 **Positive:**
@@ -79,11 +107,9 @@ session verifies launch, request interception, page evaluation, and close.
 
 **Negative:**
 
-- Cloudflare pins browser-installer version 2.2.4, so replacing it with the
-  ESM-only version 3 line is not an upstream-supported dependency combination.
-- The safety argument depends on the installer remaining outside the Cloudflare
-  runtime entry. Package upgrades therefore require dependency-graph and bundle
-  inspection in addition to ordinary tests.
+- Future adapter upgrades still require dependency-graph and bundle inspection
+  to confirm that unused browser installers have not returned to the production
+  dependency graph or Worker runtime.
 - Local and E2E tests deliberately do not launch the managed browser, so a real
   Browser Run environment remains necessary to verify end-to-end compatibility.
 

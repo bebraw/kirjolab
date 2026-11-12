@@ -3,7 +3,7 @@
   "description": "Add local-only Playwright screenshot capture for README images.",
   "dependencies": {
     "dev": {
-      "@playwright/test": "1.59.1"
+      "@playwright/test": "1.65.0"
     }
   },
   "scripts": {
