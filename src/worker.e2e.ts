@@ -2030,9 +2030,13 @@ test("finds horizontal overflow with iPad layout diagnostics", async ({ browser 
   await expect(panel).toBeVisible();
   await expect(refresh).toBeVisible();
   await expect(copy).toBeVisible();
-  await refresh.click();
-  const initialStatus = await status.textContent();
-  if (!initialStatus) throw new Error("Layout diagnostic status is unavailable");
+  const initialStatus = "viewport 1194×834 · page x +0 / y +0 · offenders 0";
+  await expect
+    .poll(async () => {
+      await refresh.click();
+      return status.textContent();
+    })
+    .toBe(initialStatus);
 
   const initialContainment = await panel.evaluate((element) => {
     const panelBounds = element.getBoundingClientRect();
@@ -3503,6 +3507,18 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#library-highlight-status")).toContainText("touch gestures pan and zoom");
   const markupBox = await page.locator("#paper-markups").boundingBox();
   if (!markupBox) throw new Error("Expected a drawable PDF page");
+  let releaseFirstDrawingSave = (): void => undefined;
+  const firstDrawingSaveGate = new Promise<void>((resolve) => {
+    releaseFirstDrawingSave = resolve;
+  });
+  await page.route(
+    /\/api\/library\/references\/[^/]+\/pdf-markups$/u,
+    async (route) => {
+      await firstDrawingSaveGate;
+      await route.continue();
+    },
+    { times: 1 },
+  );
   await page.mouse.move(markupBox.x + markupBox.width * 0.25, markupBox.y + markupBox.height * 0.35);
   await page.mouse.down();
   const drawingTouch = await page.locator("#paper-markups").evaluate((layer) => {
@@ -3542,8 +3558,17 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-markups")).not.toHaveAttribute("data-drawing-active", "true");
   await expect(page.locator("#paper-markups")).toHaveAttribute("data-drawing-move-cancelled", "");
   await expect(page.locator("#paper-markups polyline")).toHaveCount(1);
-  await page.getByRole("button", { name: "Select", exact: true }).click();
-  await page.locator("#paper-markups polyline").dispatchEvent("pointerdown", { bubbles: true, pointerId: 73, pointerType: "mouse" });
+  try {
+    await expect(page.locator("#paper-markups polyline")).not.toHaveAttribute("data-markup-id");
+    await page.getByRole("button", { name: "Select", exact: true }).click();
+    await page.locator("#paper-markups polyline").dispatchEvent("pointerdown", { bubbles: true, pointerId: 73, pointerType: "mouse" });
+    await expect(page.locator("#library-markup-selection")).toBeHidden();
+  } finally {
+    releaseFirstDrawingSave();
+  }
+  const savedDrawing = page.locator("#paper-markups .pdf-ink-stroke[data-markup-id]");
+  await expect(savedDrawing).toHaveCount(1);
+  await savedDrawing.dispatchEvent("pointerdown", { bubbles: true, pointerId: 73, pointerType: "mouse" });
   await expect(page.locator("#library-markup-selection")).toContainText("Line on page 1");
   await page.locator("#library-selected-draw-color").fill("#116655");
   await page.locator("#library-selected-draw-width").fill("7");
