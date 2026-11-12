@@ -3,6 +3,21 @@ import { exampleRoutes } from "../app-routes";
 import { renderHomePage } from "./home";
 
 describe("renderHomePage", () => {
+  it("places the manuscript outline in right Context while retaining writing workflows in the left guide", () => {
+    const html = renderHomePage(exampleRoutes);
+    const guide = html.slice(html.indexOf('id="guide-rail-panel"'), html.indexOf('id="authoring-surface"'));
+    const context = html.slice(html.indexOf('id="context-surface"'));
+
+    expect(guide).toContain('id="research-question-panel"');
+    expect(guide).toContain('id="research-diary-panel"');
+    expect(guide).not.toContain('id="manuscript-map-panel"');
+    expect(context).toContain('id="context-outline-panel"');
+    expect(context).toContain('aria-labelledby="context-outline-tab"');
+    expect(context).toContain('id="context-outline-scroll"');
+    expect(context).toContain('id="manuscript-map-panel"');
+    expect(html.match(/id="manuscript-map-panel"/gu)).toHaveLength(1);
+  });
+
   it("renders the complete scholarly workspace shell", () => {
     const html = renderHomePage(exampleRoutes);
 
@@ -202,7 +217,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<export-statistics-panel class="mt-3" id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('class="context-tab-list ui-tab-list"');
-    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
+    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(4);
     expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(11);
     expect(html).toContain('id="open-github-import"');
     expect(html).toContain('id="github-import-dialog"');

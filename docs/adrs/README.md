@@ -33,6 +33,7 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-246](./implemented/ADR-246-place-live-outline-and-hints-in-context.md)               | Implemented          | Place the live manuscript outline and local hints in Context with opt-in transient paragraph-purpose analysis.  |
 | [ADR-245](./implemented/ADR-245-override-vulnerable-mcp-client-peers.md)                  | Implemented          | Override existing vulnerable MCP client peers without changing Agents or the direct MCP server.                 |
 | [ADR-244](./implemented/ADR-244-report-unavailable-legacy-history-images.md)              | Implemented          | Report unavailable pre-retention-fix historical images while backing up current owner state.                    |
 | [ADR-243](./implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)  | Implemented          | Create projects on a dedicated stepwise page and normalize bounded Markdown ZIPs into native metadata.          |
@@ -155,7 +156,7 @@ No accepted-but-unimplemented ADRs.
 | [ADR-036](./implemented/ADR-036-model-scholarly-work-as-hypermedia.md)                    | Implemented          | Model writing and working-memory entities as stable, typed hypermedia resources.                                |
 | [ADR-037](./implemented/ADR-037-synchronize-text-and-materialize-markdown.md)             | Implemented          | Synchronize text, ephemeral selections, durable comments, and recoverable Markdown.                             |
 | [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                      | Implemented          | Preserve PDFs and store annotations separately with geometric and textual selectors.                            |
-| [ADR-039](./implemented/ADR-039-require-reviewable-model-operations.md)                   | Implemented          | Route local-capable model work through provenance-aware candidate review and apply.                             |
+| [ADR-039](./implemented/ADR-039-require-reviewable-model-operations.md)                   | Partially superseded | Route local-capable model work through provenance-aware candidate review and apply.                             |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)         | Implemented          | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.                         |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                                | Implemented          | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.                    |
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                      | Partially superseded | Discover isolated document rooms through a separate SQLite catalog per owner identity.                          |

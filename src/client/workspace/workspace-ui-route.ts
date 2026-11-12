@@ -2,6 +2,7 @@ import {
   RESEARCH_ASSISTANT_KEY,
   RESEARCH_CHAPTER_NOTES_KEY,
   RESEARCH_LIBRARY_KEY,
+  RESEARCH_OUTLINE_KEY,
   RESEARCH_PREVIEW_KEY,
   type ResearchContextKey,
   type ResearchContextState,
@@ -74,7 +75,13 @@ export function workspaceUiRouteSelection(
 }
 
 export function researchTargetFromContextKey(key: ResearchContextKey): ResearchResourceTarget | null {
-  if (key === RESEARCH_PREVIEW_KEY || key === RESEARCH_CHAPTER_NOTES_KEY || key === RESEARCH_LIBRARY_KEY || key === RESEARCH_ASSISTANT_KEY)
+  if (
+    key === RESEARCH_PREVIEW_KEY ||
+    key === RESEARCH_OUTLINE_KEY ||
+    key === RESEARCH_CHAPTER_NOTES_KEY ||
+    key === RESEARCH_LIBRARY_KEY ||
+    key === RESEARCH_ASSISTANT_KEY
+  )
     return null;
   const separator = key.indexOf(":");
   const kind = key.slice(0, separator) as ResearchResourceKind;
@@ -84,6 +91,7 @@ export function researchTargetFromContextKey(key: ResearchContextKey): ResearchR
 function readContextKey(value: string | null): ResearchContextKey | null {
   if (
     value === RESEARCH_PREVIEW_KEY ||
+    value === RESEARCH_OUTLINE_KEY ||
     value === RESEARCH_CHAPTER_NOTES_KEY ||
     value === RESEARCH_LIBRARY_KEY ||
     value === RESEARCH_ASSISTANT_KEY

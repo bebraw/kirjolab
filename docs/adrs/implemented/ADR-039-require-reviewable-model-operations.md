@@ -1,6 +1,6 @@
 # ADR-039: Require Reviewable, Provenance-Aware Model Operations
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-246](./ADR-246-place-live-outline-and-hints-in-context.md)
 
 **Date:** 2026-07-10
 

@@ -31,13 +31,16 @@ describe("renderContextTabs", () => {
   it("renders the stable accessible tab and overview contracts", () => {
     const html = renderContextTabs();
 
-    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
+    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(4);
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain(
       'id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0"',
     );
     expect(html).toContain(
       'id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1"',
+    );
+    expect(html).toContain(
+      'id="context-outline-tab" type="button" role="tab" aria-controls="context-outline-panel" aria-selected="false" tabindex="-1"',
     );
     expect(html).toContain(
       'id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1"',
@@ -59,6 +62,14 @@ describe("renderContextTabs", () => {
     expect(html).toContain('id="toggle-paper-continuous" type="button" aria-pressed="false"');
     expect(html).toContain('id="paper-page-indicator"');
     expect(html).toContain('aria-label="PDF page number"');
+  });
+
+  it("keeps the manuscript outline out of standalone Library navigation", () => {
+    const html = renderContextTabs("library");
+
+    expect(html).not.toContain('id="context-outline-tab"');
+    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
+    expect(html).toContain('id="context-tab-overview-count">3</span>');
   });
 });
 

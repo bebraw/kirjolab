@@ -153,6 +153,36 @@ function sources(
 }
 
 describe("context tab strip", () => {
+  it("shows Outline & hints beside the editor and restores its scroll without opening a resource", () => {
+    const strip = new TestContextTabStrip();
+    strip.setTabs(sources("outline", [{ kind: "outline", key: "outline", scrollTop: 42 }]));
+
+    expect(strip.titlesForTest()).toEqual(["Outline & hints"]);
+    expect(strip.panels.get("context-outline-panel")?.hidden).toBe(false);
+    expect(strip.panels.get("context-outline-scroll")?.scrollTop).toBe(42);
+    expect(strip.fixedScrollTop("outline")).toBe(42);
+    expect(strip.panels.get("context-preview-panel")?.hidden).toBe(true);
+    expect(strip.panels.get("context-pdf-panel")?.hidden).toBe(true);
+    expect(strip.panels.get("preview-sync-controls")?.visible).toBe(false);
+  });
+
+  it("excludes the manuscript outline from standalone Library tab navigation", () => {
+    const strip = new TestContextTabStrip();
+    strip.setTabs(
+      sources(
+        "outline",
+        [
+          { kind: "outline", key: "outline", scrollTop: 0 },
+          { kind: "library", key: "library", scrollTop: 0 },
+        ],
+        { standaloneLibrary: true },
+      ),
+    );
+
+    expect(strip.titlesForTest()).toEqual(["Library"]);
+    expect(strip.panels.get("context-outline-panel")?.hidden).toBe(true);
+  });
+
   it("renders fixed and resource tab states", () => {
     const strip = new TestContextTabStrip();
     let replaced = false;
@@ -292,11 +322,12 @@ describe("context tab strip", () => {
 
     strip.activateForTest();
     strip.activateForTest("preview");
+    strip.activateForTest("outline");
     strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.activateForTest("assistant");
 
-    expect(actions).toEqual(["preview", "chapter-notes", "library", "assistant"]);
+    expect(actions).toEqual(["preview", "outline", "chapter-notes", "library", "assistant"]);
   });
 
   it("routes primary and child navigation through one boundary", () => {

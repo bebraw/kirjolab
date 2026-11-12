@@ -2583,6 +2583,9 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const libraryTab = page.getByRole("tab", { name: "Library", exact: true });
   await previewTab.focus();
   await previewTab.press("ArrowRight");
+  const outlineTab = page.getByRole("tab", { name: "Outline & hints" });
+  await expect(outlineTab).toBeFocused();
+  await outlineTab.press("ArrowRight");
   await expect(libraryTab).toBeFocused();
   await libraryTab.press("Enter");
   await expect(page.locator("#context-library-panel")).toBeVisible();
@@ -2603,12 +2606,12 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
 
-  await page.getByRole("tab", { name: "Writing guide" }).click();
+  await page.getByRole("tab", { name: "Outline & hints" }).click();
   await expect(page.locator("#manuscript-map-summary")).toContainText("words");
   await expect(page.locator("#manuscript-map-outline").getByRole("button").first()).toBeVisible();
   await page.locator("#editing-pass").selectOption("clarity");
   await expect(page.locator("#editing-pass-cue-count")).toHaveText(/^\d+$/u);
-  await page.locator("#manuscript-map-outline").getByRole("button").first().click();
+  await page.locator("#manuscript-map-outline .outline-heading").first().click();
   await expect(page.locator("#source-editor")).toBeFocused();
 
   await page.getByRole("tab", { name: "Files" }).click();
@@ -4662,7 +4665,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.getByRole("button", { name: `Close pdf:${delayedPdf.id}` })).toBeVisible();
   const contextOverview = page.locator("#context-tab-overview");
   await expect(contextOverview).toBeVisible();
-  await expect(page.locator("#context-tab-overview-count")).toHaveText("5");
+  await expect(page.locator("#context-tab-overview-count")).toHaveText("6");
   await contextOverview.locator("summary").click();
   await expect(page.locator("#context-tab-overview-list")).toContainText("Preview");
   await expect(page.locator("#context-tab-overview-list")).toContainText("The Normative Structure of Science");

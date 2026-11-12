@@ -1,4 +1,5 @@
 export const RESEARCH_PREVIEW_KEY = "preview" as const;
+export const RESEARCH_OUTLINE_KEY = "outline" as const;
 export const RESEARCH_CHAPTER_NOTES_KEY = "chapter-notes" as const;
 export const RESEARCH_LIBRARY_KEY = "library" as const;
 export const RESEARCH_ASSISTANT_KEY = "assistant" as const;
@@ -7,6 +8,7 @@ export type ResearchResourceKind = "publication" | "pdf" | "library-pdf" | "cand
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
 export type ResearchContextKey =
   | typeof RESEARCH_PREVIEW_KEY
+  | typeof RESEARCH_OUTLINE_KEY
   | typeof RESEARCH_CHAPTER_NOTES_KEY
   | typeof RESEARCH_LIBRARY_KEY
   | typeof RESEARCH_ASSISTANT_KEY
@@ -26,6 +28,12 @@ export interface PreviewResearchTab {
 export interface ChapterNotesResearchTab {
   readonly kind: "chapter-notes";
   readonly key: typeof RESEARCH_CHAPTER_NOTES_KEY;
+  readonly scrollTop: number;
+}
+
+export interface OutlineResearchTab {
+  readonly kind: "outline";
+  readonly key: typeof RESEARCH_OUTLINE_KEY;
   readonly scrollTop: number;
 }
 
@@ -63,11 +71,11 @@ export interface PdfResearchTab extends ResourceResearchTab {
 
 export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab | CandidateResearchTab;
 export type ResearchContextTab =
-  PreviewResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab | ResearchResourceTab;
+  PreviewResearchTab | OutlineResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab | ResearchResourceTab;
 
 export interface ResearchContextState {
   readonly activeKey: ResearchContextKey;
-  /** Preview, Chapter notes, Library, and Writing assistant are always first, followed by resources in open order. */
+  /** Permanent writing and research destinations precede resources in open order. */
   readonly tabs: readonly ResearchContextTab[];
 }
 
@@ -88,6 +96,7 @@ export function createResearchContext(): ResearchContextState {
     activeKey: RESEARCH_PREVIEW_KEY,
     tabs: [
       { kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 },
+      { kind: "outline", key: RESEARCH_OUTLINE_KEY, scrollTop: 0 },
       { kind: "chapter-notes", key: RESEARCH_CHAPTER_NOTES_KEY, scrollTop: 0 },
       { kind: "library", key: RESEARCH_LIBRARY_KEY, scrollTop: 0 },
       { kind: "assistant", key: RESEARCH_ASSISTANT_KEY, scrollTop: 0 },
@@ -194,6 +203,8 @@ function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAut
 
 export function isPermanentResearchTab(
   tab: ResearchContextTab,
-): tab is PreviewResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab {
-  return tab.kind === "preview" || tab.kind === "chapter-notes" || tab.kind === "library" || tab.kind === "assistant";
+): tab is PreviewResearchTab | OutlineResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab {
+  return (
+    tab.kind === "preview" || tab.kind === "outline" || tab.kind === "chapter-notes" || tab.kind === "library" || tab.kind === "assistant"
+  );
 }

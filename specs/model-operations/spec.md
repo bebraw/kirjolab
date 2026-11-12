@@ -11,6 +11,10 @@ ideation, reference discovery, and structured syntax exposed through the same
 operation framework as their contracts land. All mutation operations preserve
 a human review boundary.
 
+The manuscript guide also supports transient, non-mutating paragraph-purpose
+analysis after session opt-in. Its output describes current prose and offers
+advisory hints; it has no candidate creation or apply action.
+
 ### Architecture
 
 - One typed registry defines every assistant operation's presentation, target
@@ -52,6 +56,26 @@ a human review boundary.
   references before provider I/O.
 - A provider-neutral browser contract isolates operation semantics from the
   initial OpenAI-compatible HTTP adapter.
+- `analyzeParagraph` is a separate observational capability used by
+  [Outline & hints](../manuscript-map/spec.md), under
+  [ADR-246](../../docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md).
+  It reuses the configured provider and connection settings, including existing
+  companion paths. It accepts the active paragraph (at most 8,000 characters),
+  section title (500), and previous and next paragraphs (2,000 each); it never
+  sends a whole document or unrelated research resources.
+- Paragraph analysis returns only a tentative purpose of at most 400 characters
+  or `null`, and zero to three distinct hints of at most 600 characters each.
+  The adapter validates this response and retains provider/model identity.
+  Empty hints and an unclear purpose are valid; replacement prose is not an
+  accepted analysis field.
+- A disposable guide-owned scheduler waits 1.5 seconds after active paragraph
+  or supplied context changes. Requests require session opt-in, a visible
+  guide, a supported prose target, and an available provider, and pause during
+  input-method composition. Editing and the local outline remain available.
+  Captured target, context, and provider changes abort or supersede old work;
+  late completions cannot overwrite current feedback. Results distinguish
+  pending, current, stale, unclear, failed, and unavailable states. Enablement,
+  results, and retries write neither candidates nor canonical project state.
 - `clarity-drill` first returns one bounded ambiguity and one focused question.
   Only after the researcher answers does a second typed request return two to
   four bounded passage rewrites with short rationales. The drill is transient;
@@ -310,6 +334,10 @@ a human review boundary.
 - [x] A researcher can choose a rhetorical purpose, compare three to five
       contextual phrasing alternatives, and promote one into exact candidate
       review without directly changing the manuscript.
+- [x] A researcher can enable automatic paragraph-purpose analysis for the
+      current session and receive bounded advisory hints after a typing pause.
+- [x] Hidden or composing views suspend guide analysis, and edits, context
+      changes, and changed provider settings discard obsolete results.
 
 ### Regression Guardrails
 
@@ -331,6 +359,9 @@ a human review boundary.
 - Apply and accepted status persist atomically and preserve surrounding Yjs
   identities through a range-only splice.
 - Provider errors and candidate rejection leave canonical Markdown unchanged.
+- Paragraph analysis remains observational: it cannot create candidates, alter
+  manuscript text, supply evidence judgments, or bypass explicit review for a
+  later revision. Its prompt treats manuscript context as untrusted data.
 - Assistant generation and candidate decisions are mutually exclusive machine
   states; stale, failed, or superseded transient results cannot continue their
   prior operation.

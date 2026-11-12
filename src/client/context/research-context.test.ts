@@ -8,6 +8,7 @@ import {
   RESEARCH_CHAPTER_NOTES_KEY,
   RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
+  RESEARCH_OUTLINE_KEY,
   reconcileResearchContext,
   researchResourceKey,
   setPdfResearchLocation,
@@ -15,11 +16,22 @@ import {
 } from "./research-context";
 
 describe("research context", () => {
-  it("starts with permanent Preview, Chapter notes, Library, and Writing assistant tabs", () => {
+  it("keeps Outline & hints available with its own reading position", () => {
+    const selected = activateResearchTab(createResearchContext(), "outline");
+    const scrolled = setResearchTabScroll(selected, "outline", 42);
+    const returned = activateResearchTab(activateResearchTab(scrolled, "preview"), "outline");
+
+    expect(returned.activeKey).toBe("outline");
+    expect(returned.tabs.find((tab) => tab.key === "outline")).toEqual({ kind: "outline", key: "outline", scrollTop: 42 });
+    expect(closeResearchTab(returned, "outline")).toBe(returned);
+  });
+
+  it("starts with permanent Preview, Outline, Chapter notes, Library, and Writing assistant tabs", () => {
     expect(createResearchContext()).toEqual({
       activeKey: RESEARCH_PREVIEW_KEY,
       tabs: [
         { kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 },
+        { kind: "outline", key: RESEARCH_OUTLINE_KEY, scrollTop: 0 },
         { kind: "chapter-notes", key: RESEARCH_CHAPTER_NOTES_KEY, scrollTop: 0 },
         { kind: "library", key: RESEARCH_LIBRARY_KEY, scrollTop: 0 },
         { kind: "assistant", key: RESEARCH_ASSISTANT_KEY, scrollTop: 0 },
@@ -35,7 +47,7 @@ describe("research context", () => {
     const pdf = openResearchResource(initial, { kind: "pdf", id: "pdf-1" });
     const publication = openResearchResource(pdf, { kind: "publication", id: "publication-1" });
 
-    expect(initial.tabs).toHaveLength(4);
+    expect(initial.tabs).toHaveLength(5);
     expect(pdf).toEqual({
       activeKey: "pdf:pdf-1",
       tabs: [
@@ -52,6 +64,7 @@ describe("research context", () => {
     });
     expect(publication.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -68,6 +81,7 @@ describe("research context", () => {
 
     expect(state.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -100,6 +114,7 @@ describe("research context", () => {
     expect(duplicate).toBe(opened);
     expect(followed.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -116,6 +131,7 @@ describe("research context", () => {
 
     expect(state.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -127,6 +143,7 @@ describe("research context", () => {
     const extended = openResearchResource(state, { kind: "publication", id: "replacement" });
     expect(extended.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -144,7 +161,7 @@ describe("research context", () => {
     const closed = closeResearchTab(state, "candidate:candidate-1");
 
     expect(closed.activeKey).toBe("pdf:first");
-    expect(closed.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant", "pdf:first"]);
+    expect(closed.tabs.map((tab) => tab.key)).toEqual(["preview", "outline", "chapter-notes", "library", "assistant", "pdf:first"]);
   });
 
   it("activates an existing tab without resetting its reading state", () => {
@@ -171,15 +188,15 @@ describe("research context", () => {
     const activeClosed = closeResearchTab(state, "publication:second");
 
     expect(activeClosed.activeKey).toBe("pdf:first");
-    expect(activeClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant", "pdf:first"]);
+    expect(activeClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "outline", "chapter-notes", "library", "assistant", "pdf:first"]);
 
     const firstResourceClosed = closeResearchTab(activeClosed, "pdf:first");
     expect(firstResourceClosed.activeKey).toBe("assistant");
-    expect(firstResourceClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant"]);
+    expect(firstResourceClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "outline", "chapter-notes", "library", "assistant"]);
 
     const inactiveClosed = closeResearchTab(activateResearchTab(activeClosed, "preview"), "pdf:first");
     expect(inactiveClosed.activeKey).toBe("preview");
-    expect(inactiveClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant"]);
+    expect(inactiveClosed.tabs.map((tab) => tab.key)).toEqual(["preview", "outline", "chapter-notes", "library", "assistant"]);
     expect(closeResearchTab(inactiveClosed, "preview")).toBe(inactiveClosed);
     expect(closeResearchTab(inactiveClosed, "chapter-notes")).toBe(inactiveClosed);
     expect(closeResearchTab(inactiveClosed, "library")).toBe(inactiveClosed);
@@ -211,11 +228,11 @@ describe("research context", () => {
     const nonFiniteScroll = setResearchTabScroll(scrolled, "pdf:pdf-1", Number.POSITIVE_INFINITY);
     const withPublication = openResearchResource(located, { kind: "publication", id: "publication-1" });
 
-    expect(initial.tabs[4]).toMatchObject({ page: 1, focusedAnnotationId: null });
-    expect(located.tabs[4]).toMatchObject({ page: 4, focusedAnnotationId: "annotation-1" });
-    expect(cleared.tabs[4]).toMatchObject({ page: 4, focusedAnnotationId: null });
-    expect(resetPage.tabs[4]).toMatchObject({ page: 1, focusedAnnotationId: null });
-    expect(nonFiniteScroll.tabs[4]).toMatchObject({ scrollTop: 0 });
+    expect(initial.tabs[5]).toMatchObject({ page: 1, focusedAnnotationId: null });
+    expect(located.tabs[5]).toMatchObject({ page: 4, focusedAnnotationId: "annotation-1" });
+    expect(cleared.tabs[5]).toMatchObject({ page: 4, focusedAnnotationId: null });
+    expect(resetPage.tabs[5]).toMatchObject({ page: 1, focusedAnnotationId: null });
+    expect(nonFiniteScroll.tabs[5]).toMatchObject({ scrollTop: 0 });
     expect(setPdfResearchLocation(located, "pdf:pdf-1", { page: 4.2 })).toBe(located);
     expect(setPdfResearchLocation(located, "publication:missing", { page: 2 })).toBe(located);
     expect(setPdfResearchLocation(withPublication, "publication:publication-1", { page: 2 })).toBe(withPublication);
@@ -237,6 +254,7 @@ describe("research context", () => {
     expect(reconciled.activeKey).toBe("preview");
     expect(reconciled.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -265,7 +283,14 @@ describe("research context", () => {
     });
 
     expect(reconciled.activeKey).toBe("pdf:allowed-pdf");
-    expect(reconciled.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant", "pdf:allowed-pdf"]);
+    expect(reconciled.tabs.map((tab) => tab.key)).toEqual([
+      "preview",
+      "outline",
+      "chapter-notes",
+      "library",
+      "assistant",
+      "pdf:allowed-pdf",
+    ]);
   });
 
   it("reconciles candidate tabs against their own authorized ids", () => {
@@ -282,6 +307,7 @@ describe("research context", () => {
     expect(activeRevoked.activeKey).toBe("preview");
     expect(activeRevoked.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -297,6 +323,7 @@ describe("research context", () => {
     expect(activeAllowed.activeKey).toBe("candidate:allowed-candidate");
     expect(activeAllowed.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -311,6 +338,7 @@ describe("research context", () => {
 
     expect(state.tabs.map((tab) => tab.key)).toEqual([
       "preview",
+      "outline",
       "chapter-notes",
       "library",
       "assistant",
@@ -326,6 +354,13 @@ describe("research context", () => {
       candidateIds: new Set(),
     });
     expect(reconciled.activeKey).toBe("library-pdf:shared-id");
-    expect(reconciled.tabs.map((tab) => tab.key)).toEqual(["preview", "chapter-notes", "library", "assistant", "library-pdf:shared-id"]);
+    expect(reconciled.tabs.map((tab) => tab.key)).toEqual([
+      "preview",
+      "outline",
+      "chapter-notes",
+      "library",
+      "assistant",
+      "library-pdf:shared-id",
+    ]);
   });
 });

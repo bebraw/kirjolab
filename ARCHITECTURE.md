@@ -434,14 +434,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and subscribe once to document-wide Yjs updates with disconnect teardown so
   every collaborative file change schedules one canonical project render. Let
   it also derive
-  synchronized status and source-map sibling projection, manuscript-map and
-  live export-statistics companion
+  synchronized status and source-map sibling projection, live export-statistics companion
   projection, and available-outcome projection of a supplied anchor-resolved
   workspace into research companions from the same project render outcome,
   transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents directly through the sync, Context, and
-  project-file owners already supplied by its project binding. Do not repeat
+  project-file owners already supplied by its project binding. Request a live
+  manuscript-map refresh alongside that presentation; its owner rereads current
+  files instead of adopting a potentially stale Preview render source. Do not repeat
   those owners in a second navigation callback bag or repeat the project
   snapshot as a separate callback. Keep
   canonical project-file, snapshot, and Yjs authority, publication resolution,
@@ -1930,10 +1931,29 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source plus research-diary, research-question, and reviewer-response sibling
   projections from one canonical file set. Let it retain that composition's
   source map and translate guide selections into file-qualified editor ranges.
+  Supply the canonical Yjs document through that application binding and let
+  the map subscribe directly to updates with disconnect teardown, independently
+  of Preview completion. Rebuild its cached structure only when composed source
+  changes; caret movement selects within the cache without recomposing. Preserve
+  original UTF-16 offsets, including CRLF source, through local analysis and
+  composition mapping.
   Keep general URL synchronization in the workspace coordinator; let the
   project-file dialog own source-range focus and reveal effects, workflow-file
   creation, existing-file focus, created-file Guide navigation, and Files-rail
   quick-open sequencing through its bound owners and narrow layout capability.
+- Host the live manuscript outline and writing hints in the existing right
+  Context pane, retaining the left Guide's research workflows. Derive the
+  collapsible heading/paragraph tree and editing-pass cues locally; retain
+  precise file-qualified source ranges and separate caret targeting from
+  viewport reading position. Keep all outline state disposable and preserve
+  the native editor and existing responsive surface ownership.
+  After session opt-in, permit only active-paragraph interpretation through the
+  existing provider settings with bounded heading/neighbor context and a
+  typing-pause scheduler. Suspend hidden/composing work and discard results
+  superseded by source, context, or provider changes. These observations create
+  no candidate and have no apply action; all proposed canonical changes retain
+  their existing review boundary. See
+  [ADR-246](docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md).
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

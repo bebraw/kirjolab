@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runEditingPass } from "./editing-passes";
+import { runEditingPass, type EditingPass } from "./editing-passes";
 
 const words = (count: number) => Array.from({ length: count }, () => "word").join(" ");
 
@@ -78,4 +78,16 @@ describe("purposeful editing passes", () => {
       expect.objectContaining({ message: "Review whether this paragraph should be divided", detail: "251 paragraph words" }),
     ]);
   });
+
+  it.each<EditingPass>(["structure", "order", "clarity", "evidence", "length"])(
+    "preserves literal CRLF source targets for the %s pass",
+    (pass) => {
+      const paragraph = `This study found ${words(248)}.`;
+      const methods = `## Methods\r\n\r\n${paragraph}`;
+      const source = `## Results\r\n\r\nResult prose.\r\n\r\n${methods}`;
+      const expected = pass === "order" ? [methods] : pass === "clarity" ? [paragraph, paragraph] : [paragraph];
+
+      expect(runEditingPass(source, pass).map(({ from, to }) => source.slice(from, to))).toEqual(expected);
+    },
+  );
 });

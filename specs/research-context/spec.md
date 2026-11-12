@@ -11,7 +11,7 @@ component with an unrelated PDF workflow elsewhere.
 
 The feature implements the interface boundary chosen in ADR-053 and extended by
 ADR-055, ADR-056, ADR-071, ADR-073, and ADR-081. It hosts semantic preview, the
-owner-private reference library, the selected-passage Writing assistant,
+owner-private reference library, Outline & hints, the selected-passage Writing assistant,
 publication/PDF research resources, and grounded-revision review without
 changing their canonical data, selector, authorization, or rendering contracts.
 
@@ -24,12 +24,22 @@ changing their canonical data, selector, authorization, or rendering contracts.
   initial mode; Research presents bounded collapsible project collections
   rather than duplicating the permanent private Library destination.
 - The context tab model uses a discriminated target keyed by stable identity:
-  the singleton manuscript Preview, singleton owner Library, singleton Writing
-  assistant, a publication UUID, a workspace PDF UUID, a private library PDF
+  the singleton manuscript Preview, singleton Outline & hints, singleton Chapter
+  notes, singleton owner Library, singleton Writing assistant, a publication UUID, a workspace PDF UUID, a private library PDF
   UUID, or a model-candidate UUID. One target can have at most one open tab.
-- Preview is the initial permanent tab, followed by Library and Writing
-  assistant. None can be closed or replaced, and each retains its own scroll
-  position when another context becomes active.
+- Preview is the initial permanent tab, followed by Outline & hints, Chapter
+  notes when available, Library, and Writing assistant. None can be closed or
+  replaced, and each retains its own scroll position when another context
+  becomes active.
+- Outline & hints uses the `outline` route key and the existing Context panel
+  lifecycle. It shows the composed manuscript tree, current-passage local cues,
+  and optional transient paragraph interpretation. Selecting another tab
+  suspends its model requests; selecting the guide never enables AI by itself.
+  It is absent from standalone Library navigation. The existing left Guide
+  retains research questions, diary, and reviewer-response workflows. Preview
+  and the outline share Context and are not displayed simultaneously. See
+  [manuscript map](../manuscript-map/spec.md) and
+  [ADR-246](../../docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md).
 - In standalone Library mode, the permanent Library tab remains the active
   logical destination, but its visual label is omitted because primary
   navigation already identifies Library. Open private-resource tabs and resource
@@ -467,6 +477,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] The right-hand preview becomes a tabbed context pane with a permanent
       Preview tab, permanent Library tab, permanent Writing assistant tab, and
       resource-keyed publication/PDF tabs.
+- [x] Outline & hints is a permanent project Context destination with stable
+      route restoration, independent scroll, and keyboard access, while
+      standalone Library excludes it.
 - [x] Library browsing and management remain beside authoring without a modal
       covering the workspace.
 - [x] Opening the same publication, PDF, or annotation twice focuses one
