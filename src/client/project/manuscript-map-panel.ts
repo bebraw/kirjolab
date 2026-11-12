@@ -7,6 +7,7 @@ import {
   buildManuscriptOutline,
   type ManuscriptOutlineItem,
   type ManuscriptOutlineParagraph,
+  type ManuscriptOutlineSection,
 } from "../../domain/manuscript/manuscript-map";
 import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../../domain/project/project-files";
 import { LightDomElement } from "../platform/light-dom-controller";
@@ -259,64 +260,68 @@ export class ManuscriptMapPanel extends LightDomElement {
   }
 
   private renderItems(items: readonly ManuscriptOutlineItem[], activeParagraph: ManuscriptOutlineParagraph | undefined): TemplateResult[] {
-    return items.map((item) => {
-      if (item.kind === "section") {
-        const key = this.sectionKeys.get(item.from) ?? "";
-        const collapsed = this.collapsed.has(key);
-        const active = this.activeOffset !== null && item.from <= this.activeOffset && this.activeOffset < item.to;
-        const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset < item.to;
-        return html`<li>
-          <div class="outline-heading-row">
-            <button
-              class="outline-toggle"
-              type="button"
-              aria-label=${`${collapsed ? "Expand" : "Collapse"} ${item.title}`}
-              aria-expanded=${String(!collapsed)}
-              data-heading-key=${key}
-              @click=${this.toggleSection}
-            >
-              ${collapsed ? "▸" : "▾"}
-            </button>
-            <button
-              class="outline-heading"
-              type="button"
-              aria-pressed=${String(active && !activeParagraph)}
-              aria-current=${ifDefined(reading ? "location" : undefined)}
-              data-range-from=${item.from}
-              data-range-to=${item.headingTo}
-              ?disabled=${this.composing}
-              @click=${this.selectRange}
-            >
-              <span>${item.title}</span><small title="Words including subsections">${item.subtreeWords}w</small>
-            </button>
-          </div>
-          ${
-            collapsed
-              ? nothing
-              : html`<ol>
-                  ${this.renderItems(item.children, activeParagraph)}
-                </ol>`
-          }
-        </li>`;
-      }
-      const active = activeParagraph === item;
-      const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset <= item.to;
-      return html`<li>
+    return items.map((item) =>
+      item.kind === "section" ? this.renderSection(item, activeParagraph) : this.renderParagraph(item, activeParagraph === item),
+    );
+  }
+
+  private renderSection(item: ManuscriptOutlineSection, activeParagraph: ManuscriptOutlineParagraph | undefined): TemplateResult {
+    const key = this.sectionKeys.get(item.from) ?? "";
+    const collapsed = this.collapsed.has(key);
+    const active = this.activeOffset !== null && item.from <= this.activeOffset && this.activeOffset < item.to;
+    const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset < item.to;
+    return html`<li>
+      <div class="outline-heading-row">
         <button
-          class="outline-paragraph"
+          class="outline-toggle"
           type="button"
-          aria-pressed=${String(active)}
+          aria-label=${`${collapsed ? "Expand" : "Collapse"} ${item.title}`}
+          aria-expanded=${String(!collapsed)}
+          data-heading-key=${key}
+          @click=${this.toggleSection}
+        >
+          ${collapsed ? "▸" : "▾"}
+        </button>
+        <button
+          class="outline-heading"
+          type="button"
+          aria-pressed=${String(active && !activeParagraph)}
           aria-current=${ifDefined(reading ? "location" : undefined)}
           data-range-from=${item.from}
-          data-range-to=${item.to}
+          data-range-to=${item.headingTo}
           ?disabled=${this.composing}
           @click=${this.selectRange}
         >
-          <small>Paragraph ${this.paragraphNumbers.get(item.from)}</small
-          ><span>${item.text.slice(0, 110)}${item.text.length > 110 ? "…" : ""}</span>
+          <span>${item.title}</span><small title="Words including subsections">${item.subtreeWords}w</small>
         </button>
-      </li>`;
-    });
+      </div>
+      ${
+        collapsed
+          ? nothing
+          : html`<ol>
+              ${this.renderItems(item.children, activeParagraph)}
+            </ol>`
+      }
+    </li>`;
+  }
+
+  private renderParagraph(item: ManuscriptOutlineParagraph, active: boolean): TemplateResult {
+    const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset <= item.to;
+    return html`<li>
+      <button
+        class="outline-paragraph"
+        type="button"
+        aria-pressed=${String(active)}
+        aria-current=${ifDefined(reading ? "location" : undefined)}
+        data-range-from=${item.from}
+        data-range-to=${item.to}
+        ?disabled=${this.composing}
+        @click=${this.selectRange}
+      >
+        <small>Paragraph ${this.paragraphNumbers.get(item.from)}</small
+        ><span>${item.text.slice(0, 110)}${item.text.length > 110 ? "…" : ""}</span>
+      </button>
+    </li>`;
   }
 
   private renderAnalysis(): TemplateResult {

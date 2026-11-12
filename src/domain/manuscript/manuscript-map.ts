@@ -61,6 +61,11 @@ interface OutlineBranch extends ManuscriptOutlineSection {
   children: ManuscriptOutlineItem[];
 }
 
+interface CodeFence {
+  readonly marker: string;
+  readonly length: number;
+}
+
 const headingPattern = /^(#{1,6})[ \t]+(.+?)[ \t]*$/u;
 const citationPattern = /(?<!:):cite\[[^\]]+\](?:\{[^}]*\})?/giu;
 const placeholderPattern = /\b(?:TODO|TBD|FIXME)\b|\?\?\?/giu;
@@ -155,6 +160,18 @@ export function buildManuscriptOutline(source: string): ManuscriptOutline {
     };
   });
   const paragraphs: ManuscriptOutlineParagraph[] = manuscriptParagraphs(source).map((paragraph) => ({ ...paragraph, kind: "paragraph" }));
+  const items = nestOutlineItems(sections, paragraphs);
+  for (const section of [...sections].reverse()) {
+    for (const child of section.children) {
+      if (child.kind !== "section") continue;
+      section.subtreeWords += child.subtreeWords;
+      section.subtreeCitations += child.subtreeCitations;
+    }
+  }
+  return { items, sections, paragraphs };
+}
+
+function nestOutlineItems(sections: readonly OutlineBranch[], paragraphs: readonly ManuscriptOutlineParagraph[]): ManuscriptOutlineItem[] {
   const items: ManuscriptOutlineItem[] = [];
   const ancestors: OutlineBranch[] = [];
   const ordered: Array<OutlineBranch | ManuscriptOutlineParagraph> = [...sections, ...paragraphs].sort(
@@ -169,20 +186,13 @@ export function buildManuscriptOutline(source: string): ManuscriptOutline {
     (ancestors[ancestors.length - 1]?.children ?? items).push(item);
     if (item.kind === "section") ancestors.push(item);
   }
-  for (const section of [...sections].reverse()) {
-    for (const child of section.children) {
-      if (child.kind !== "section") continue;
-      section.subtreeWords += child.subtreeWords;
-      section.subtreeCitations += child.subtreeCitations;
-    }
-  }
-  return { items, sections, paragraphs };
+  return items;
 }
 
 function maskNonProse(source: string): string {
   const characters = source.split("");
   const lines = linesWithOffsets(source);
-  let fenced: { marker: string; length: number } | null = null;
+  let fenced: CodeFence | null = null;
   const firstLine = lines[0]?.text.trim();
   let frontmatter = firstLine === "---" || firstLine === "+++" ? firstLine : null;
   for (const [index, line] of lines.entries()) {
@@ -191,13 +201,18 @@ function maskNonProse(source: string): string {
     if (fenced || fence || frontmatter || isPublicationReferenceDeclaration(line.text)) {
       maskRange(characters, line.from, line.to);
     }
-    if (!frontmatter && fence?.[1]) {
-      if (!fenced) fenced = { marker: fence[1][0]!, length: fence[1].length };
-      else if (fence[1][0] === fenced.marker && fence[1].length >= fenced.length && !fence[2]?.trim()) fenced = null;
-    }
+    if (!frontmatter) fenced = nextCodeFence(fenced, fence);
     if (frontmatter && index > 0 && trimmed === frontmatter) frontmatter = null;
   }
   return characters.join("");
+}
+
+function nextCodeFence(current: CodeFence | null, match: RegExpExecArray | null): CodeFence | null {
+  const markers = match?.[1];
+  if (!markers) return current;
+  if (!current) return { marker: markers[0]!, length: markers.length };
+  const closes = markers[0] === current.marker && markers.length >= current.length && !match?.[2]?.trim();
+  return closes ? null : current;
 }
 
 function proseParagraphs(source: string): Array<{ text: string; from: number; to: number }> {

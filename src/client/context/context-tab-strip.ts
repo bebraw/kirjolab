@@ -243,19 +243,17 @@ export class ContextTabStrip extends LightDomElement {
   }
 
   private fixedScrollElement(key: ResearchContextKey): HTMLElement | null {
-    const id =
-      key === "preview"
-        ? "preview-scroll"
-        : key === "outline"
-          ? "context-outline-scroll"
-          : key === "chapter-notes"
-            ? "context-chapter-notes-scroll"
-            : key === "library"
-              ? "context-library-scroll"
-              : key === "assistant"
-                ? "context-assistant-scroll"
-                : null;
-    return id ? this.controlledPanel(id) : null;
+    switch (key) {
+      case "preview":
+        return this.controlledPanel("preview-scroll");
+      case "outline":
+      case "chapter-notes":
+      case "library":
+      case "assistant":
+        return this.controlledPanel(`context-${key}-scroll`);
+      default:
+        return null;
+    }
   }
 
   private routeNavigation(action: ContextTabAction): void {
