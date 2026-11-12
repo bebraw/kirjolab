@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildManuscriptMap, manuscriptParagraphs } from "./manuscript-map";
+import { buildManuscriptMap, buildManuscriptOutline, manuscriptParagraphs } from "./manuscript-map";
 
 describe("manuscript map", () => {
   it("summarizes headings, citations, and review cues", () => {
@@ -20,6 +20,32 @@ describe("manuscript map", () => {
     );
     expect(map.sections.map((section) => section.title)).toEqual(["Real"]);
     expect(map.cues).toEqual([]);
+  });
+
+  it("excludes TOML frontmatter until its matching closing marker", () => {
+    const source =
+      '+++\r\ntitle = "TODO"\r\ndescription = """\r\n---\r\n# Hidden heading\r\n"""\r\n+++\r\n# Real\r\n\r\nVisible prose.\r\n';
+    const map = buildManuscriptMap(source);
+    const outline = buildManuscriptOutline(source);
+
+    expect(map.sections.map(({ title }) => title)).toEqual(["Real"]);
+    expect(map.cues).toEqual([]);
+    expect(outline.paragraphs.map(({ text }) => text)).toEqual(["Visible prose."]);
+    expect(outline.paragraphs.map(({ from, to }) => source.slice(from, to))).toEqual(["Visible prose."]);
+    expect(buildManuscriptOutline('+++\ntitle = "Unclosed metadata"')).toEqual({ items: [], sections: [], paragraphs: [] });
+  });
+
+  it("accepts whitespace around frontmatter markers without opening fences inside metadata", () => {
+    const source = "--- \t\nnotes: |\n ```\n--- \t\n# Visible\n\nVisible prose.";
+
+    expect(buildManuscriptMap(source).sections.map(({ title }) => title)).toEqual(["Visible"]);
+    expect(manuscriptParagraphs(source).map(({ text }) => text)).toEqual(["Visible prose."]);
+  });
+
+  it("counts sentences ending in several closing punctuation marks independently", () => {
+    const source = 'The researcher wrote five words.") Another complete sentence explains the finding.';
+
+    expect(buildManuscriptMap(source).cues).toEqual([]);
   });
 
   it("derives exact section ranges, heading labels, words, and citations", () => {
@@ -136,6 +162,65 @@ Second prose is here`;
     ]);
   });
 
+  it("finds prose beside headings while retaining original CRLF source ranges", () => {
+    const source = "  Preamble words.  \r\n# First\r\nFirst paragraph.\r\nContinued here.\r\n## Child\r\nChild text.\r\n";
+
+    expect(manuscriptParagraphs(source)).toEqual([
+      { text: "Preamble words.", from: 2, to: 17, words: 2, citations: 0 },
+      { text: "First paragraph.\r\nContinued here.", from: 30, to: 63, words: 4, citations: 0 },
+      { text: "Child text.", from: 75, to: 86, words: 2, citations: 0 },
+    ]);
+  });
+
+  it("keeps paragraph source ranges exact when leading and trailing whitespace differ", () => {
+    const source = "  A complete paragraph.     \n\nNext paragraph.";
+
+    expect(manuscriptParagraphs(source)).toEqual([
+      { text: "A complete paragraph.", from: 2, to: 23, words: 3, citations: 0 },
+      { text: "Next paragraph.", from: 30, to: 45, words: 2, citations: 0 },
+    ]);
+  });
+
+  it("recognizes numbered lists and thematic breaks without hiding prose that resembles them", () => {
+    const source = [
+      "12. Numbered list item",
+      "",
+      "___",
+      "",
+      "  ___",
+      "",
+      "_ _ _",
+      "",
+      "---alpha remains prose.",
+      "",
+      "The passage ends ---",
+      "",
+      "Ordinary closing text.",
+    ].join("\n");
+
+    expect(manuscriptParagraphs(source).map(({ text }) => text)).toEqual([
+      "---alpha remains prose.",
+      "The passage ends ---",
+      "Ordinary closing text.",
+    ]);
+  });
+
+  it.each(["---|---|---", ":---|:---:|---:", " ---  |\t--- | --- \t"])("excludes a three-column table with delimiter %s", (delimiter) => {
+    const source = `Before the table.\n\nFirst | Second | Third\n${delimiter}\nOne | Two | Three\n\nAfter the table.`;
+
+    expect(manuscriptParagraphs(source).map(({ text }) => text)).toEqual(["Before the table.", "After the table."]);
+  });
+
+  it.each([
+    "The operator left | right combines its operands.\nA normal explanation follows.",
+    "A line without a column separator\n---|---",
+    "left | right\nprefix ---|---",
+    "left | right\n---|--- suffix",
+    "left | right\n---|word---",
+  ])("retains pipe-containing prose that is not a table: %s", (source) => {
+    expect(manuscriptParagraphs(source).map(({ text }) => text)).toEqual([source]);
+  });
+
   it("masks tilde and backtick fences, including unclosed blocks, without changing line offsets", () => {
     const source = `# Visible
 
@@ -158,14 +243,186 @@ Still hidden`;
     });
   });
 
-  it("normalizes CRLF input and accepts adjacent heading levels without a jump", () => {
+  it("requires matching fence markers, accepts closing whitespace, and preserves inline fence-like prose", () => {
+    const source = [
+      "# Real",
+      "",
+      "```md",
+      "~~~",
+      "## Hidden heading",
+      "TODO hidden example",
+      "``` \t",
+      "",
+      "The text mentions ``` markers inline.",
+      "",
+      "~ approximates the value.",
+    ].join("\n");
+
+    expect(buildManuscriptMap(source).sections.map(({ title }) => title)).toEqual(["Real"]);
+    expect(buildManuscriptMap(source).cues.filter(({ kind }) => kind !== "orphan-paragraph")).toEqual([]);
+    expect(manuscriptParagraphs(source).map(({ text }) => text)).toEqual([
+      "The text mentions ``` markers inline.",
+      "~ approximates the value.",
+    ]);
+  });
+
+  it("retains original CRLF offsets and accepts adjacent heading levels without a jump", () => {
     const map = buildManuscriptMap("# One\r\n## Two\r\n### Three\r\n");
 
     expect(map.sections.map(({ level, title, from, to }) => ({ level, title, from, to }))).toEqual([
-      { level: 1, title: "One", from: 0, to: 6 },
-      { level: 2, title: "Two", from: 6, to: 13 },
-      { level: 3, title: "Three", from: 13, to: 23 },
+      { level: 1, title: "One", from: 0, to: 7 },
+      { level: 2, title: "Two", from: 7, to: 15 },
+      { level: 3, title: "Three", from: 15, to: 26 },
     ]);
     expect(map.cues).toEqual([]);
+  });
+});
+
+describe("manuscript outline", () => {
+  it("accumulates words and citations through three heading levels while preserving own-section totals", () => {
+    const source =
+      "# Parent\nParent words.\n## Child\nChild words.\n### Grandchild\nGrandchild cites :cite[one].\n## Sibling\nSibling words.";
+
+    expect(
+      buildManuscriptOutline(source).sections.map(({ title, words, citations, subtreeWords, subtreeCitations }) => ({
+        title,
+        words,
+        citations,
+        subtreeWords,
+        subtreeCitations,
+      })),
+    ).toEqual([
+      { title: "Parent", words: 2, citations: 0, subtreeWords: 10, subtreeCitations: 1 },
+      { title: "Child", words: 2, citations: 0, subtreeWords: 6, subtreeCitations: 1 },
+      { title: "Grandchild", words: 4, citations: 1, subtreeWords: 4, subtreeCitations: 1 },
+      { title: "Sibling", words: 2, citations: 0, subtreeWords: 2, subtreeCitations: 0 },
+    ]);
+  });
+  it("keeps preamble paragraphs and nests headings with distinct own and subtree metrics", () => {
+    const source = "Preamble.\n# Main\nMain words.\n## Child\nChild cites :cite[one].\n# End\nEnd words.";
+    const outline = buildManuscriptOutline(source);
+
+    expect(outline.items).toMatchObject([
+      { kind: "paragraph", text: "Preamble.", from: 0, to: 9 },
+      {
+        kind: "section",
+        title: "Main",
+        from: source.indexOf("# Main"),
+        headingTo: source.indexOf("Main words.") - 1,
+        to: source.indexOf("## Child"),
+        words: 2,
+        citations: 0,
+        subtreeTo: source.indexOf("# End"),
+        subtreeWords: 6,
+        subtreeCitations: 1,
+        children: [
+          { kind: "paragraph", text: "Main words." },
+          {
+            kind: "section",
+            title: "Child",
+            level: 2,
+            words: 4,
+            subtreeWords: 4,
+            subtreeCitations: 1,
+            children: [{ kind: "paragraph", text: "Child cites :cite[one]." }],
+          },
+        ],
+      },
+      { kind: "section", title: "End", children: [{ kind: "paragraph", text: "End words." }] },
+    ]);
+    expect(outline.sections.map(({ title }) => title)).toEqual(["Main", "Child", "End"]);
+    expect(outline.paragraphs.map(({ from, to }) => source.slice(from, to))).toEqual([
+      "Preamble.",
+      "Main words.",
+      "Child cites :cite[one].",
+      "End words.",
+    ]);
+  });
+
+  it("excludes non-prose blocks and does not let a mismatched fence expose an example heading", () => {
+    const source = [
+      "---",
+      "title: TODO metadata",
+      "---",
+      "",
+      "# Real",
+      "::label[TODO]",
+      "Real prose.",
+      "",
+      "::: comment",
+      "## Hidden comment TODO",
+      "Hidden prose.",
+      ":::",
+      "",
+      "````md",
+      "```",
+      "## Hidden example TODO",
+      "~~~",
+      "Hidden code.",
+      "````",
+      "",
+      "Name | Value",
+      "--- | ---",
+      "Hidden | table",
+      "",
+      "- Hidden list",
+      "  continued list",
+      "",
+      "> Hidden quote",
+      "",
+      "::figure[hidden]",
+      "unsupported directive body",
+      "",
+      "    Hidden indented code",
+      "",
+      "Visible ending.",
+    ].join("\n");
+    const outline = buildManuscriptOutline(source);
+
+    expect(outline.sections.map(({ title }) => title)).toEqual(["Real"]);
+    expect(outline.paragraphs.map(({ text }) => text)).toEqual(["Real prose.", "Visible ending."]);
+    expect(outline.paragraphs.map(({ from, to }) => source.slice(from, to))).toEqual(["Real prose.", "Visible ending."]);
+    expect(buildManuscriptMap(source).cues).toEqual([]);
+  });
+
+  it("closes skipped-level branches at the next peer or ancestor and retains CRLF heading offsets", () => {
+    const source = "## Parent\r\n#### Deep\r\nDeep words.\r\n### Peer\r\nPeer words.\r\n## Last\r\n";
+    const outline = buildManuscriptOutline(source);
+
+    expect(outline.items).toMatchObject([
+      {
+        kind: "section",
+        title: "Parent",
+        words: 0,
+        subtreeWords: 4,
+        children: [
+          { kind: "section", title: "Deep", subtreeTo: 35, children: [{ text: "Deep words." }] },
+          { kind: "section", title: "Peer", subtreeTo: 58, children: [{ text: "Peer words." }] },
+        ],
+      },
+      { kind: "section", title: "Last", words: 0, subtreeWords: 0, subtreeTo: source.length, children: [] },
+    ]);
+    expect(outline.sections.map(({ from, headingTo }) => source.slice(from, headingTo))).toEqual([
+      "## Parent",
+      "#### Deep",
+      "### Peer",
+      "## Last",
+    ]);
+    expect(outline.sections.map(({ from, to }) => [from, to])).toEqual([
+      [0, 11],
+      [11, 35],
+      [35, 58],
+      [58, 67],
+    ]);
+    expect(outline.paragraphs.map(({ from, to }) => source.slice(from, to))).toEqual(["Deep words.", "Peer words."]);
+  });
+
+  it("handles empty and headingless manuscripts without inventing sections", () => {
+    expect(buildManuscriptOutline("")).toEqual({ items: [], sections: [], paragraphs: [] });
+    expect(buildManuscriptOutline("Plain text.")).toEqual({
+      items: [{ kind: "paragraph", text: "Plain text.", from: 0, to: 11, words: 2, citations: 0 }],
+      sections: [],
+      paragraphs: [{ kind: "paragraph", text: "Plain text.", from: 0, to: 11, words: 2, citations: 0 }],
+    });
   });
 });

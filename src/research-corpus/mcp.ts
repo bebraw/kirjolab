@@ -1,6 +1,7 @@
 import { createMcpHandler } from "agents/mcp/server";
 import { McpServer, ProtocolError, ProtocolErrorCode, ResourceTemplate } from "@modelcontextprotocol/server";
-import { z } from "zod";
+import { toStandardJsonSchema } from "@valibot/to-json-schema";
+import * as v from "valibot";
 import {
   CorpusInvalidCursorError,
   CorpusInvalidInputError,
@@ -11,14 +12,17 @@ import {
 import { corpusArtifactDocument, corpusArtifactPageDocument } from "./representation";
 import { isCorpusOriginRejected, withCorpusCors } from "./origin";
 
-const artifactIdSchema = z.uuid();
-const extractionKindSchema = z.enum(["pdf-highlights", "pdf-references", "pdf-text"]);
-const pageSchema = z.number().int().min(1).max(200);
-const resourcePageSchema = z
-  .string()
-  .regex(/^[0-9]+$/u)
-  .transform((value) => Number(value))
-  .pipe(pageSchema);
+const artifactIdSchema = v.pipe(
+  v.string(),
+  v.uuid(),
+  // Preserve the existing MCP UUID contract; JSON Schema does not support regex flags.
+  v.regex(
+    /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/,
+  ),
+);
+const extractionKindSchema = v.picklist(["pdf-highlights", "pdf-references", "pdf-text"]);
+const pageSchema = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(200));
+const resourcePageSchema = v.pipe(v.string(), v.regex(/^[0-9]+$/u), v.transform(Number), pageSchema);
 
 export async function handleCorpusMcp(
   request: Request,
@@ -72,8 +76,8 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     { title: "Extracted PDF text page", description: "One bounded page of extracted PDF text", mimeType: "application/json" },
     async (uri, variables) =>
       await resourceResult(async () => {
-        const artifactId = artifactIdSchema.parse(variables.artifactId);
-        const page = resourcePageSchema.parse(variables.page);
+        const artifactId = v.parse(artifactIdSchema, variables.artifactId);
+        const page = v.parse(resourcePageSchema, variables.page);
         const result = await service.readPdfTextPage(artifactId, page);
         return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result) }] };
       }),
@@ -84,7 +88,12 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     {
       title: "List corpus artifacts",
       description: "List one bounded page of safe artifact and source metadata.",
-      inputSchema: z.object({ after: artifactIdSchema.optional(), limit: z.number().int().min(1).max(100).optional() }).strict(),
+      inputSchema: toStandardJsonSchema(
+        v.strictObject({
+          after: v.optional(artifactIdSchema),
+          limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))),
+        }),
+      ),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ after, limit }) =>
@@ -98,7 +107,7 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     {
       title: "Get corpus artifact",
       description: "Get safe artifact metadata and a protected HTTP URL for the original representation.",
-      inputSchema: z.object({ artifactId: artifactIdSchema }).strict(),
+      inputSchema: toStandardJsonSchema(v.strictObject({ artifactId: artifactIdSchema })),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ artifactId }) => await toolResult(async () => corpusArtifactDocument(await service.getArtifact(artifactId), publicOrigin)),
@@ -109,7 +118,7 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     {
       title: "Get extraction status",
       description: "Get the current fingerprint-qualified asynchronous extraction state.",
-      inputSchema: z.object({ artifactId: artifactIdSchema, kind: extractionKindSchema }).strict(),
+      inputSchema: toStandardJsonSchema(v.strictObject({ artifactId: artifactIdSchema, kind: extractionKindSchema })),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ artifactId, kind }) => await toolResult(async () => ({ extraction: await service.getExtraction(artifactId, kind) })),
@@ -120,7 +129,9 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     {
       title: "Start extraction",
       description: "Request an asynchronous extraction without waiting for PDF processing.",
-      inputSchema: z.object({ artifactId: artifactIdSchema, kind: extractionKindSchema, retryFailed: z.boolean().optional() }).strict(),
+      inputSchema: toStandardJsonSchema(
+        v.strictObject({ artifactId: artifactIdSchema, kind: extractionKindSchema, retryFailed: v.optional(v.boolean()) }),
+      ),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ artifactId, kind, retryFailed }) =>
@@ -134,7 +145,7 @@ function createCorpusMcpServer(service: CorpusApplication, publicOrigin: string)
     {
       title: "Read extracted PDF text page",
       description: "Read exactly one bounded page from a ready PDF text extraction.",
-      inputSchema: z.object({ artifactId: artifactIdSchema, page: pageSchema }).strict(),
+      inputSchema: toStandardJsonSchema(v.strictObject({ artifactId: artifactIdSchema, page: pageSchema })),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ artifactId, page }) => await toolResult(async () => ({ page: await service.readPdfTextPage(artifactId, page) })),
@@ -169,11 +180,11 @@ async function resourceResult<Result>(operation: () => Promise<Result>): Promise
       error instanceof CorpusNotReadyError ||
       error instanceof CorpusInvalidCursorError ||
       error instanceof CorpusInvalidInputError;
-    const invalidParameters = domainError || error instanceof z.ZodError;
+    const invalidParameters = domainError || v.isValiError(error);
     if (!invalidParameters) console.error("Research Corpus MCP resource operation failed", error);
     throw new ProtocolError(
       invalidParameters ? ProtocolErrorCode.InvalidParams : ProtocolErrorCode.InternalError,
-      error instanceof z.ZodError
+      v.isValiError(error)
         ? "Corpus resource parameters are invalid"
         : domainError && error instanceof Error
           ? error.message

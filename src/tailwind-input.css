@@ -9,6 +9,7 @@
 @import "./client/editor/editor.css";
 @import "./client/preview/preview.css";
 @import "./client/project/templates.css";
+@import "./client/project/manuscript-outline.css";
 @import "./client/pdf/pdf-reader.css";
 @import "./client/review/review-study.css";
 @import "./client/shared-editor.css";

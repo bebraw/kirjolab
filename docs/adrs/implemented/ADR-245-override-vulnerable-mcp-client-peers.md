@@ -1,6 +1,6 @@
 # ADR-245: Override Vulnerable MCP Client Peers
 
-**Status:** Implemented
+**Status:** Superseded by [ADR-247](./ADR-247-retire-mcp-peer-overrides.md)
 
 **Date:** 2026-10-07
 

@@ -1,10 +1,13 @@
 {
   "id": "2026-10-01-patch-transitive-audit-findings",
-  "title": "Patch transitive URI, HTTP, IP address, and MCP OAuth audit findings",
+  "title": "Patch transitive audit findings and retire MCP peer overrides",
   "status": "implemented",
   "risk": "medium",
   "supersedes": [],
-  "adrs": ["docs/adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md"],
-  "touches": ["package.json", "package-lock.json"],
+  "adrs": [
+    "docs/adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md",
+    "docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md"
+  ],
+  "touches": ["package.json", "package-lock.json", "scripts/research-corpus.test.mjs"],
   "checks": ["npm run security:audit", "npm run ci:local"]
 }

@@ -232,7 +232,7 @@ export class ProjectFileDialog extends LightDomElement {
     this.bindProjectRefresh(workspace, owners, session, offline);
     owners.workspacePreview.bindProject(apiBase, session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, offline);
-    owners.manuscriptMapPanel.bindApplication(owners);
+    owners.manuscriptMapPanel.bindApplication(owners, session.document);
     owners.workspaceLayout.bindApplication(workspaceId, workspace, owners);
     void owners.applicationVersion.prepareOfflineShell(workspace, offline, owners.toast);
     if (await owners.referenceLibraryWorkspace.start(workspaceId, workspace ? apiBase : null, owners)) return;

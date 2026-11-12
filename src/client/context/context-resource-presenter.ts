@@ -30,6 +30,7 @@ import { CandidateReviewPanel } from "../assistant/candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "../citation/citations";
 import { ClaimListPanel } from "../assistant/claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
+import { ManuscriptMapPanel } from "../project/manuscript-map-panel";
 import { ChapterNotesPanel, chapterNotesPanelActionEvent, type ChapterNotesPanelAction } from "./chapter-notes-panel";
 import type { EditorApplicationOwners, EditorStatus } from "../editor/editor-status";
 import { expectOk } from "../platform/http";
@@ -879,6 +880,7 @@ export class ContextResourcePresenter extends LightDomController {
       referencePdfs: this.referencePdfs,
     };
     const context = this.contextState;
+    this.element("manuscript-map-panel", ManuscriptMapPanel)?.setVisible(context.activeKey === "outline" && !standaloneLibrary);
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
       activeKey: context.activeKey,
       candidates: sources.snapshot?.candidates ?? [],
@@ -892,6 +894,7 @@ export class ContextResourcePresenter extends LightDomController {
     const activeTab = context.tabs.find(
       (tab): tab is ResearchResourceTab =>
         tab.kind !== "preview" &&
+        tab.kind !== "outline" &&
         tab.kind !== "chapter-notes" &&
         tab.kind !== "library" &&
         tab.kind !== "assistant" &&

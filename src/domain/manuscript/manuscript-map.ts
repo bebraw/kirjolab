@@ -31,14 +31,48 @@ export interface ManuscriptParagraph {
   readonly citations: number;
 }
 
+export interface ManuscriptOutlineParagraph extends ManuscriptParagraph {
+  readonly kind: "paragraph";
+}
+
+export interface ManuscriptOutlineSection extends ManuscriptSection {
+  readonly kind: "section";
+  /** End of the heading line, excluding its newline. `to` remains the next heading's start. */
+  readonly headingTo: number;
+  /** Subtree includes descendant sections; words exclude heading titles. */
+  readonly subtreeTo: number;
+  readonly subtreeWords: number;
+  readonly subtreeCitations: number;
+  readonly children: readonly ManuscriptOutlineItem[];
+}
+
+export type ManuscriptOutlineItem = ManuscriptOutlineSection | ManuscriptOutlineParagraph;
+
+export interface ManuscriptOutline {
+  readonly items: readonly ManuscriptOutlineItem[];
+  readonly sections: readonly ManuscriptOutlineSection[];
+  readonly paragraphs: readonly ManuscriptOutlineParagraph[];
+}
+
+interface OutlineBranch extends ManuscriptOutlineSection {
+  subtreeTo: number;
+  subtreeWords: number;
+  subtreeCitations: number;
+  children: ManuscriptOutlineItem[];
+}
+
+interface CodeFence {
+  readonly marker: string;
+  readonly length: number;
+}
+
 const headingPattern = /^(#{1,6})[ \t]+(.+?)[ \t]*$/u;
 const citationPattern = /(?<!:):cite\[[^\]]+\](?:\{[^}]*\})?/giu;
 const placeholderPattern = /\b(?:TODO|TBD|FIXME)\b|\?\?\?/giu;
 const wordPattern = /[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu;
 
 export function buildManuscriptMap(source: string): ManuscriptMap {
-  const normalized = source.replaceAll("\r\n", "\n");
-  const visible = maskNonProse(projectMarkdownComments(normalized).masked);
+  const visible = maskNonProse(projectMarkdownComments(source).masked);
   const headings: Array<{ level: number; title: string; from: number; lineEnd: number }> = [];
   const cues: ManuscriptCue[] = [];
   let previousHeadingLevel: number | null = null;
@@ -95,40 +129,123 @@ export function buildManuscriptMap(source: string): ManuscriptMap {
 }
 
 export function manuscriptParagraphs(source: string): readonly ManuscriptParagraph[] {
-  return proseParagraphs(maskNonProse(projectMarkdownComments(source.replaceAll("\r\n", "\n")).masked)).map((paragraph) => ({
+  return proseParagraphs(maskNonProse(projectMarkdownComments(source).masked)).map((paragraph) => ({
     ...paragraph,
     words: wordCount(paragraph.text),
     citations: citationCount(paragraph.text),
   }));
 }
 
+export function buildManuscriptOutline(source: string): ManuscriptOutline {
+  const visible = maskNonProse(projectMarkdownComments(source).masked);
+  const headings = linesWithOffsets(visible).flatMap((line) => {
+    const heading = headingPattern.exec(line.text);
+    return heading?.[1] && heading[2] ? [{ level: heading[1].length, title: heading[2].trim(), from: line.from, headingTo: line.to }] : [];
+  });
+  const sections: OutlineBranch[] = headings.map((heading, index) => {
+    const to = headings[index + 1]?.from ?? source.length;
+    const content = visible.slice(heading.headingTo, to);
+    const words = wordCount(content);
+    const citations = citationCount(content);
+    return {
+      ...heading,
+      kind: "section",
+      to,
+      words,
+      citations,
+      subtreeTo: source.length,
+      subtreeWords: words,
+      subtreeCitations: citations,
+      children: [],
+    };
+  });
+  const paragraphs: ManuscriptOutlineParagraph[] = manuscriptParagraphs(source).map((paragraph) => ({ ...paragraph, kind: "paragraph" }));
+  const items = nestOutlineItems(sections, paragraphs);
+  for (const section of [...sections].reverse()) {
+    for (const child of section.children) {
+      if (child.kind !== "section") continue;
+      section.subtreeWords += child.subtreeWords;
+      section.subtreeCitations += child.subtreeCitations;
+    }
+  }
+  return { items, sections, paragraphs };
+}
+
+function nestOutlineItems(sections: readonly OutlineBranch[], paragraphs: readonly ManuscriptOutlineParagraph[]): ManuscriptOutlineItem[] {
+  const items: ManuscriptOutlineItem[] = [];
+  const ancestors: OutlineBranch[] = [];
+  const ordered: Array<OutlineBranch | ManuscriptOutlineParagraph> = [...sections, ...paragraphs].sort(
+    (left, right) => left.from - right.from,
+  );
+  for (const item of ordered) {
+    if (item.kind === "section") {
+      while (ancestors.length && ancestors[ancestors.length - 1]!.level >= item.level) {
+        ancestors.pop()!.subtreeTo = item.from;
+      }
+    }
+    (ancestors[ancestors.length - 1]?.children ?? items).push(item);
+    if (item.kind === "section") ancestors.push(item);
+  }
+  return items;
+}
+
 function maskNonProse(source: string): string {
   const characters = source.split("");
   const lines = linesWithOffsets(source);
-  let fenced = false;
-  let frontmatter = lines[0]?.text.trim() === "---";
+  let fenced: CodeFence | null = null;
+  const firstLine = lines[0]?.text.trim();
+  let frontmatter = firstLine === "---" || firstLine === "+++" ? firstLine : null;
   for (const [index, line] of lines.entries()) {
     const trimmed = line.text.trim();
-    const fence = /^(?:```|~~~)/u.test(trimmed);
-    if (fenced || fence || (frontmatter && index > 0) || isPublicationReferenceDeclaration(line.text)) {
+    const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line.text);
+    if (fenced || fence || frontmatter || isPublicationReferenceDeclaration(line.text)) {
       maskRange(characters, line.from, line.to);
     }
-    if (fence) fenced = !fenced;
-    if (frontmatter && index > 0 && trimmed === "---") frontmatter = false;
+    if (!frontmatter) fenced = nextCodeFence(fenced, fence);
+    if (frontmatter && index > 0 && trimmed === frontmatter) frontmatter = null;
   }
   return characters.join("");
 }
 
+function nextCodeFence(current: CodeFence | null, match: RegExpExecArray | null): CodeFence | null {
+  const markers = match?.[1];
+  if (!markers) return current;
+  if (!current) return { marker: markers[0]!, length: markers.length };
+  const closes = markers[0] === current.marker && markers.length >= current.length && !match?.[2]?.trim();
+  return closes ? null : current;
+}
+
 function proseParagraphs(source: string): Array<{ text: string; from: number; to: number }> {
   const paragraphs: Array<{ text: string; from: number; to: number }> = [];
-  for (const match of source.matchAll(/(?:^|\n)([^\n].*?(?=\n{2,}|$))/gsu)) {
-    const raw = match[1];
-    if (!raw) continue;
-    const from = match.index + (match[0].startsWith("\n") ? 1 : 0);
+  let start: number | null = null;
+  let end = 0;
+  let excluded = false;
+  const flush = (): void => {
+    if (start === null) return;
+    const raw = source.slice(start, end);
     const text = raw.trim();
-    if (!text || /^(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|::|\|)/u.test(text)) continue;
-    paragraphs.push({ text, from, to: from + raw.length });
+    const from = start + raw.length - raw.trimStart().length;
+    paragraphs.push({ text, from, to: from + text.length });
+    start = null;
+  };
+  const lines = linesWithOffsets(source);
+  for (const [index, line] of lines.entries()) {
+    if (!line.text.trim() || headingPattern.test(line.text)) {
+      flush();
+      excluded = false;
+    } else if (
+      /^(?: {0,3}(?:[-*+]\s|\d+[.)]\s|>|::|\|)| {4}|\t)/u.test(line.text) ||
+      /^(?:[-*_][ \t]*){3,}$/u.test(line.text.trim()) ||
+      (line.text.includes("|") && /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*$/u.test(lines[index + 1]?.text ?? ""))
+    ) {
+      flush();
+      excluded = true;
+    } else if (!excluded) {
+      start ??= line.from;
+      end = line.to;
+    }
   }
+  flush();
   return paragraphs;
 }
 
@@ -143,10 +260,9 @@ function maskRange(characters: string[], from: number, to: number): void {
 }
 function linesWithOffsets(source: string): Array<{ text: string; from: number; to: number }> {
   const lines: Array<{ text: string; from: number; to: number }> = [];
-  let from = 0;
-  for (const text of source.split("\n")) {
-    lines.push({ text, from, to: from + text.length });
-    from += text.length + 1;
+  for (const match of source.matchAll(/([^\r\n]*)(?:\r\n|\r|\n|$)/gu)) {
+    const text = match[1] ?? "";
+    lines.push({ text, from: match.index, to: match.index + text.length });
   }
   return lines;
 }

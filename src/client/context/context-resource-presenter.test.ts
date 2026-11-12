@@ -24,6 +24,7 @@ import {
 } from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
 import { ChapterNotesPanel, chapterNotesPanelActionEvent } from "./chapter-notes-panel";
+import { ManuscriptMapPanel } from "../project/manuscript-map-panel";
 import {
   LibraryPdfAnnotationToolbar,
   libraryPdfToolbarActionEvent,
@@ -349,6 +350,7 @@ function setup() {
     "project-related-papers": new PdfRelatedPapersControl(),
     "library-related-papers": new PdfRelatedPapersControl(),
     "manuscript-comment-list-panel": new ManuscriptCommentList(),
+    "manuscript-map-panel": Object.assign(new ManuscriptMapPanel(), { setVisible: vi.fn<(visible: boolean) => void>() }),
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
     "project-map": new ProjectMapWorkspace(),
@@ -461,6 +463,24 @@ describe("context resource presenter", () => {
     expect(present).toHaveBeenCalledWith(expect.objectContaining({ activeTab: tab }));
     expect(presentation.activeTab).toEqual(tab);
     expect(presenter.activeTab).toEqual(tab);
+  });
+
+  it("enables outline analysis only while its project context is selected", () => {
+    const { elements, presenter } = setup();
+    vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
+    vi.spyOn(presenter, "present").mockReturnValue({ publicationPresented: false });
+
+    presenter.activateContext("outline");
+    expect(presenter.presentContext({ ...sources(undefined), standaloneLibrary: false }).activeTab).toBeUndefined();
+    expect(elements["manuscript-map-panel"].setVisible).toHaveBeenLastCalledWith(true);
+
+    presenter.activateContext("preview");
+    presenter.presentContext({ ...sources(undefined), standaloneLibrary: false });
+    expect(elements["manuscript-map-panel"].setVisible).toHaveBeenLastCalledWith(false);
+
+    presenter.activateContext("outline");
+    presenter.presentContext({ ...sources(undefined), standaloneLibrary: true });
+    expect(elements["manuscript-map-panel"].setVisible).toHaveBeenLastCalledWith(false);
   });
 
   it("presents paired chapter notes and opens their stable file in the editor", () => {
@@ -635,6 +655,8 @@ describe("context resource presenter", () => {
       }),
     );
     await presenter.restoreContext("assistant");
+    await presenter.restoreContext("outline");
+    expect(presenter.activeKey).toBe("outline");
     await presenter.restoreContext("library");
     await presenter.restoreContext("pdf:pdf-1", 4, "annotation-1");
     restoreTarget.mockRejectedValueOnce(new Error("PDF is unavailable"));
