@@ -16,6 +16,8 @@ without treating advisory cues or model interpretations as scientific judgments.
 - The domain analyzer derives heading hierarchy, paragraphs, counts, and local
   cues from composed Markdown. Prose before the first heading remains a root
   outline item. Branches collapse without changing authored content.
+- Paragraph content is explicitly labeled as source excerpts. The active
+  paragraph shows its full source text; inactive paragraph rows remain compact.
 - Own-section words and citations stop at the next heading of any level.
   Descendant-inclusive totals cover the section's full subtree and exclude
   heading titles; the interface identifies which count it displays.
@@ -29,6 +31,8 @@ without treating advisory cues or model interpretations as scientific judgments.
 - The caret identifies the active passage. A separate reading-position marker
   follows the source viewport. Optional following scrolls only the outline;
   ordinary source scrolling changes neither selection nor the AI target.
+  Following a row taller than the outline viewport keeps its readable beginning
+  in view instead of jumping to the bottom of the passage.
 - Editing-pass cues are local and advisory. The current-passage view shows at
   most three cues; explicit whole-document review shows at most twenty. Both
   report the total matching count when results exceed the visible bound.
@@ -44,6 +48,12 @@ without treating advisory cues or model interpretations as scientific judgments.
   unavailable states. Edits, collaborator updates, target/context changes, and
   model-setting changes invalidate superseded results. Hidden-guide and
   input-method-composition states suspend requests and unsafe navigation.
+- Guidance identifies missing model configuration separately from disabled
+  session opt-in and an unsupported or absent prose passage. The setup action
+  opens the existing connection settings through `ModelProviderSettings.open()`.
+  Configuration availability makes no connectivity claim and triggers no
+  provider probe. Local outline navigation and hints remain available without
+  model configuration.
 - Outline state, cues, model results, and session enablement are disposable
   browser state. They never enter manuscript files, Yjs, project history, or
   persisted candidates. Model failure never disables writing or the local map.
@@ -83,6 +93,8 @@ without treating advisory cues or model interpretations as scientific judgments.
 ### Regression Guardrails
 
 - Structural analysis and editing passes remain deterministic and local.
+- Source excerpts remain distinguishable from model-generated guidance, and
+  the full active paragraph stays readable when following oversized rows.
 - Exact source identity includes the owning file; repeated includes must not
   make an outline selection target an unrelated passage.
 - Source ranges retain original UTF-16 offsets, including CRLF line endings;
@@ -98,7 +110,15 @@ without treating advisory cues or model interpretations as scientific judgments.
 - Given: a composed manuscript with nested headings and prose
 - When: the author opens Outline & hints and moves the caret
 - Then: the matching passage is identified and local hints reflect its current
-  source without moving the source selection
+  source without moving the source selection; the labeled source excerpt shows
+  the active paragraph in full while inactive paragraphs stay compact
+
+**Scenario: Author follows a long active paragraph**
+
+- Given: the active paragraph row is taller than the outline viewport
+- When: following brings that row into view
+- Then: the paragraph's beginning remains readable instead of the outline
+  jumping to its bottom, and the source selection stays fixed
 
 **Scenario: Author browses another part of the manuscript**
 
@@ -120,3 +140,18 @@ without treating advisory cues or model interpretations as scientific judgments.
 - When: the guide updates
 - Then: it identifies unavailable or failed analysis while editing, structural
   navigation, and local cues remain usable
+
+**Scenario: Author has not configured a model**
+
+- Given: model configuration is missing
+- When: the author opens Outline & hints
+- Then: guidance explains the missing setup separately from disabled analysis
+  or an unsupported passage and offers the existing connection settings action;
+  local outline and hints work without a connectivity probe
+
+**Scenario: A configured model has not been enabled for guidance**
+
+- Given: model settings exist and session opt-in is disabled
+- When: the guide updates
+- Then: it identifies analysis as disabled without claiming that the provider
+  is connected or issuing an analysis or connectivity request

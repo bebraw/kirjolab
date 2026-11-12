@@ -51,7 +51,10 @@ export type ManuscriptMapApplicationPresentation = ManuscriptMapProjectPresentat
     };
   readonly source: Pick<HTMLTextAreaElement, "value" | "selectionStart" | "addEventListener">;
   readonly previewSyncControls: { sourceScrollOffsetAtCenter(): number };
-  readonly modelProviderSettings: Pick<EventTarget, "addEventListener"> & { provider(): Pick<ModelProvider, "analyzeParagraph"> };
+  readonly modelProviderSettings: Pick<EventTarget, "addEventListener"> & {
+    provider(): Pick<ModelProvider, "analyzeParagraph">;
+    open(): void;
+  };
   readonly researchDiaryPanel: Pick<ResearchDiarySummary, "bindProject" | "setContent">;
   readonly researchQuestionPanel: Pick<WritingWorkflowPanel, "bindProject" | "setData">;
   readonly reviewerResponsePanel: Pick<WritingWorkflowPanel, "bindProject" | "setData">;
@@ -82,6 +85,7 @@ export class ManuscriptMapPanel extends LightDomElement {
   private visible = false;
   private composing = false;
   private aiEnabled = false;
+  private modelConfigured = false;
   private scrollFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private layoutVisible = true;
@@ -202,6 +206,7 @@ export class ManuscriptMapPanel extends LightDomElement {
         <label><input type="checkbox" .checked=${this.follow} @change=${this.changeFollow} /> Follow reading position</label>
         <button class="button-secondary" type="button" @click=${this.showCurrent}>Show current passage</button>
       </div>
+      <p class="outline-status">Paragraph excerpts · The active paragraph is shown in full.</p>
       <nav id="manuscript-map-outline" aria-label="Manuscript outline" class="manuscript-outline">
         ${
           this.outline.items.length
@@ -319,7 +324,7 @@ export class ManuscriptMapPanel extends LightDomElement {
         @click=${this.selectRange}
       >
         <small>Paragraph ${this.paragraphNumbers.get(item.from)}</small
-        ><span>${item.text.slice(0, 110)}${item.text.length > 110 ? "…" : ""}</span>
+        ><span>${active || item.text.length <= 110 ? item.text : `${item.text.slice(0, 110)}…`}</span>
       </button>
     </li>`;
   }
@@ -327,8 +332,8 @@ export class ManuscriptMapPanel extends LightDomElement {
   private renderAnalysis(): TemplateResult {
     const snapshot = this.analysis.snapshot;
     const status = {
-      off: "Enable AI guidance to interpret this paragraph’s purpose and suggest improvements.",
-      unavailable: "Select a supported paragraph and configure a model in Writing assistant.",
+      off: "Enable AI guidance to summarize this paragraph’s purpose and suggest improvements.",
+      unavailable: "Select a supported paragraph for AI guidance.",
       pending: snapshot.result ? "Updating · previous AI interpretation is outdated." : "Updating AI interpretation…",
       stale: "Passage changed · previous AI interpretation is outdated.",
       current: "Current · AI interpretation",
@@ -341,7 +346,10 @@ export class ManuscriptMapPanel extends LightDomElement {
         When enabled, the current paragraph and nearby context are sent to your configured model after a typing pause. Enabled for this
         session only.
       </p>
-      <p class="outline-status" role="status">${status}</p>
+      <p class="outline-status" role="status">
+        ${this.modelConfigured ? status : "Connect a writing model to get AI purpose summaries and suggestions. The outline and local hints work without one."}
+      </p>
+      <button class="button-secondary" type="button" @click=${this.openModelSettings}>Connection settings</button>
       ${
         snapshot.result
           ? html`<p class="outline-purpose">${snapshot.result.purpose ?? "The paragraph’s purpose is unclear."}</p>
@@ -396,6 +404,11 @@ export class ManuscriptMapPanel extends LightDomElement {
   private readonly retryAnalysis = (): void => {
     this.analysis.retry();
   };
+  private readonly openModelSettings = (event: Event): void => {
+    // The document's outside-click handler would immediately close the settings.
+    event.stopPropagation();
+    this.application?.modelProviderSettings.open();
+  };
 
   private updateAnalysis(): void {
     const paragraph = this.activeParagraph;
@@ -423,10 +436,14 @@ export class ManuscriptMapPanel extends LightDomElement {
 
   private readonly updateProvider = (): void => {
     try {
-      this.analysis.setProvider(this.application?.modelProviderSettings.provider() ?? null);
+      const provider = this.application?.modelProviderSettings.provider() ?? null;
+      this.modelConfigured = provider !== null;
+      this.analysis.setProvider(provider);
     } catch {
+      this.modelConfigured = false;
       this.analysis.setProvider(null);
     }
+    this.requestUpdate();
   };
 
   private connectSource(): void {
@@ -534,7 +551,7 @@ export class ManuscriptMapPanel extends LightDomElement {
     const bounds = scroller.getBoundingClientRect();
     const item = target.getBoundingClientRect();
     if (item.top < bounds.top) scroller.scrollTop += item.top - bounds.top;
-    else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
+    else if (item.bottom > bounds.bottom) scroller.scrollTop += Math.min(item.top - bounds.top, item.bottom - bounds.bottom);
   }
 
   private metric(value: number, label: string): TemplateResult {

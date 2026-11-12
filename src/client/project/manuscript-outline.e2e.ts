@@ -80,6 +80,16 @@ test("keeps a nested outline beside writing and scopes hints to the caret", asyn
   const editor = await openOutline(page, await createWorkspace(page));
   const outline = page.getByRole("navigation", { name: "Manuscript outline" });
   const methodButton = outline.getByRole("button", { name: `Paragraph 2 ${method}` });
+  const guidance = page.locator(".outline-analysis");
+  await expect(page.getByLabel("AI paragraph guidance", { exact: true })).not.toBeChecked();
+  await expect(guidance).toContainText(
+    "Connect a writing model to get AI purpose summaries and suggestions. The outline and local hints work without one.",
+  );
+  await guidance.getByRole("button", { name: "Connection settings", exact: true }).click();
+  await expect(page.locator("#preferences-menu")).toHaveAttribute("open", "");
+  await expect(page.locator("#llm-connection")).toBeFocused();
+  await page.locator("#preferences-menu > summary").click();
+  await expect(page.getByLabel("AI paragraph guidance", { exact: true })).not.toBeChecked();
   await expect(outline.locator("ol > li").first()).toContainText("Sampling");
   const [editorBounds, outlineBounds] = await Promise.all([editor.boundingBox(), outline.boundingBox()]);
   expect(editorBounds).not.toBeNull();
@@ -114,6 +124,48 @@ test("keeps a nested outline beside writing and scopes hints to the caret", asyn
   await expect(editor).toBeVisible();
   await expect(editor).toBeFocused();
   expect(await selectedText(editor)).toBe(introduction);
+});
+
+test("shows full source text only for the active outline paragraph", async ({ page }) => {
+  const firstExcerpt = "The study examines how authors revise scientific manuscripts. Each observation keeps its original context. The";
+  const secondExcerpt = "The method compares revisions from two writing sessions. Reviewers recorded why each sentence was changed. The";
+  const first = `${firstExcerpt} final observation is visible only in the active paragraph.`;
+  const second = `${secondExcerpt} comparison remains descriptive and does not rank the authors.`;
+  const source = `# Study\n\n${first}\n\n## Method\n\n${second}\n`;
+  const editor = await openOutline(page, await createWorkspace(page), source);
+  const outline = page.getByRole("navigation", { name: "Manuscript outline" });
+  const firstParagraph = outline.getByRole("button", { name: /^Paragraph 1 /u });
+  const secondParagraph = outline.getByRole("button", { name: /^Paragraph 2 /u });
+  await expect(page.getByText("Paragraph excerpts · The active paragraph is shown in full.", { exact: true })).toBeVisible();
+
+  await placeCaret(editor, first);
+  await expect(firstParagraph).toHaveAttribute("aria-pressed", "true");
+  await expect(firstParagraph.locator("span")).toHaveText(first);
+  await expect(secondParagraph.locator("span")).toHaveText(`${secondExcerpt}…`);
+  await expect(editor).toBeFocused();
+
+  const caret = await placeCaret(editor, second);
+  await expect(secondParagraph).toHaveAttribute("aria-pressed", "true");
+  await expect(secondParagraph.locator("span")).toHaveText(second);
+  await expect(firstParagraph.locator("span")).toHaveText(`${firstExcerpt}…`);
+  await expect(editor).toBeFocused();
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => ({ start: element.selectionStart, end: element.selectionEnd }))).toEqual({
+    start: caret,
+    end: caret,
+  });
+  await expect(page.getByLabel("AI paragraph guidance", { exact: true })).not.toBeChecked();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#show-context-surface").click();
+  await expect(outline).toBeVisible();
+  await expect(secondParagraph.locator("span")).toHaveText(second);
+  await expect(firstParagraph.locator("span")).toHaveText(`${firstExcerpt}…`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await secondParagraph.click();
+  await expect(editor).toBeVisible();
+  await expect(editor).toBeFocused();
+  expect(await selectedText(editor)).toBe(second);
+  await expect(editor).toHaveValue(source);
 });
 
 test("navigates an included paragraph to its owning file", async ({ page }) => {
@@ -171,7 +223,23 @@ test("follows the reading position by scrolling the outline without changing the
   });
   await expect(firstParagraph).toHaveAttribute("aria-current", "location");
   await page.getByLabel("Follow reading position", { exact: true }).check();
-  await expect.poll(() => outline.evaluate((element) => element.scrollTop)).toBeLessThan(2);
+  await expect
+    .poll(async () => {
+      const [container, target, text] = await Promise.all([
+        outline.boundingBox(),
+        firstParagraph.boundingBox(),
+        firstParagraph.locator("span").boundingBox(),
+      ]);
+      return (
+        container !== null &&
+        target !== null &&
+        text !== null &&
+        target.height > container.height &&
+        target.y >= container.y - 1 &&
+        text.y < container.y + container.height - 1
+      );
+    })
+    .toBe(true);
   await editor.focus();
   await editor.evaluate((element: HTMLTextAreaElement) => {
     element.scrollTop = element.scrollHeight;

@@ -31,7 +31,7 @@ function livePanel(
     model: "test",
   };
   const analyzeParagraph = vi.fn().mockResolvedValue(result);
-  const settings = Object.assign(new EventTarget(), { provider: vi.fn(() => ({ analyzeParagraph })) });
+  const settings = Object.assign(new EventTarget(), { provider: vi.fn(() => ({ analyzeParagraph })), open: vi.fn() });
   const panel = new TestManuscriptMapPanel();
   const focusRange = vi.fn();
   const projectFileDialog = {
@@ -123,6 +123,55 @@ function interact(panel: TestManuscriptMapPanel, marker: string, label: string, 
 }
 
 describe("manuscript map panel", () => {
+  it("explains model setup before opt-in and opens the existing connection settings", async () => {
+    vi.useFakeTimers();
+    const { panel, source, settings, analyzeParagraph } = livePanel();
+    panel.setVisible(true);
+    settings.provider.mockImplementation(() => {
+      throw new Error("Missing model");
+    });
+    settings.dispatchEvent(new Event(modelProviderChangeEvent));
+    const setup = renderedText(panel.renderForTest());
+    expect(setup).toContain("Connect a writing model to get AI purpose summaries and suggestions.");
+    expect(setup).toContain("The outline and local hints work without one.");
+    expect(setup).not.toContain("Enable AI guidance");
+    interact(panel, "@click=", "Connection settings");
+    expect(settings.open).toHaveBeenCalledOnce();
+
+    settings.provider.mockReturnValue({ analyzeParagraph });
+    settings.dispatchEvent(new Event(modelProviderChangeEvent));
+    expect(renderedText(panel.renderForTest())).not.toContain("Connect a writing model");
+    expect(renderedText(panel.renderForTest())).toContain("Enable AI guidance");
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).not.toHaveBeenCalled();
+
+    source.selectionStart = 0;
+    source.dispatchEvent(new Event("select"));
+    panel.setAnalysisEnabled(true);
+    expect(renderedText(panel.renderForTest())).toContain("Select a supported paragraph for AI guidance.");
+    expect(renderedText(panel.renderForTest())).not.toContain("Connect a writing model");
+    panel.disconnectedCallback();
+  });
+
+  it("expands only the active paragraph excerpt without requesting AI analysis", async () => {
+    vi.useFakeTimers();
+    const first = `${"The first passage explains the research context. ".repeat(4)}First passage ending.`;
+    const second = `${"The second passage explains the sampling method. ".repeat(4)}Second passage ending.`;
+    const { panel, source, analyzeParagraph } = livePanel(`${first}\n\n${second}`, 0);
+    panel.setVisible(true);
+    expect(renderedText(panel.renderForTest())).toContain("Paragraph excerpts");
+    expect(renderedText(panel.renderForTest())).toContain(first);
+    expect(renderedText(panel.renderForTest())).not.toContain("Second passage ending.");
+
+    source.selectionStart = source.value.indexOf(second);
+    source.dispatchEvent(new Event("select"));
+    expect(renderedText(panel.renderForTest())).toContain(second);
+    expect(renderedText(panel.renderForTest())).not.toContain("First passage ending.");
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).not.toHaveBeenCalled();
+    panel.disconnectedCallback();
+  });
+
   it("sends the exact active paragraph with bounded heading and adjacent context", async () => {
     vi.useFakeTimers();
     const heading = `${"H".repeat(500)} omitted heading suffix`;
@@ -400,7 +449,7 @@ describe("manuscript map panel", () => {
     });
     settings.dispatchEvent(new Event(modelProviderChangeEvent));
     expect(renderedText(panel.renderForTest())).not.toContain("Introduces the research question.");
-    expect(renderedText(panel.renderForTest())).toContain("configure a model");
+    expect(renderedText(panel.renderForTest())).toContain("Connect a writing model");
     panel.disconnectedCallback();
   });
 
