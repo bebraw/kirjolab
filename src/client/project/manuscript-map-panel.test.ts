@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { isTemplateResult } from "lit/directive-helpers.js";
 import * as Y from "yjs";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { researchQuestionsPath } from "../../domain/manuscript/research-questions";
@@ -13,11 +14,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function livePanel() {
+function livePanel(
+  initialSource = "# Study\n\nThis study examines a clear question.\n\nA second passage explains the method.",
+  initialSelection = 10,
+) {
   const document = new Y.Doc();
   const text = document.getText("source");
-  text.insert(0, "# Study\n\nThis study examines a clear question.\n\nA second passage explains the method.");
-  const source = Object.assign(new EventTarget(), { value: text.toString(), selectionStart: 10 });
+  text.insert(0, initialSource);
+  const source = Object.assign(new EventTarget(), { value: text.toString(), selectionStart: initialSelection });
   const file = { ...workspaceSnapshotFixture.files[0]!, content: text.toString() };
   const result: ModelParagraphAnalysis = {
     purpose: "Introduces the research question.",
@@ -93,7 +97,230 @@ function eventWithTarget(target: object): Event {
   return event;
 }
 
+function renderedEvent(value: unknown, marker: string, label: string): ((event: Event) => void) | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const callback = renderedEvent(item, marker, label);
+      if (callback) return callback;
+    }
+  }
+  if (!isTemplateResult(value, 1)) return null;
+  for (const [index, part] of value.strings.entries()) {
+    if (part.includes(marker) && value.strings[index + 1]?.includes(label)) {
+      const callback = value.values[index];
+      if (typeof callback === "function") return (event) => callback(event);
+    }
+    const nested = renderedEvent(value.values[index], marker, label);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function interact(panel: TestManuscriptMapPanel, marker: string, label: string, target: object = {}): void {
+  const callback = renderedEvent(panel.renderForTest(), marker, label);
+  if (!callback) throw new Error(`Missing rendered control: ${label}`);
+  callback(eventWithTarget(target));
+}
+
 describe("manuscript map panel", () => {
+  it("sends the exact active paragraph with bounded heading and adjacent context", async () => {
+    vi.useFakeTimers();
+    const heading = `${"H".repeat(500)} omitted heading suffix`;
+    const previous = `omitted previous prefix ${"p".repeat(1_999)}Z`;
+    const active = "The active paragraph explains the sampling choice.";
+    const next = `N${"n".repeat(1_999)} omitted next suffix`;
+    const manuscript = `# ${heading}\n\n${previous}\n\n${active}\n\n${next}\n`;
+    const { panel, analyzeParagraph } = livePanel(manuscript, manuscript.indexOf(active));
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenCalledExactlyOnceWith(
+      {
+        selectedPassage: active,
+        sectionTitle: "H".repeat(500),
+        previousParagraph: `${"p".repeat(1_999)}Z`,
+        nextParagraph: `N${"n".repeat(1_999)}`,
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    panel.disconnectedCallback();
+  });
+
+  it("uses empty context at document boundaries and never invents a section heading", async () => {
+    vi.useFakeTimers();
+    const first = "An opening passage before any heading.";
+    const last = "The final passage closes the argument.";
+    const manuscript = `${first}\n\n${last}\n`;
+    const { panel, source, analyzeParagraph } = livePanel(manuscript, 0);
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenLastCalledWith(
+      { selectedPassage: first, sectionTitle: "", previousParagraph: "", nextParagraph: last },
+      expect.anything(),
+    );
+    source.selectionStart = manuscript.indexOf(last);
+    source.dispatchEvent(new Event("select"));
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenLastCalledWith(
+      { selectedPassage: last, sectionTitle: "", previousParagraph: first, nextParagraph: "" },
+      expect.anything(),
+    );
+    panel.disconnectedCallback();
+  });
+
+  it("analyzes an 8000-character paragraph but refuses longer passages without truncating them", async () => {
+    vi.useFakeTimers();
+    const manuscript = `# Study\n\n${"A".repeat(8_000)}`;
+    const { panel, source, text, document, analyzeParagraph } = livePanel(manuscript);
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenCalledExactlyOnceWith(
+      { selectedPassage: "A".repeat(8_000), sectionTitle: "Study", previousParagraph: "", nextParagraph: "" },
+      expect.anything(),
+    );
+    source.value = `${manuscript}B`;
+    document.transact(() => text.insert(text.length, "B"));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).toHaveBeenCalledOnce();
+    expect(renderedText(panel.renderForTest())).not.toContain("Introduces the research question.");
+    expect(renderedText(panel.renderForTest())).toContain("Select a supported paragraph");
+    panel.disconnectedCallback();
+  });
+
+  it("pauses analysis when the selected Context pane has no layout and resumes on reveal", async () => {
+    vi.useFakeTimers();
+    let reportResize = (): void => {
+      throw new Error("Observer not connected");
+    };
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    class TestResizeObserver implements ResizeObserver {
+      observe = observe;
+      unobserve = vi.fn();
+      disconnect = disconnect;
+      constructor(callback: ResizeObserverCallback) {
+        reportResize = () => callback([], this);
+      }
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const { panel, source, text, analyzeParagraph } = livePanel();
+    let rectCount = 0;
+    Object.defineProperty(panel, "getClientRects", { value: () => ({ length: rectCount }) });
+    expect(observe).toHaveBeenCalledExactlyOnceWith(panel);
+    reportResize();
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).not.toHaveBeenCalled();
+
+    rectCount = 1;
+    reportResize();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenCalledOnce();
+    rectCount = 0;
+    reportResize();
+    source.value = text.toString().replace("This study", "This expanded study");
+    text.insert(14, "expanded ");
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).toHaveBeenCalledOnce();
+    expect(renderedText(panel.renderForTest())).not.toContain("Introduces the research question.");
+
+    rectCount = 1;
+    reportResize();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenCalledTimes(2);
+    panel.disconnectedCallback();
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("lets rendered controls enable analysis, retry a failure, and turn guidance off", async () => {
+    vi.useFakeTimers();
+    const { panel, analyzeParagraph, result } = livePanel();
+    analyzeParagraph.mockRejectedValueOnce(new Error("Model unavailable"));
+    analyzeParagraph.mockResolvedValueOnce({ ...result, purpose: null, hints: [] });
+    panel.setVisible(true);
+    expect(renderedText(panel.renderForTest())).toContain("Enable AI guidance");
+    interact(panel, "@change=", "AI paragraph guidance", { checked: true });
+    await vi.advanceTimersByTimeAsync(1_500);
+    const failed = renderedText(panel.renderForTest());
+    expect(failed).toContain("AI analysis unavailable. Editing and local hints remain available.");
+    expect(failed).toContain("Retry analysis");
+
+    interact(panel, "@click=", "Retry analysis");
+    expect(renderedText(panel.renderForTest())).toContain("Updating AI interpretation");
+    await vi.advanceTimersByTimeAsync(1_500);
+    const unclear = renderedText(panel.renderForTest());
+    expect(unclear).toContain("AI interpretation · purpose unclear");
+    expect(unclear).toContain("The paragraph’s purpose is unclear.");
+    expect(unclear).not.toContain("Retry analysis");
+    expect(unclear).not.toContain("Name the study population.");
+
+    interact(panel, "@change=", "AI paragraph guidance", { checked: false });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(analyzeParagraph).toHaveBeenCalledTimes(2);
+    expect(renderedText(panel.renderForTest())).toContain("Enable AI guidance");
+    expect(renderedText(panel.renderForTest())).not.toContain("The paragraph’s purpose is unclear.");
+    panel.disconnectedCallback();
+  });
+
+  it("ignores an obsolete preview projection and analyzes the current canonical file", async () => {
+    vi.useFakeTimers();
+    const { panel, file, analyzeParagraph } = livePanel();
+    const stale = { ...file, content: "# Obsolete\n\nThis stale projection must never enter model context." };
+    panel.presentProject({
+      files: [stale],
+      snapshot: { ...workspaceSnapshotFixture, files: [stale] },
+      fallbackSource: stale.content,
+      source: stale.content,
+    });
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(analyzeParagraph).toHaveBeenCalledExactlyOnceWith(
+      {
+        selectedPassage: "This study examines a clear question.",
+        sectionTitle: "Study",
+        previousParagraph: "",
+        nextParagraph: "A second passage explains the method.",
+      },
+      expect.anything(),
+    );
+    panel.disconnectedCallback();
+  });
+
+  it("keeps previous interpretation visibly outdated while its replacement is still in flight", async () => {
+    vi.useFakeTimers();
+    const { panel, source, text, analyzeParagraph, result } = livePanel();
+    panel.setVisible(true);
+    panel.setAnalysisEnabled(true);
+    await vi.advanceTimersByTimeAsync(1_500);
+    let finishReplacement: (value: ModelParagraphAnalysis) => void = () => {
+      throw new Error("Analysis has not started");
+    };
+    analyzeParagraph.mockImplementationOnce(
+      () =>
+        new Promise<ModelParagraphAnalysis>((resolve) => {
+          finishReplacement = resolve;
+        }),
+    );
+    source.value = text.toString().replace("This study", "This expanded study");
+    text.insert(14, "expanded ");
+    await vi.advanceTimersByTimeAsync(1_500);
+    const pending = renderedText(panel.renderForTest());
+    expect(pending).toContain("Updating · previous AI interpretation is outdated.");
+    expect(pending).toContain("Introduces the research question.");
+    expect(pending).not.toContain("Current · AI interpretation");
+    finishReplacement({ ...result, purpose: "Introduces the expanded question.", hints: [] });
+    await vi.advanceTimersByTimeAsync(0);
+    const current = renderedText(panel.renderForTest());
+    expect(current).toContain("Current · AI interpretation");
+    expect(current).toContain("Introduces the expanded question.");
+    expect(current).not.toContain("Introduces the research question.");
+    panel.disconnectedCallback();
+  });
+
   it("refreshes paragraph context when another include occurrence selects the same authored range", async () => {
     vi.useFakeTimers();
     const { panel, source, analyzeParagraph, projectFileDialog, file, focusRange } = livePanel();
@@ -135,6 +362,7 @@ describe("manuscript map panel", () => {
     await vi.advanceTimersByTimeAsync(1_500);
     expect(analyzeParagraph).toHaveBeenCalledTimes(1);
     expect(renderedText(panel.renderForTest())).toContain("Introduces the research question.");
+    expect(renderedText(panel.renderForTest())).toContain("Name the study population.");
 
     text.insert(10, "updated ");
     source.value = text.toString();

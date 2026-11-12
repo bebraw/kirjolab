@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../../domain/reference-library";
-import type { PdfResource, PublicationResource } from "../../domain/workspace/workspace";
+import type { ModelCandidate, PdfResource, PublicationResource } from "../../domain/workspace/workspace";
 import {
   ContextTabStrip,
   contextPrimaryTabActionEvent,
@@ -55,13 +55,52 @@ const referencePdf: ProjectReferencePdf = {
   referenceId: publication.id,
   size: 4096,
 };
+const candidate: ModelCandidate = {
+  createdAt,
+  evidence: [],
+  id: "revision-123",
+  instruction: "Clarify the claim",
+  model: "review-model",
+  operation: "draft-claim",
+  promptVersion: "draft-claim-v1",
+  proposedNote: "",
+  proposedText: "A clearer claim.",
+  providerAdapter: "openai-compatible",
+  providerLabel: "Writing provider",
+  relation: "supports",
+  status: "pending",
+};
+
+interface TemplateLike {
+  readonly strings: readonly string[];
+  readonly values: readonly unknown[];
+}
+
+function templateText(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (!isTemplateLike(value)) return "";
+  return value.strings.reduce((text, part, index) => `${text}${part}${templateText(value.values[index])}`, "");
+}
+
+function isTemplateLike(value: unknown): value is TemplateLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "strings" in value &&
+    Array.isArray(value.strings) &&
+    "values" in value &&
+    Array.isArray(value.values)
+  );
+}
 
 class TestContextTabStrip extends ContextTabStrip {
+  readonly absentPanels = new Set<string>();
   readonly panels = new Map<
     string,
     {
       dataset: Record<string, string>;
       hidden: boolean;
+      label: string | null;
       labelledBy: string | null;
       previewActive: boolean;
       scrollTop: number;
@@ -105,18 +144,20 @@ class TestContextTabStrip extends ContextTabStrip {
     return this.data.items.map(({ title }) => title);
   }
 
-  protected override controlledPanel(id: string): HTMLElement {
+  protected override controlledPanel(id: string): HTMLElement | null {
+    if (this.absentPanels.has(id)) return null;
     let panel = this.panels.get(id);
     if (!panel) {
       panel = {
         dataset: {},
         hidden: false,
+        label: "Fallback panel label",
         labelledBy: null,
         previewActive: false,
         scrollTop: 0,
         visible: false,
         removeAttribute: (name) => {
-          if (name === "aria-label") return;
+          if (name === "aria-label") panel!.label = null;
         },
         setPreviewActive: (active) => {
           panel!.previewActive = active;
@@ -153,6 +194,35 @@ function sources(
 }
 
 describe("context tab strip", () => {
+  it("renders accessible fixed tabs with only the selected tab in the tab order", () => {
+    const strip = new TestContextTabStrip();
+    const initial = templateText(strip.renderForTest()).replace(/\s+/g, " ");
+    expect(initial).toContain('role="tablist" aria-label="Research context"');
+    expect(initial).toContain(
+      'id=context-preview-tab type="button" role="tab" aria-controls=context-preview-panel aria-selected=true tabindex=0',
+    );
+    expect(initial).toContain(
+      'id=context-outline-tab type="button" role="tab" aria-controls=context-outline-panel aria-selected=false tabindex=-1',
+    );
+    expect(initial).not.toContain("context-chapter-notes-tab");
+
+    strip.setTabs(sources("outline", [{ kind: "outline", key: "outline", scrollTop: 0 }]));
+    const selected = templateText(strip.renderForTest()).replace(/\s+/g, " ");
+    expect(selected.match(/<button\b/g)).toHaveLength(4);
+    expect(selected).toContain(
+      'id=context-preview-tab type="button" role="tab" aria-controls=context-preview-panel aria-selected=false tabindex=-1 data-context-action=preview @click= > Preview </button>',
+    );
+    expect(selected).toContain(
+      'id=context-outline-tab type="button" role="tab" aria-controls=context-outline-panel aria-selected=true tabindex=0 data-context-action=outline @click= > Outline & hints </button>',
+    );
+    expect(selected).toContain(
+      'id=context-library-tab type="button" role="tab" aria-controls=context-library-panel aria-selected=false tabindex=-1 data-context-action=library @click= > Library </button>',
+    );
+    expect(selected).toContain(
+      'id=context-assistant-tab type="button" role="tab" aria-controls=context-assistant-panel aria-selected=false tabindex=-1 data-context-action=assistant @click= > Writing assistant </button>',
+    );
+  });
+
   it("shows Outline & hints beside the editor and restores its scroll without opening a resource", () => {
     const strip = new TestContextTabStrip();
     strip.setTabs(sources("outline", [{ kind: "outline", key: "outline", scrollTop: 42 }]));
@@ -181,6 +251,7 @@ describe("context tab strip", () => {
 
     expect(strip.titlesForTest()).toEqual(["Library"]);
     expect(strip.panels.get("context-outline-panel")?.hidden).toBe(true);
+    expect(templateText(strip.renderForTest())).not.toContain("context-outline-tab");
   });
 
   it("renders fixed and resource tab states", () => {
@@ -254,6 +325,30 @@ describe("context tab strip", () => {
     expect(strip.titlesForTest()).toEqual(["Preview", "Chapter notes", "Library", "Writing assistant"]);
     expect(strip.panels.get("context-chapter-notes-panel")?.hidden).toBe(false);
     expect(strip.panels.get("context-chapter-notes-scroll")?.scrollTop).toBe(18);
+    expect(templateText(strip.renderForTest()).replace(/\s+/g, " ")).toContain(
+      'id=context-chapter-notes-tab type="button" role="tab" aria-controls=context-chapter-notes-panel aria-selected=true tabindex=0 data-context-action=chapter-notes @click= > Chapter notes </button>',
+    );
+  });
+
+  it("labels saved revisions by their own model and keeps missing references identifiable", () => {
+    const strip = new TestContextTabStrip();
+    strip.setTabs(
+      sources(
+        "candidate:revision-123",
+        [
+          { id: candidate.id, key: "candidate:revision-123", kind: "candidate", scrollTop: 0 },
+          { id: "missing", key: "publication:missing", kind: "publication", scrollTop: 0 },
+        ],
+        { candidates: [{ ...candidate, id: "other", model: "other-model" }, candidate], publications: [publication] },
+      ),
+    );
+
+    expect(strip.titlesForTest()).toEqual(["Revision · review-model · revi", "Reference"]);
+    expect(strip.panels.get("context-candidate-panel")).toMatchObject({
+      hidden: false,
+      label: null,
+      labelledBy: "context-tab-candidate-revision-123",
+    });
   });
 
   it("keeps PDF labels stable when filename metadata changes or is unavailable", () => {
@@ -317,6 +412,8 @@ describe("context tab strip", () => {
     const strip = new TestContextTabStrip();
     const actions: ContextPrimaryTabAction[] = [];
     strip.addEventListener(contextPrimaryTabActionEvent, (event) => {
+      expect(event.bubbles).toBe(true);
+      expect(event.composed).toBe(true);
       actions.push((event as CustomEvent<ContextPrimaryTabAction>).detail);
     });
 
@@ -336,6 +433,7 @@ describe("context tab strip", () => {
     strip.bindNavigation(navigation);
 
     strip.activateForTest("preview");
+    strip.activateForTest("outline");
     strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "activate", key: "publication:reference-1" } }));
@@ -346,6 +444,7 @@ describe("context tab strip", () => {
     expect(navigation.openLibrary).toHaveBeenCalledOnce();
     expect(navigation.activate.mock.calls).toEqual([
       ["preview"],
+      ["outline"],
       ["chapter-notes"],
       ["publication:reference-1"],
       ["candidate:candidate-1"],
@@ -363,36 +462,86 @@ describe("context tab strip", () => {
 
   it("delegates resources and focuses fixed or dynamic tabs", async () => {
     const strip = new TestContextTabStrip();
-    const data = sources("preview", [
-      { kind: "preview", key: "preview", scrollTop: 0 },
-      { id: "item", key: "publication:item", kind: "publication", scrollTop: 0 },
-    ]);
-    let overviewItems = 0;
-    let resourceItems = 0;
+    const data = sources(
+      "outline",
+      [
+        { kind: "preview", key: "preview", scrollTop: 0 },
+        { kind: "outline", key: "outline", scrollTop: 0 },
+        { kind: "chapter-notes", key: "chapter-notes", scrollTop: 0 },
+        { kind: "library", key: "library", scrollTop: 0 },
+        { kind: "assistant", key: "assistant", scrollTop: 0 },
+        { id: "item", key: "publication:item", kind: "publication", scrollTop: 0 },
+      ],
+      { chapterNotesAvailable: true },
+    );
+    const overview = { setTabs: vi.fn() };
+    const resources = { setTabs: vi.fn() };
     const focused: string[] = [];
     const tabs = [
       { id: "context-preview-tab", focus: () => focused.push("preview") },
+      { id: "context-outline-tab", focus: () => focused.push("outline") },
+      { id: "context-chapter-notes-tab", focus: () => focused.push("chapter-notes") },
+      { id: "context-library-tab", focus: () => focused.push("library") },
+      { id: "context-assistant-tab", focus: () => focused.push("assistant") },
       { id: "context-tab-publication-item", focus: () => focused.push("resource") },
     ];
     Object.defineProperty(strip, "querySelector", {
-      value: (selector: string) => ({
-        setTabs: (input: { readonly items: readonly unknown[] }) => {
-          if (selector === "context-resource-tabs-panel") resourceItems = input.items.length;
-          else overviewItems = input.items.length;
-        },
-      }),
+      value: (selector: string) => {
+        if (selector === "context-resource-tabs-panel") return resources;
+        if (selector === "context-tab-overview-panel") return overview;
+        return null;
+      },
     });
-    Object.defineProperty(strip, "querySelectorAll", { value: () => tabs });
+    Object.defineProperty(strip, "querySelectorAll", { value: (selector: string) => (selector === "[role=tab]" ? tabs : []) });
 
     strip.setTabs(data);
     strip.updatedForTest();
     strip.focusTab("preview");
+    strip.focusTab("outline");
+    strip.focusTab("chapter-notes");
+    strip.focusTab("library");
+    strip.focusTab("assistant");
     strip.focusTab("publication:item");
+    strip.focusTab("publication:closed");
     await Promise.resolve();
 
-    expect(resourceItems).toBe(1);
-    expect(overviewItems).toBe(2);
-    expect(focused).toEqual(["preview", "resource"]);
+    expect(resources.setTabs).toHaveBeenCalledExactlyOnceWith({
+      activeKey: "outline",
+      items: [{ tab: data.tabs[5], title: "Reference" }],
+    });
+    expect(overview.setTabs).toHaveBeenCalledExactlyOnceWith({
+      activeKey: "outline",
+      standaloneLibrary: false,
+      items: [
+        { tab: data.tabs[0], title: "Preview" },
+        { tab: data.tabs[1], title: "Outline & hints" },
+        { tab: data.tabs[2], title: "Chapter notes" },
+        { tab: data.tabs[3], title: "Library" },
+        { tab: data.tabs[4], title: "Writing assistant" },
+        { tab: data.tabs[5], title: "Reference" },
+      ],
+    });
+    expect(focused).toEqual(["preview", "outline", "chapter-notes", "library", "assistant", "resource"]);
+  });
+
+  it("tolerates children and controlled panels that have not mounted yet", () => {
+    const strip = new TestContextTabStrip();
+    Object.defineProperty(strip, "querySelector", { value: () => null });
+    for (const id of [
+      "context-pdf-panel",
+      "context-publication-panel",
+      "preview-context-controls",
+      "preview-sync-controls",
+      "preview-navigation-control",
+    ]) {
+      strip.absentPanels.add(id);
+    }
+
+    expect(() => {
+      strip.setTabs(sources("publication:item", [{ id: "item", key: "publication:item", kind: "publication", scrollTop: 0 }]));
+      strip.updatedForTest();
+    }).not.toThrow();
+    expect(strip.titlesForTest()).toEqual(["Reference"]);
   });
 
   it("owns resource panel visibility, labels, and PDF mode presentation", () => {
@@ -403,6 +552,7 @@ describe("context tab strip", () => {
 
     expect(strip.panels.get("context-publication-panel")).toMatchObject({
       hidden: false,
+      label: null,
       labelledBy: "context-tab-publication-item",
     });
     const libraryPdfTab = {
@@ -417,7 +567,10 @@ describe("context tab strip", () => {
     expect(strip.panels.get("context-pdf-panel")).toMatchObject({
       dataset: { libraryPdf: "true", readonlyPdf: "false" },
       hidden: false,
+      label: null,
+      labelledBy: "context-tab-library-pdf-paper",
     });
+    expect(strip.panels.get("context-publication-panel")?.hidden).toBe(true);
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(true);
 
     const projectPdf = {
@@ -429,6 +582,11 @@ describe("context tab strip", () => {
       focusedAnnotationId: null,
     };
     strip.setTabs(sources(projectPdf.key, [projectPdf]));
+    expect(strip.panels.get("context-pdf-panel")).toMatchObject({
+      dataset: { libraryPdf: "false", readonlyPdf: "false" },
+      hidden: false,
+      labelledBy: "context-tab-pdf-pdf:1",
+    });
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
 
     const privatePdf = {
@@ -452,16 +610,78 @@ describe("context tab strip", () => {
     };
     strip.setTabs(sources(readonlyPdf.key, [readonlyPdf], { referencePdfs: [referencePdf] }));
     expect(strip.panels.get("context-pdf-panel")?.dataset).toEqual({ libraryPdf: "true", readonlyPdf: "true" });
+
+    strip.setTabs(
+      sources(readonlyPdf.key, [readonlyPdf], {
+        libraryArtifacts: [artifact],
+        referencePdfs: [
+          { ...referencePdf, id: "unrelated-reference" },
+          { ...referencePdf, ownArtifactId: artifact.id },
+        ],
+      }),
+    );
+    expect(strip.panels.get("context-pdf-panel")?.dataset).toEqual({ libraryPdf: "true", readonlyPdf: "false" });
+
+    strip.setTabs(
+      sources(readonlyPdf.key, [readonlyPdf], {
+        libraryArtifacts: [{ ...artifact, id: "unrelated-artifact" }],
+        referencePdfs: [{ ...referencePdf, ownArtifactId: artifact.id }],
+      }),
+    );
+    expect(strip.panels.get("context-pdf-panel")?.dataset).toEqual({ libraryPdf: "true", readonlyPdf: "true" });
+  });
+
+  it("keeps exactly the selected panel visible while moving between writing and research tabs", () => {
+    const strip = new TestContextTabStrip();
+    const tabs: readonly ResearchContextTab[] = [
+      { kind: "preview", key: "preview", scrollTop: 0 },
+      { kind: "outline", key: "outline", scrollTop: 0 },
+      { kind: "chapter-notes", key: "chapter-notes", scrollTop: 0 },
+      { kind: "library", key: "library", scrollTop: 0 },
+      { kind: "assistant", key: "assistant", scrollTop: 0 },
+      { kind: "publication", id: "item", key: "publication:item", scrollTop: 0 },
+      { kind: "candidate", id: "revision", key: "candidate:revision", scrollTop: 0 },
+    ];
+    const panelIds = [
+      "context-preview-panel",
+      "context-outline-panel",
+      "context-chapter-notes-panel",
+      "context-library-panel",
+      "context-assistant-panel",
+      "context-publication-panel",
+      "context-candidate-panel",
+      "context-pdf-panel",
+    ];
+
+    for (const [index, tab] of tabs.entries()) {
+      strip.setTabs(sources(tab.key, tabs, { chapterNotesAvailable: true }));
+      expect(panelIds.filter((id) => strip.panels.get(id)?.hidden === false)).toEqual([panelIds[index]]);
+      expect(strip.panels.get("preview-context-controls")?.hidden).toBe(tab.key !== "preview");
+      expect(strip.panels.get("preview-sync-controls")?.visible).toBe(tab.key === "preview");
+      expect(strip.panels.get("preview-navigation-control")?.previewActive).toBe(tab.key === "preview");
+      expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(true);
+    }
   });
 
   it("captures and restores fixed-panel scroll positions", () => {
     const strip = new TestContextTabStrip();
 
+    strip.setTabs(sources("preview", [{ kind: "preview", key: "preview", scrollTop: 16 }]));
+    expect(strip.fixedScrollTop("preview")).toBe(16);
+    expect(strip.panels.get("preview-scroll")?.scrollTop).toBe(16);
+    strip.setTabs(sources("outline", [{ kind: "outline", key: "outline", scrollTop: 70 }]));
+    const outlineScroll = strip.panels.get("context-outline-scroll");
+    if (!outlineScroll) throw new Error("Outline scroll container was not restored");
+    outlineScroll.scrollTop = 96;
+    expect(strip.fixedScrollTop("outline")).toBe(96);
     strip.setTabs(sources("library", [{ kind: "library", key: "library", scrollTop: 42 }]));
     expect(strip.fixedScrollTop("library")).toBe(42);
+    expect(strip.fixedScrollTop("outline")).toBe(96);
     strip.setTabs(sources("assistant", [{ kind: "assistant", key: "assistant", scrollTop: 24 }]));
     expect(strip.panels.get("context-assistant-scroll")?.scrollTop).toBe(24);
     expect(strip.fixedScrollTop("publication:item")).toBeNull();
+    strip.setTabs(sources("outline", [{ kind: "outline", key: "outline", scrollTop: 96 }]));
+    expect(outlineScroll.scrollTop).toBe(96);
   });
 
   it("moves roving focus only for unmodified navigation keys", () => {
@@ -470,23 +690,32 @@ describe("context tab strip", () => {
     const previewTab = { tabIndex: 0, focus: () => focused.push("preview") };
     const libraryTab = { tabIndex: -1, focus: () => focused.push("library") };
     const tabs = [previewTab, libraryTab];
-    Object.defineProperty(strip, "querySelectorAll", { value: () => tabs });
-    const keydown = (key: string, target: object, metaKey = false): Event => {
+    Object.defineProperty(strip, "querySelectorAll", { value: (selector: string) => (selector === "[role=tab]" ? tabs : []) });
+    const keydown = (key: string, target: object, modifier?: "altKey" | "ctrlKey" | "metaKey"): Event => {
       const event = new Event("keydown", { cancelable: true });
       Object.defineProperties(event, {
-        altKey: { value: false },
-        ctrlKey: { value: false },
+        altKey: { value: modifier === "altKey" },
+        ctrlKey: { value: modifier === "ctrlKey" },
         key: { value: key },
-        metaKey: { value: metaKey },
+        metaKey: { value: modifier === "metaKey" },
         target: { value: target },
       });
       return event;
     };
 
-    strip.moveFocusForTest(keydown("ArrowRight", previewTab));
-    strip.moveFocusForTest(keydown("ArrowRight", libraryTab, true));
-    strip.moveFocusForTest(keydown("Enter", libraryTab));
-    strip.moveFocusForTest(keydown("ArrowRight", {}));
+    const forward = keydown("ArrowRight", previewTab);
+    strip.moveFocusForTest(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    for (const event of [
+      keydown("ArrowRight", libraryTab, "metaKey"),
+      keydown("ArrowRight", libraryTab, "altKey"),
+      keydown("ArrowRight", libraryTab, "ctrlKey"),
+      keydown("Enter", libraryTab),
+      keydown("ArrowRight", {}),
+    ]) {
+      strip.moveFocusForTest(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
 
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, 0]);
     expect(focused).toEqual(["library"]);
