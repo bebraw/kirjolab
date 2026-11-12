@@ -30,7 +30,9 @@ without treating advisory cues or model interpretations as scientific judgments.
   selects within that cache on caret movement without recomposing.
 - The caret identifies the active passage. A separate reading-position marker
   follows the source viewport. Optional following scrolls only the outline;
-  ordinary source scrolling changes neither selection nor the AI target.
+  caret navigation reveals the active passage, including opening its collapsed
+  ancestors, while source scrolling follows the reading-position marker.
+  Ordinary source scrolling changes neither selection nor the AI target.
   Following a row taller than the outline viewport keeps its readable beginning
   in view instead of jumping to the bottom of the passage.
 - Editing-pass cues are local and advisory. The current-passage view shows at
@@ -111,7 +113,10 @@ without treating advisory cues or model interpretations as scientific judgments.
 - When: the author opens Outline & hints and moves the caret
 - Then: the matching passage is identified and local hints reflect its current
   source without moving the source selection; the labeled source excerpt shows
-  the active paragraph in full while inactive paragraphs stay compact
+  the active paragraph in full while inactive paragraphs stay compact. With
+  following enabled, an offscreen active passage is brought into the outline
+  viewport even when the editor itself has not scrolled; with following disabled,
+  the outline keeps its own scroll position.
 
 **Scenario: Author follows a long active paragraph**
 

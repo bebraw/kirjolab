@@ -150,11 +150,13 @@ export class ManuscriptMapPanel extends LightDomElement {
   }
 
   setEditorPosition(fileId: string, offset: number, readingOffset?: number): void {
+    const previousOffset = this.activeOffset;
     this.activeOffset = this.composing ? null : outlineOffset(this.sourceMap, fileId, offset, this.activeOffset);
     if (readingOffset !== undefined)
       this.readingOffset = this.composing ? null : outlineOffset(this.sourceMap, fileId, readingOffset, this.readingOffset);
     this.updateAnalysis();
     this.requestUpdate();
+    if (this.follow && this.visible && this.activeOffset !== previousOffset) void this.revealPosition("active");
   }
 
   setVisible(visible: boolean): void {
@@ -393,10 +395,10 @@ export class ManuscriptMapPanel extends LightDomElement {
   };
   private readonly changeFollow = (event: Event): void => {
     this.follow = (event.currentTarget as HTMLInputElement).checked;
-    if (this.follow) void this.revealReadingPosition();
+    if (this.follow) void this.revealPosition();
   };
   private readonly showCurrent = (): void => {
-    void this.revealReadingPosition();
+    void this.revealPosition();
   };
   private readonly changeAI = (event: Event): void => {
     this.setAnalysisEnabled((event.currentTarget as HTMLInputElement).checked);
@@ -532,21 +534,20 @@ export class ManuscriptMapPanel extends LightDomElement {
         this.readingOffset,
       );
       this.requestUpdate();
-      if (this.follow && this.visible) void this.revealReadingPosition();
+      if (this.follow && this.visible) void this.revealPosition();
     });
   };
 
-  private async revealReadingPosition(): Promise<void> {
-    const offset = this.readingOffset ?? this.activeOffset;
+  private async revealPosition(position: "active" | "reading" = "reading"): Promise<void> {
+    const offset = position === "active" ? this.activeOffset : (this.readingOffset ?? this.activeOffset);
     if (offset === null) return;
     for (const section of this.outline.sections)
       if (section.from <= offset && offset < section.subtreeTo) this.collapsed.delete(this.sectionKeys.get(section.from) ?? "");
     this.requestUpdate();
     await this.updateComplete;
     const scroller = this.querySelector<HTMLElement>(".manuscript-outline");
-    const target =
-      scroller?.querySelector<HTMLElement>('[aria-current="location"].outline-paragraph') ??
-      scroller?.querySelector<HTMLElement>('[aria-current="location"]');
+    const marker = position === "active" ? '[aria-pressed="true"]' : '[aria-current="location"]';
+    const target = scroller?.querySelector<HTMLElement>(`${marker}.outline-paragraph`) ?? scroller?.querySelector<HTMLElement>(marker);
     if (!scroller || !target) return;
     const bounds = scroller.getBoundingClientRect();
     const item = target.getBoundingClientRect();

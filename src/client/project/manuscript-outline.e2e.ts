@@ -269,6 +269,108 @@ test("follows the reading position by scrolling the outline without changing the
   expect(await page.evaluate(() => document.scrollingElement?.scrollTop)).toBe(0);
 });
 
+test("follows caret movement to an offscreen passage without changing the reading target", async ({ page }) => {
+  const passages = Array.from({ length: 20 }, (_, index) => `Passage ${index + 1} describes a separate decision in the study.`);
+  const preceding = "The preceding passage keeps the source viewport occupied while the caret moves. ".repeat(100).trim();
+  const destination = "The final passage explains the destination of this argument.";
+  const source = [
+    ...passages.map((paragraph, index) => `## Section ${index + 1}\n\n${paragraph}`),
+    `## Before the destination\n\n${preceding}`,
+    `## Destination\n\n${destination}`,
+  ].join("\n\n");
+  const editor = await openOutline(page, await createWorkspace(page), source);
+  const outline = page.getByRole("navigation", { name: "Manuscript outline" });
+  const firstParagraph = outline.getByRole("button", { name: `Paragraph 1 ${passages[0]}` });
+  const precedingParagraph = outline.getByRole("button", { name: /^Paragraph 21 /u });
+  const destinationParagraph = outline.getByRole("button", { name: `Paragraph 22 ${destination}` });
+  const follow = page.getByLabel("Follow reading position", { exact: true });
+  const beforeDestination = await placeCaret(editor, `\n${destination}`);
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+  await expect(precedingParagraph).toHaveAttribute("aria-current", "location");
+  await follow.check();
+  await expect.poll(() => outline.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+  await outline.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  const [initialBounds, destinationBounds] = await Promise.all([outline.boundingBox(), destinationParagraph.boundingBox()]);
+  expect(initialBounds).not.toBeNull();
+  expect(destinationBounds).not.toBeNull();
+  expect(destinationBounds!.y).toBeGreaterThan(initialBounds!.y + initialBounds!.height);
+  const sourceScroll = await editor.evaluate((element) => element.scrollTop);
+
+  await editor.press("ArrowRight");
+
+  await expect(destinationParagraph).toHaveAttribute("aria-pressed", "true");
+  await expect(precedingParagraph).toHaveAttribute("aria-current", "location");
+  await expect
+    .poll(async () => {
+      const [container, target] = await Promise.all([outline.boundingBox(), destinationParagraph.boundingBox()]);
+      return (
+        container !== null &&
+        target !== null &&
+        target.y >= container.y - 1 &&
+        target.y + target.height <= container.y + container.height + 1
+      );
+    })
+    .toBe(true);
+  await expect(editor).toBeFocused();
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => ({ start: element.selectionStart, end: element.selectionEnd }))).toEqual({
+    start: beforeDestination + 1,
+    end: beforeDestination + 1,
+  });
+  expect(await editor.evaluate((element) => element.scrollTop)).toBe(sourceScroll);
+
+  await editor.press(process.platform === "darwin" ? "Meta+ArrowUp" : "Control+Home");
+  await expect(outline.getByRole("button", { name: /^Section 1 \d+w$/u })).toHaveAttribute("aria-pressed", "true");
+  await editor.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
+  await expect(destinationParagraph).toHaveAttribute("aria-pressed", "true");
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect
+    .poll(async () => {
+      const [container, target] = await Promise.all([outline.boundingBox(), destinationParagraph.boundingBox()]);
+      return (
+        container !== null &&
+        target !== null &&
+        target.y >= container.y - 1 &&
+        target.y + target.height <= container.y + container.height + 1
+      );
+    })
+    .toBe(true);
+
+  await follow.uncheck();
+  const heldScroll = await outline.evaluate((element) => element.scrollTop);
+  const [heldBounds, firstBounds] = await Promise.all([outline.boundingBox(), firstParagraph.boundingBox()]);
+  expect(heldBounds).not.toBeNull();
+  expect(firstBounds).not.toBeNull();
+  expect(firstBounds!.y + firstBounds!.height).toBeLessThan(heldBounds!.y);
+  const firstCaret = await placeCaret(editor, passages[0]!);
+  await expect(firstParagraph).toHaveAttribute("aria-pressed", "true");
+  expect(await outline.evaluate((element) => element.scrollTop)).toBe(heldScroll);
+  await expect(editor).toBeFocused();
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => ({ start: element.selectionStart, end: element.selectionEnd }))).toEqual({
+    start: firstCaret,
+    end: firstCaret,
+  });
+
+  await outline.getByRole("button", { name: "Collapse Destination", exact: true }).click();
+  await expect(destinationParagraph).toHaveCount(0);
+  await follow.check();
+  await expect(destinationParagraph).toHaveCount(0);
+  const destinationCaret = await placeCaret(editor, destination);
+  await expect(outline.getByRole("button", { name: "Collapse Destination", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(destinationParagraph).toHaveAttribute("aria-pressed", "true");
+  await expect(editor).toBeFocused();
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => ({ start: element.selectionStart, end: element.selectionEnd }))).toEqual({
+    start: destinationCaret,
+    end: destinationCaret,
+  });
+  await expect(editor).toHaveValue(source);
+  expect(await page.evaluate(() => document.scrollingElement?.scrollTop)).toBe(0);
+});
+
 test("requires AI opt-in, rejects obsolete results, and pauses when its tab is hidden", async ({ page }) => {
   await configureModel(page);
   const requests: unknown[] = [];

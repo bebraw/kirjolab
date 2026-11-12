@@ -597,6 +597,53 @@ describe("manuscript map panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
+  it("follows caret movement independently of the reading marker only while following is enabled and visible", async () => {
+    const { panel, source, focusRange } = livePanel();
+    panel.setVisible(true);
+    const reading = { getBoundingClientRect: () => ({ top: 120, bottom: 160 }) };
+    const active = { getBoundingClientRect: () => ({ top: 320, bottom: 360 }) };
+    const scroller = {
+      scrollTop: 200,
+      getBoundingClientRect: () => ({ top: 100, bottom: 300 }),
+      querySelector: (selector: string) =>
+        selector === '[aria-current="location"].outline-paragraph'
+          ? reading
+          : selector === '[aria-pressed="true"].outline-paragraph'
+            ? active
+            : null,
+    };
+    Object.defineProperties(panel, {
+      querySelector: { value: (selector: string) => (selector === ".manuscript-outline" ? scroller : null) },
+      updateComplete: { get: () => Promise.resolve(true) },
+    });
+    interact(panel, "@change=", "Follow reading position", { checked: true });
+    await panel.updateComplete;
+    expect(scroller.scrollTop).toBe(200);
+
+    const caret = source.value.indexOf("A second");
+    source.selectionStart = caret;
+    source.dispatchEvent(new Event("select"));
+    await panel.updateComplete;
+    expect(scroller.scrollTop).toBe(260);
+    expect(source.selectionStart).toBe(caret);
+    expect(focusRange).not.toHaveBeenCalled();
+
+    interact(panel, "@change=", "Follow reading position", { checked: false });
+    source.selectionStart = 10;
+    source.dispatchEvent(new Event("keyup"));
+    await panel.updateComplete;
+    expect(scroller.scrollTop).toBe(260);
+
+    interact(panel, "@change=", "Follow reading position", { checked: true });
+    await panel.updateComplete;
+    panel.setVisible(false);
+    source.selectionStart = caret;
+    source.dispatchEvent(new Event("click"));
+    await panel.updateComplete;
+    expect(scroller.scrollTop).toBe(260);
+    panel.disconnectedCallback();
+  });
+
   it.each([
     { position: "above the viewport", top: 60, bottom: 120, expectedScroll: 160 },
     { position: "below the viewport", top: 320, bottom: 360, expectedScroll: 260 },
