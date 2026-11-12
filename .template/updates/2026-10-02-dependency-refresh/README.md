@@ -50,6 +50,9 @@ Projects using `agents` `0.25.0` must retain
 `@modelcontextprotocol/server` `2.0.0` while that release declares the exact
 peer requirement. Resolve application-specific peer constraints before
 upgrading runtime packages.
+The [November MCP supplement](../2026-10-01-patch-transitive-audit-findings/README.md#november-12-retire-the-mcp-bridge)
+upgrades affected projects to patched, compatible peers and removes that
+temporary override bridge.
 
 Projects adopting PDF.js 6.3 while supporting browsers without native
 `Promise.withResolvers` must supply that compatibility shim in both the display

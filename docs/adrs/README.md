@@ -33,8 +33,9 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-247](./implemented/ADR-247-retire-mcp-peer-overrides.md)                             | Implemented          | Replace MCP peer overrides with patched, upstream-compatible Agents and MCP releases.                           |
 | [ADR-246](./implemented/ADR-246-place-live-outline-and-hints-in-context.md)               | Implemented          | Place the live manuscript outline and local hints in Context with opt-in transient paragraph-purpose analysis.  |
-| [ADR-245](./implemented/ADR-245-override-vulnerable-mcp-client-peers.md)                  | Implemented          | Override existing vulnerable MCP client peers without changing Agents or the direct MCP server.                 |
+| [ADR-245](./implemented/ADR-245-override-vulnerable-mcp-client-peers.md)                  | Superseded           | Override existing vulnerable MCP client peers without changing Agents or the direct MCP server.                 |
 | [ADR-244](./implemented/ADR-244-report-unavailable-legacy-history-images.md)              | Implemented          | Report unavailable pre-retention-fix historical images while backing up current owner state.                    |
 | [ADR-243](./implemented/ADR-243-guide-project-creation-and-normalize-source-archives.md)  | Implemented          | Create projects on a dedicated stepwise page and normalize bounded Markdown ZIPs into native metadata.          |
 | [ADR-241](./implemented/ADR-241-add-lossless-native-project-archives.md)                  | Implemented          | Preserve current project state through paired native ZIP export and import.                                     |

@@ -225,6 +225,11 @@ copy or dual write.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler, including strict decimal resource-page variables and
   sanitized resource and tool failures.
+- Agents/MCP upgrades use patched, peer-compatible packages without MCP peer
+  overrides. The dependency graph, production audit, TypeScript, MCP contracts,
+  Workers tests, and native CI must pass before release; the stateless handler,
+  Access authentication, and owner boundaries remain covered. See
+  [ADR-247](../../docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md).
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace and
   rejects a corpus hostname that would replace either the canonical primary

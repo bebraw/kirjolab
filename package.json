@@ -16,15 +16,12 @@
     "@cloudflare/puppeteer@1.4.0": {
       "@puppeteer/browsers": "3.2.3"
     },
-    "@modelcontextprotocol/client": "2.2.0",
-    "@modelcontextprotocol/core": "2.2.0",
-    "@modelcontextprotocol/sdk": "1.31.0",
-    "fast-uri": "3.1.8",
+    "fast-uri": "3.1.9",
     "postcss": {
       "nanoid": "3.3.19"
     },
     "typed-rest-client": {
-      "qs": "6.16.0"
+      "qs": "6.16.1"
     }
   },
   "vibeTemplate": {
@@ -182,11 +179,11 @@
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.3.1",
     "@octokit/auth-app": "8.3.1",
     "@openai/codex-sdk": "0.160.0",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
-    "agents": "0.25.0",
+    "agents": "0.28.1",
     "cytoscape": "3.34.3",
     "fflate": "0.8.3",
     "lit": "3.3.3",
@@ -196,6 +193,6 @@
     "valibot": "1.5.0",
     "xstate": "5.33.2",
     "yjs": "13.6.33",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }

@@ -44,9 +44,12 @@ test("keeps bare corpus deployment fail-closed and develops with both Worker con
 test("pins the supported stateless MCP runtime as direct dependencies", async () => {
   const packageJson = await readJson("package.json");
 
-  assert.equal(packageJson.dependencies?.agents, "0.25.0");
-  assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.0.0");
-  assert.equal(packageJson.dependencies?.zod, "4.6.5");
+  assert.equal(packageJson.dependencies?.agents, "0.28.1");
+  assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.3.1");
+  assert.equal(packageJson.dependencies?.zod, "4.6.7");
+  for (const name of ["@modelcontextprotocol/client", "@modelcontextprotocol/core", "@modelcontextprotocol/sdk"]) {
+    assert.equal(packageJson.overrides?.[name], undefined, "patched MCP peers must resolve without the retired compatibility bridge");
+  }
 });
 
 test("keeps corpus binding types generated and gated", async () => {

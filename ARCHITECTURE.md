@@ -2117,11 +2117,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Stryker's exit status and keep bounded affected runs capable of emitting
   individual mutant details.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
-- Pin the existing MCP client and SDK peers to patched versions with the
-  matching shared core while Agents declares vulnerable exact peer pins.
-  Keep the direct MCP server pin, validate the override through MCP tests and
-  native CI, and remove it when upstream accepts patched peers. See
-  [ADR-245](docs/adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md).
+- Keep Agents and MCP on patched versions that satisfy upstream peer
+  requirements, with an aligned client/server/core graph and no MCP peer
+  overrides. Validate graph changes through the production audit, TypeScript,
+  MCP contracts, Workers tests, and native CI. See
+  [ADR-247](docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md).
 - Keep `npm audit` as the full-tree runtime dependency gate and fail closed
   locally and on pushes to `main`. Pull-request CI may accept only an exhausted,
   recognized npm registry transport failure after the same job has passed
