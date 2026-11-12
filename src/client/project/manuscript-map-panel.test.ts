@@ -116,13 +116,48 @@ function renderedEvent(value: unknown, marker: string, label: string): ((event: 
   return null;
 }
 
-function interact(panel: TestManuscriptMapPanel, marker: string, label: string, target: object = {}): void {
+function interact(panel: TestManuscriptMapPanel, marker: string, label: string, target: object = {}): Event {
   const callback = renderedEvent(panel.renderForTest(), marker, label);
   if (!callback) throw new Error(`Missing rendered control: ${label}`);
-  callback(eventWithTarget(target));
+  const event = eventWithTarget(target);
+  callback(event);
+  return event;
 }
 
 describe("manuscript map panel", () => {
+  it("bounds section hints and explicitly switches between passage and whole-document review", () => {
+    const manuscript = `# Study\n\n${Array.from({ length: 24 }, (_, index) => `Observation ${index + 1} requires more research context.`).join("\n\n")}`;
+    const { panel, source } = livePanel(manuscript, 0);
+    panel.setVisible(true);
+    const section = renderedText(panel.renderForTest());
+    expect(section.match(/class="manuscript-map-item"/gu)).toHaveLength(3);
+    expect(section).toContain('<span id="editing-pass-cue-count">24</span>');
+    expect(section).toContain("showing 3");
+
+    interact(panel, "@change=", "Whole document", { checked: true });
+    const wholeDocument = renderedText(panel.renderForTest());
+    expect(wholeDocument.match(/class="manuscript-map-item"/gu)).toHaveLength(20);
+    expect(wholeDocument).toContain("showing 20");
+    source.selectionStart = manuscript.indexOf("Observation 24");
+    source.dispatchEvent(new Event("select"));
+    expect(renderedText(panel.renderForTest()).match(/class="manuscript-map-item"/gu)).toHaveLength(20);
+
+    interact(panel, "@change=", "Whole document", { checked: false });
+    const passage = renderedText(panel.renderForTest());
+    expect(passage.match(/class="manuscript-map-item"/gu)).toHaveLength(1);
+    expect(passage).toContain('<span id="editing-pass-cue-count">1</span>');
+    expect(passage).not.toContain("showing");
+    panel.disconnectedCallback();
+  });
+
+  it("does not imply truncation when an inactive excerpt fits exactly", () => {
+    const excerpt = "A".repeat(110);
+    const { panel } = livePanel(`An active passage.\n\n${excerpt}`, 0);
+    const rendered = renderedText(panel.renderForTest());
+    expect(rendered).toContain(`<span>${excerpt}</span>`);
+    panel.disconnectedCallback();
+  });
+
   it("explains model setup before opt-in and opens the existing connection settings", async () => {
     vi.useFakeTimers();
     const { panel, source, settings, analyzeParagraph } = livePanel();
@@ -135,8 +170,9 @@ describe("manuscript map panel", () => {
     expect(setup).toContain("Connect a writing model to get AI purpose summaries and suggestions.");
     expect(setup).toContain("The outline and local hints work without one.");
     expect(setup).not.toContain("Enable AI guidance");
-    interact(panel, "@click=", "Connection settings");
+    const openSettings = interact(panel, "@click=", "Connection settings");
     expect(settings.open).toHaveBeenCalledOnce();
+    expect(openSettings.cancelBubble).toBe(true);
 
     settings.provider.mockReturnValue({ analyzeParagraph });
     settings.dispatchEvent(new Event(modelProviderChangeEvent));
@@ -560,4 +596,60 @@ describe("manuscript map panel", () => {
     expect(projectFileDialog.focusRange).toHaveBeenCalledWith(workspaceSnapshotFixture.entryFileId, 0, 5);
     expect(panel.renderForTest()).toBeDefined();
   });
+
+  it.each([
+    { position: "above the viewport", top: 60, bottom: 120, expectedScroll: 160 },
+    { position: "below the viewport", top: 320, bottom: 360, expectedScroll: 260 },
+    { position: "taller than the viewport", top: 140, bottom: 500, expectedScroll: 240 },
+    { position: "already visible", top: 140, bottom: 180, expectedScroll: 200 },
+  ])("reveals a passage $position without moving the editor selection", async ({ top, bottom, expectedScroll }) => {
+    const { panel, source, focusRange } = livePanel();
+    const selection = source.selectionStart;
+    const passage = { getBoundingClientRect: () => ({ top, bottom }) };
+    const scroller = {
+      scrollTop: 200,
+      getBoundingClientRect: () => ({ top: 100, bottom: 300 }),
+      querySelector: (selector: string) => (selector === '[aria-current="location"].outline-paragraph' ? passage : null),
+    };
+    Object.defineProperties(panel, {
+      querySelector: { value: (selector: string) => (selector === ".manuscript-outline" ? scroller : null) },
+      updateComplete: { get: () => Promise.resolve(true) },
+    });
+
+    interact(panel, "@click=", "Show current passage");
+    await panel.updateComplete;
+
+    expect(scroller.scrollTop).toBe(expectedScroll);
+    expect(source.selectionStart).toBe(selection);
+    expect(focusRange).not.toHaveBeenCalled();
+    panel.disconnectedCallback();
+  });
+
+  it.each(["outline", "passage", "current position"])(
+    "leaves scrolling and selection unchanged when the %s is unavailable",
+    async (missing) => {
+      const { panel, source, focusRange } = livePanel();
+      const selection = source.selectionStart;
+      const passage = { getBoundingClientRect: () => ({ top: 320, bottom: 360 }) };
+      const scroller = {
+        scrollTop: 200,
+        getBoundingClientRect: () => ({ top: 100, bottom: 300 }),
+        querySelector: (selector: string) =>
+          missing !== "passage" && selector === '[aria-current="location"].outline-paragraph' ? passage : null,
+      };
+      Object.defineProperties(panel, {
+        querySelector: { value: (selector: string) => (missing !== "outline" && selector === ".manuscript-outline" ? scroller : null) },
+        updateComplete: { get: () => Promise.resolve(true) },
+      });
+      if (missing === "current position") panel.setEditorPosition("outside-manuscript", 0, 0);
+
+      interact(panel, "@click=", "Show current passage");
+      await panel.updateComplete;
+
+      expect(scroller.scrollTop).toBe(200);
+      expect(source.selectionStart).toBe(selection);
+      expect(focusRange).not.toHaveBeenCalled();
+      panel.disconnectedCallback();
+    },
+  );
 });
