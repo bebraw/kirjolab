@@ -17,13 +17,16 @@ failures quickly during normal development.
   Node runtime can exceed Vitest's 5-second unit default; all other Workers
   scenarios retain the default timeout.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
+- **Workers storage isolation:** storage is isolated between test files;
+  independent scenarios within a file use distinct resource identities or
+  explicit fixture setup and cleanup because their storage is shared
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
-- **Browser Worker runtime:** Wrangler `4.147.0`, including the upstream
+- **Browser Worker runtime:** Wrangler `4.161.0`, including the upstream
   `wrangler dev` EPIPE fix documented in ADR-009
-- **Workers test integration:** `@cloudflare/vitest-plugin` `1.3.6`, the
-  supported replacement for `@cloudflare/vitest-pool-workers`; retain Vitest
-  and V8 coverage at `4.1.11` while the plugin requires Vitest `^4.1.0`
+- **Workers test integration:** `@cloudflare/vitest-plugin` `1.8.1` with Vitest
+  and V8 coverage `5.1.0`, satisfying the plugin's `^4.1.0 || ^5.0.0` peer
+  requirement while retaining separate Node and Workers test projects
 - **Browser discovery failure policy:** Playwright must fail when the canonical
   suite resolves to zero tests; the gate must not use `--pass-with-no-tests`.
 - **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs
@@ -294,6 +297,12 @@ failures quickly during normal development.
 - Fallow type-aware diagnostics must use the explicit root, browser, and
   Workers-test TypeScript projects with best-effort completeness, must remain
   advisory, and must not replace the repository's TypeScript compiler checks.
+- The type-aware report wrapper must distinguish executed semantic analysis
+  from an explicit no-query result. The latter requires `executed: false`, a
+  complete type-aware identity, the `deferred:no-semantic-queries` project hash,
+  all eight diagnostic counts at zero, and an empty warnings list.
+  Missing semantic metadata and other unexecuted results must fail; a valid
+  no-query result is summarized as `not needed` without claiming execution.
 - Fallow's new-only changed-code audit must remain syntactic so branches that
   introduce or change semantic configuration are not compared against an
   incompatible type-aware baseline.

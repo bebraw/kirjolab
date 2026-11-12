@@ -74,6 +74,18 @@ the type-aware configuration. Whole-repo health additionally reports advisory
 public-signature type coupling; neither semantic report changes the baseline
 quality gate.
 
+**2026-11-12 amendment:** Fallow 3.42 can finish without launching its
+TypeScript companion when no semantic query is needed. Accept its explicit
+no-query report only when `executed` is `false`, the identity is complete and
+type-aware, its project hash is `deferred:no-semantic-queries`, all diagnostic
+counts are zero, and its warnings list is empty. Summarize that result as
+`not needed`; reserve executed-analysis summaries for reports with
+`executed: true`. Continue to reject missing semantic metadata and other
+unexecuted results, and preserve command exit handling. This follows the
+[upstream report contract](https://github.com/fallow-rs/fallow/blob/v3.42.0/docs/type-aware-analysis.md)
+without weakening the pre-push requirement that the selected diagnostic
+complete successfully.
+
 Package commands enter project-owned build and compiler scripts before those
 scripts resolve tool files under `node_modules`. This keeps Fallow's entry-point
 discovery inside the project root and avoids hiding genuine diagnostics among

@@ -1,0 +1,415 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -3,7 +3,7 @@
+   "private": true,
+   "packageManager": "npm@11",
+   "engines": {
+-    "node": "24.21.0",
++    "node": "24.22.3",
+     "npm": ">=11 <12"
+   },
+   "devEngines": {
+@@ -18,10 +18,10 @@
+     },
+     "fast-uri": "3.1.9",
+     "postcss": {
+-      "nanoid": "3.3.19"
++      "nanoid": "3.3.20"
+     },
+     "typed-rest-client": {
+-      "qs": "6.16.1"
++      "qs": "6.17.1"
+     }
+   },
+   "vibeTemplate": {
+@@ -79,7 +79,8 @@
+       "2026-09-03-actionable-mutation-reporting",
+       "2026-09-04-bound-npm-audit-retries",
+       "2026-10-01-patch-transitive-audit-findings",
+-      "2026-10-02-dependency-refresh"
++      "2026-10-02-dependency-refresh",
++      "2026-11-12-dependency-refresh"
+     ]
+   },
+   "scripts": {
+@@ -147,33 +148,33 @@
+     "worker:types:corpus:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types research-corpus-configuration.d.ts --check --config wrangler.corpus.jsonc --env-interface ResearchCorpusBindings --include-runtime false --strict-vars false"
+   },
+   "devDependencies": {
+-    "@cloudflare/vitest-plugin": "1.3.6",
++    "@cloudflare/vitest-plugin": "1.8.1",
+     "@codemirror/autocomplete": "6.20.3",
+     "@codemirror/commands": "6.11.1",
+     "@codemirror/lang-markdown": "6.5.2",
+     "@codemirror/state": "6.7.6",
+     "@codemirror/view": "6.43.13",
+-    "@playwright/test": "1.63.0",
++    "@playwright/test": "1.65.0",
+     "@replit/codemirror-vim": "6.4.0",
+-    "@stryker-mutator/core": "10.0.0",
+-    "@stryker-mutator/typescript-checker": "10.0.0",
+-    "@stryker-mutator/vitest-runner": "10.0.0",
++    "@stryker-mutator/core": "10.1.1",
++    "@stryker-mutator/typescript-checker": "10.1.1",
++    "@stryker-mutator/vitest-runner": "10.1.1",
+     "@tailwindcss/cli": "4.3.3",
+-    "@types/node": "24.19.1",
++    "@types/node": "24.19.2",
+     "@unified-latex/unified-latex-util-parse": "1.8.4",
+-    "@vitest/coverage-v8": "4.1.11",
+-    "chrome-launcher": "1.2.2",
++    "@vitest/coverage-v8": "5.1.0",
++    "chrome-launcher": "1.2.3",
+     "esbuild": "0.28.2",
+-    "fallow": "3.31.0",
+-    "lighthouse": "13.5.0",
+-    "oxlint": "1.86.0",
+-    "prettier": "3.9.9",
++    "fallow": "3.42.0",
++    "lighthouse": "13.6.0",
++    "oxlint": "1.93.0",
++    "prettier": "3.10.1",
+     "run-local-ci": "0.18.1",
+     "tailwindcss": "4.3.3",
+     "typescript": "npm:@typescript/typescript6@6.0.2",
+     "typescript-7": "npm:typescript@7.0.2",
+-    "vitest": "4.1.11",
+-    "wrangler": "4.147.0",
++    "vitest": "5.1.0",
++    "wrangler": "4.161.0",
+     "y-codemirror.next": "0.3.6",
+     "y-protocols": "1.0.7"
+   },
+diff --git a/.capabilities/lighthouse-performance/manifest.json b/.capabilities/lighthouse-performance/manifest.json
+index 4e2d95d2..bab70e7d 100644
+--- a/.capabilities/lighthouse-performance/manifest.json
++++ b/.capabilities/lighthouse-performance/manifest.json
+@@ -3,9 +3,9 @@
+   "description": "Add local Lighthouse web-quality reports and configurable category budgets.",
+   "dependencies": {
+     "dev": {
+-      "@playwright/test": "1.63.0",
+-      "chrome-launcher": "1.2.2",
+-      "lighthouse": "13.5.0"
++      "@playwright/test": "1.65.0",
++      "chrome-launcher": "1.2.3",
++      "lighthouse": "13.6.0"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/lighthouse-performance/recipes/npm.md b/.capabilities/lighthouse-performance/recipes/npm.md
+index 27c8dca3..7744147d 100644
+--- a/.capabilities/lighthouse-performance/recipes/npm.md
++++ b/.capabilities/lighthouse-performance/recipes/npm.md
+@@ -5,7 +5,7 @@ Apply this recipe when the target repo uses npm.
+ ## Package Changes
+
+ ```bash
+-npm install --save-dev --save-exact @playwright/test@1.63.0 chrome-launcher@1.2.2 lighthouse@13.5.0
++npm install --save-dev --save-exact @playwright/test@1.65.0 chrome-launcher@1.2.3 lighthouse@13.6.0
+ ```
+
+ Add or merge:
+diff --git a/.capabilities/mutation-testing/manifest.json b/.capabilities/mutation-testing/manifest.json
+index 7817d6fa..c2358cb3 100644
+--- a/.capabilities/mutation-testing/manifest.json
++++ b/.capabilities/mutation-testing/manifest.json
+@@ -4,9 +4,9 @@
+   "requires": ["typescript-setup", "quality-gate"],
+   "dependencies": {
+     "dev": {
+-      "@stryker-mutator/core": "10.0.0",
+-      "@stryker-mutator/typescript-checker": "10.0.0",
+-      "@stryker-mutator/vitest-runner": "10.0.0"
++      "@stryker-mutator/core": "10.1.1",
++      "@stryker-mutator/typescript-checker": "10.1.1",
++      "@stryker-mutator/vitest-runner": "10.1.1"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/mutation-testing/recipes/npm.md b/.capabilities/mutation-testing/recipes/npm.md
+index cd1b62ab..7f625dc6 100644
+--- a/.capabilities/mutation-testing/recipes/npm.md
++++ b/.capabilities/mutation-testing/recipes/npm.md
+@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` and `.capabilities/quality-gate/` first
+ Add the mutation testing dependencies:
+
+ ```bash
+-npm install --save-dev @stryker-mutator/core@10.0.0 @stryker-mutator/typescript-checker@10.0.0 @stryker-mutator/vitest-runner@10.0.0
++npm install --save-dev @stryker-mutator/core@10.1.1 @stryker-mutator/typescript-checker@10.1.1 @stryker-mutator/vitest-runner@10.1.1
+ ```
+
+ Add or merge this script:
+diff --git a/.capabilities/quality-gate/manifest.json b/.capabilities/quality-gate/manifest.json
+index dd6fe024..304a7342 100644
+--- a/.capabilities/quality-gate/manifest.json
++++ b/.capabilities/quality-gate/manifest.json
+@@ -4,13 +4,13 @@
+   "requires": ["typescript-setup"],
+   "dependencies": {
+     "dev": {
+-      "@vitest/coverage-v8": "4.1.11",
+-      "oxlint": "1.86.0",
+-      "prettier": "3.9.9",
+-      "vitest": "4.1.11"
++      "@vitest/coverage-v8": "5.1.0",
++      "oxlint": "1.93.0",
++      "prettier": "3.10.1",
++      "vitest": "5.1.0"
+     },
+     "optionalDev": {
+-      "@playwright/test": "1.63.0"
++      "@playwright/test": "1.65.0"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/quality-gate/recipes/npm.md b/.capabilities/quality-gate/recipes/npm.md
+index 837bebc1..05883668 100644
+--- a/.capabilities/quality-gate/recipes/npm.md
++++ b/.capabilities/quality-gate/recipes/npm.md
+@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` first unless the target repo already has
+ Add the fast-gate dependencies:
+
+ ```bash
+-npm install --save-dev --save-exact oxlint@1.86.0 prettier@3.9.9 vitest@4.1.11 @vitest/coverage-v8@4.1.11
++npm install --save-dev --save-exact oxlint@1.93.0 prettier@3.10.1 vitest@5.1.0 @vitest/coverage-v8@5.1.0
+ ```
+
+ Add or merge these scripts:
+diff --git a/.capabilities/quality-gate/recipes/playwright.md b/.capabilities/quality-gate/recipes/playwright.md
+index ab78558b..754faedb 100644
+--- a/.capabilities/quality-gate/recipes/playwright.md
++++ b/.capabilities/quality-gate/recipes/playwright.md
+@@ -5,7 +5,7 @@ Use this recipe only after the user approves adding a browser gate.
+ ## Package Changes
+
+ ```bash
+-npm install --save-dev @playwright/test@1.63.0
++npm install --save-dev @playwright/test@1.65.0
+ ```
+
+ Add or merge:
+diff --git a/.capabilities/readme-screenshot/manifest.json b/.capabilities/readme-screenshot/manifest.json
+index 4e692953..c1fb8a6f 100644
+--- a/.capabilities/readme-screenshot/manifest.json
++++ b/.capabilities/readme-screenshot/manifest.json
+@@ -3,7 +3,7 @@
+   "description": "Add local-only Playwright screenshot capture for README images.",
+   "dependencies": {
+     "dev": {
+-      "@playwright/test": "1.59.1"
++      "@playwright/test": "1.65.0"
+     }
+   },
+   "scripts": {
+diff --git a/.capabilities/readme-screenshot/recipes/npm.md b/.capabilities/readme-screenshot/recipes/npm.md
+index 10fe6a78..9022ee2e 100644
+--- a/.capabilities/readme-screenshot/recipes/npm.md
++++ b/.capabilities/readme-screenshot/recipes/npm.md
+@@ -5,7 +5,7 @@ Apply this recipe when the target repo uses npm.
+ ## Package Changes
+
+ ```bash
+-npm install --save-dev @playwright/test@1.59.1
++npm install --save-dev @playwright/test@1.65.0
+ ```
+
+ Add or merge:
+diff --git a/.capabilities/typescript-setup/manifest.json b/.capabilities/typescript-setup/manifest.json
+index 86b4bb1a..23c5c1c1 100644
+--- a/.capabilities/typescript-setup/manifest.json
++++ b/.capabilities/typescript-setup/manifest.json
+@@ -3,7 +3,7 @@
+   "description": "Add strict no-emit TypeScript checking for npm projects.",
+   "dependencies": {
+     "dev": {
+-      "@types/node": "24.19.1",
++      "@types/node": "24.19.2",
+       "typescript": "npm:@typescript/typescript6@6.0.2",
+       "typescript-7": "npm:typescript@7.0.2"
+     }
+diff --git a/.capabilities/typescript-setup/recipes/npm.md b/.capabilities/typescript-setup/recipes/npm.md
+index ecd3de5c..2d6c420b 100644
+--- a/.capabilities/typescript-setup/recipes/npm.md
++++ b/.capabilities/typescript-setup/recipes/npm.md
+@@ -7,7 +7,7 @@ Apply this recipe when the target repo uses npm.
+ Add the TypeScript dependencies:
+
+ ```bash
+-npm install --save-dev --save-exact @types/node@24.19.1 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
++npm install --save-dev --save-exact @types/node@24.19.2 typescript@npm:@typescript/typescript6@6.0.2 typescript-7@npm:typescript@7.0.2
+ ```
+
+ This keeps the TypeScript 6 compatibility package under the canonical
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index bcc0fc32..40b95949 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -75,7 +75,7 @@ jobs:
+   quality-browser:
+     runs-on: ubuntu-latest
+     container:
+-      image: mcr.microsoft.com/playwright:v1.63.0-noble
++      image: mcr.microsoft.com/playwright:v1.65.0-noble
+       options: --ipc=host
+     steps:
+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+diff --git a/.nvmrc b/.nvmrc
+index 166aae11..22fbfc06 100644
+--- a/.nvmrc
++++ b/.nvmrc
+@@ -1 +1 @@
+-v24.21.0
++v24.22.3
+diff --git a/Dockerfile b/Dockerfile
+index ccdcdf58..be1e062d 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM node:24.21.0-bookworm-slim
++FROM node:24.22.3-bookworm-slim
+
+ ENV CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false \
+     KIRJOLAB_BROWSER_SHELL_MODE=production \
+diff --git a/scripts/run-fallow-type-aware.mjs b/scripts/run-fallow-type-aware.mjs
+index 951c85d6..6a8afba8 100644
+--- a/scripts/run-fallow-type-aware.mjs
++++ b/scripts/run-fallow-type-aware.mjs
+@@ -17,12 +17,14 @@ export const typeAwareArguments = [
+
+ export function typeAwareSummary(report) {
+   const analysis = typeAwareAnalysis(report);
++  if (analysis.executed === false) return "Fallow type-aware: not needed (no semantic queries)";
+   return `Fallow type-aware: ${analysis.identity.completeness} (${analysis.candidate_count} candidates · ${analysis.confirmed_used_count} confirmed used · ${analysis.contract_preserved_count} contract preserved · ${analysis.abstained_count} abstained)`;
+ }
+
+ function typeAwareAnalysis(report) {
+-  const analysis = report._meta.type_aware;
+-  if (analysis.executed !== true || typeof analysis.identity.completeness !== "string") semanticReportError();
++  const analysis = report?._meta?.type_aware;
++  if (typeof analysis?.identity?.completeness !== "string") semanticReportError();
++  if (analysis.executed !== true && !isNoQueryResult(analysis)) semanticReportError();
+   requireSemanticCount(analysis.candidate_count);
+   requireSemanticCount(analysis.confirmed_used_count);
+   requireSemanticCount(analysis.contract_preserved_count);
+@@ -30,12 +32,30 @@ function typeAwareAnalysis(report) {
+   return analysis;
+ }
+
++function isNoQueryResult(analysis) {
++  if (analysis.executed !== false || analysis.identity.completeness !== "complete") return false;
++  if (analysis.identity.mode !== "type-aware" || analysis.identity.project_config_hash !== "deferred:no-semantic-queries") {
++    return false;
++  }
++  const counts = [
++    analysis.candidate_count,
++    analysis.confirmed_used_count,
++    analysis.contract_preserved_count,
++    analysis.no_static_references_count,
++    analysis.fix_eligible_count,
++    analysis.unresolved_count,
++    analysis.abstained_count,
++    analysis.warning_count,
++  ];
++  return counts.every((count) => count === 0) && Array.isArray(analysis.warnings) && analysis.warnings.length === 0;
++}
++
+ function requireSemanticCount(value) {
+   if (typeof value !== "number") semanticReportError();
+ }
+
+ function semanticReportError() {
+-  throw new Error("Fallow type-aware report did not include executed semantic analysis");
++  throw new Error("Fallow type-aware report did not include executed semantic analysis or an explicit empty query set");
+ }
+
+ function main() {
+diff --git a/scripts/run-fallow-type-aware.test.mjs b/scripts/run-fallow-type-aware.test.mjs
+index c353f46d..d54d0308 100644
+--- a/scripts/run-fallow-type-aware.test.mjs
++++ b/scripts/run-fallow-type-aware.test.mjs
+@@ -23,3 +23,83 @@ test("summarizes completed and conservative type-aware decisions", () => {
+ test("rejects reports without an executed semantic pass", () => {
+   assert.throws(() => typeAwareSummary({ _meta: { type_aware: { executed: false } } }), /executed semantic analysis/u);
+ });
++
++function noQueryReport() {
++  return {
++    _meta: {
++      type_aware: {
++        executed: false,
++        identity: {
++          mode: "type-aware",
++          completeness: "complete",
++          project_config_hash: "deferred:no-semantic-queries",
++        },
++        candidate_count: 0,
++        confirmed_used_count: 0,
++        contract_preserved_count: 0,
++        no_static_references_count: 0,
++        fix_eligible_count: 0,
++        unresolved_count: 0,
++        abstained_count: 0,
++        warning_count: 0,
++        warnings: [],
++      },
++    },
++  };
++}
++
++test("identifies Fallow's explicit no-query result without claiming semantic execution", () => {
++  assert.equal(typeAwareSummary(noQueryReport()), "Fallow type-aware: not needed (no semantic queries)");
++});
++
++for (const field of [
++  "candidate_count",
++  "confirmed_used_count",
++  "contract_preserved_count",
++  "no_static_references_count",
++  "fix_eligible_count",
++  "unresolved_count",
++  "abstained_count",
++  "warning_count",
++]) {
++  test(`rejects a deferred result with nonzero ${field}`, () => {
++    const report = noQueryReport();
++    report._meta.type_aware[field] = 1;
++    assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++  });
++}
++
++for (const [field, value] of [
++  ["mode", "syntactic"],
++  ["completeness", "partial"],
++  ["completeness", "unavailable"],
++  ["project_config_hash", "unavailable"],
++  ["project_config_hash", undefined],
++]) {
++  test(`rejects unexecuted analysis with ${field}=${value}`, () => {
++    const report = noQueryReport();
++    report._meta.type_aware.identity[field] = value;
++    assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++  });
++}
++
++test("rejects an inconsistent no-query report carrying warnings", () => {
++  const report = noQueryReport();
++  report._meta.type_aware.warnings = ["companion unavailable"];
++  assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++});
++
++test("rejects a no-query report with missing execution state or counters", () => {
++  const report = noQueryReport();
++  delete report._meta.type_aware.executed;
++  assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++  report._meta.type_aware.executed = false;
++  delete report._meta.type_aware.unresolved_count;
++  assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++});
++
++test("rejects reports missing semantic metadata with an actionable error", () => {
++  for (const report of [null, {}, { _meta: {} }, { _meta: { type_aware: { executed: true } } }]) {
++    assert.throws(() => typeAwareSummary(report), /executed semantic analysis/u);
++  }
++});

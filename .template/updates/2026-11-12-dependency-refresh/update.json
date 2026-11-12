@@ -1,0 +1,35 @@
+{
+  "id": "2026-11-12-dependency-refresh",
+  "title": "Refresh November dependencies and lift the Vitest peer hold",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": [
+    "docs/adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md",
+    "docs/adrs/implemented/ADR-033-add-advisory-fallow-diagnostics.md",
+    "docs/adrs/implemented/ADR-052-test-durable-objects-in-workers-runtime.md",
+    "docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md"
+  ],
+  "touches": [
+    "package.json",
+    "package-lock.json",
+    ".nvmrc",
+    "Dockerfile",
+    ".github/workflows/ci.yml",
+    ".capabilities/",
+    "worker-configuration.d.ts",
+    "research-corpus-configuration.d.ts",
+    "scripts/",
+    "docs/",
+    "specs/"
+  ],
+  "checks": [
+    "npm run worker:types:check",
+    "npm run worker:types:corpus:check",
+    "npm run typecheck",
+    "npm run test:tooling",
+    "npm run diagnostics:type-aware",
+    "npm run security:audit",
+    "npm run ci:local"
+  ]
+}

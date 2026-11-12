@@ -44,13 +44,26 @@ utilities remain the same. Keep Vitest and V8 coverage at 4.1.11 because this
 plugin still declares Vitest `^4.1.0`; do not force Vitest 5 through that peer
 boundary.
 
+**2026-11-12 amendment:** Upgrade `@cloudflare/vitest-plugin` to 1.8.1 and
+Vitest and V8 coverage together to 5.1.0. The plugin now declares Vitest
+`^4.1.0 || ^5.0.0`, removing the peer constraint behind the October hold.
+Keep the existing `cloudflareTest()` configuration, storage isolation between test files,
+test-only types, and separate Node and Workers projects. Validate both runtime
+suites, coverage, and the Stryker runner against the compatible versions;
+do not bypass peer requirements or relax the quality thresholds for the upgrade.
+This amendment also corrects the original per-test storage description:
+[per-file isolation](https://developers.cloudflare.com/workers/testing/vitest-integration/migration-guides/migrate-from-vitest-3-to-vitest-4/)
+already applied to the initial pool-workers 0.18.4 integration.
+
 Retain Vitest's default five-second timeout for ordinary Workers scenarios.
 Give the multi-step GitHub OAuth and installation lifecycle scenario an explicit
 15-second timeout because concurrent isolates on the pinned Node runtime can
 exceed the unit default without hanging or failing behaviorally.
 
-Run Workers tests in a real local `workerd` runtime with isolated storage for
-each test. Address Durable Objects through configured bindings and use
+Run Workers tests in a real local `workerd` runtime with storage isolated
+between test files. Tests within a file share storage; independent scenarios
+must use distinct resource identities or explicit fixture setup and cleanup.
+Address Durable Objects through configured bindings and use
 `cloudflare:test` utilities such as `runInDurableObject()` to seed and inspect
 their private SQLite state. Use explicit Durable Object eviction when a
 contract depends on reconstructing in-memory state from persisted storage.
@@ -93,8 +106,8 @@ storage substitute could exercise call shape but could not prove actual
   Durable Object APIs used by production Workers.
 - Tests can construct historical object state, invoke the public RPC boundary,
   inspect exact persisted rows, and verify recovery after eviction.
-- Per-test storage isolation prevents schema and object state from leaking
-  between cases.
+- Storage isolation between test files prevents schema and object state from
+  leaking between files.
 - Pure domain tests keep their fast Node coverage and mutation workflow.
 - The readiness gates cannot silently omit platform-specific persistence
   verification.

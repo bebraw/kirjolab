@@ -478,8 +478,10 @@ the precise route, validation, persistence, and regression requirements.
   data migrations.
 - **Platform verification:** `src/**/*.workers.test.ts` runs through the
   dedicated Cloudflare Vitest project in a real local `workerd` runtime with
-  isolated per-test storage. It owns Durable Object migration, transaction,
-  RPC, and eviction contracts; Node tests own shared pure-domain behavior.
+  storage isolated between test files. Independent scenarios within a file use
+  distinct resource identities or explicit fixture setup and cleanup. The
+  Workers suite owns Durable Object migration, transaction, RPC, and eviction
+  contracts; Node tests own shared pure-domain behavior.
 - **Document semantics:** A pinned unified/remark pipeline parses standard
   Markdown and GFM while `src/domain/manuscript/markdown.ts` adds headings, citations,
   references, aliases, anchors, validation, and allowlist preview security from
@@ -1302,7 +1304,7 @@ the precise route, validation, persistence, and regression requirements.
   behavior.
 - `src/**/*.workers.test.ts`, selected by `vitest.workers.config.mts`, covers
   real Durable Object SQLite migration, transaction, projection, and eviction
-  behavior with isolated per-test storage.
+  behavior with storage isolated between test files.
 - `src/worker.e2e.ts` exercises real local Durable Object, WebSocket, and R2
   behavior, including the full evidence-to-prose workflow.
 - `npm run test:workers` is part of the fast gate; `npm run quality:gate` and

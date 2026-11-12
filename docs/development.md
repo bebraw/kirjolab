@@ -33,19 +33,21 @@ runner remains available for optional workflow and Linux-container parity.
 - Start a Docker runtime before running optional container Local CI.
 - Install the GitHub Actions runner image once with `docker pull ghcr.io/actions/actions-runner:latest`.
 
-Dependency refreshes must honor declared peer requirements. The October 2026
-baseline retains Vitest and V8 coverage 4.1.11 because
-`@cloudflare/vitest-plugin` 1.3.6 requires Vitest `^4.1.0`.
-Keep Node declarations on the supported Node 24 major. Recheck these
-requirements before lifting the holds; do not use forced installs to bypass
-them.
+Dependency refreshes must honor declared peer requirements. The November 2026
+baseline uses Node 24.22.3 with Node declarations 24.19.2 and retains the npm 11
+policy. `@cloudflare/vitest-plugin` 1.8.1 accepts Vitest `^4.1.0 || ^5.0.0`,
+so Vitest and V8 coverage now advance together to 5.1.0. Keep Node declarations
+on the supported Node 24 major, inspect peer requirements before subsequent
+upgrades, and do not use forced installs to bypass them. See the dated
+amendment in [ADR-052](./adrs/implemented/ADR-052-test-durable-objects-in-workers-runtime.md).
 
-The November security refresh uses Agents 0.28.1 and direct MCP server 2.3.1,
-with upstream client/core 2.3.1 and SDK 1.32.1. It removes the three MCP npm
-overrides and keeps Zod at 4.6.7. For future upgrades, inspect declared peers
-and the installed graph, then run the production audit, type checks, MCP
-contract tests, Workers tests, full native CI, and production dry run. Do not
-restore the retired bridge or force incompatible installs. See
+The November dependency refresh uses Agents 0.33.0 and MCP server, client,
+and core 2.4.0 with Zod 4.6.7. Agents now makes the legacy MCP SDK an optional
+peer, and the installed graph omits it. The three retired MCP npm overrides
+remain absent. For future upgrades, inspect declared peers and the installed
+graph, then run the production audit, type checks, MCP contract tests, Workers
+tests, full native CI, and production dry run. Do not restore the retired
+bridge or force incompatible installs. See
 [ADR-247](./adrs/implemented/ADR-247-retire-mcp-peer-overrides.md).
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
@@ -314,7 +316,7 @@ version from `package.json`, relies on the npm release bundled with that Node
 setup as long as it satisfies the repo's npm 11 constraint, runs
 repository-shape validation as part of the fast job, runs the browser job in the
 version-pinned Playwright container image
-`mcr.microsoft.com/playwright:v1.63.0-noble`, pins every `uses:` action
+`mcr.microsoft.com/playwright:v1.65.0-noble`, pins every `uses:` action
 reference to a full commit SHA, and cancels superseded runs on the same ref. The
 required `quality-mutation` job is GitHub- and pull-request-only, checks out full
 history, and supplies the pull request's base and head SHAs to
@@ -469,10 +471,13 @@ Durable Object integration tests use the separate
 test-only types through `tsconfig.workers-test.json`. Run them with
 `npm run test:workers`; the Cloudflare Vitest integration starts a local
 `workerd` runtime with remote binding sessions disabled. The project pins
-`@cloudflare/vitest-plugin` 1.3.6 alongside Vitest 4.1.11. Each test gets
-isolated local storage and can use `cloudflare:test` to inspect private Durable
-Object SQLite state or evict an instance while retaining persisted storage.
-These tests never contact deployed Cloudflare resources.
+`@cloudflare/vitest-plugin` 1.8.1 alongside Vitest 5.1.0. Storage is
+[isolated between test files](https://developers.cloudflare.com/workers/testing/vitest-integration/isolation-and-concurrency/).
+Tests within a file share storage; independent scenarios must use distinct
+resource identities or explicit fixture setup and cleanup. Tests can use
+`cloudflare:test` to inspect private Durable Object SQLite state or evict an
+instance while retaining persisted storage. These tests never contact deployed
+Cloudflare resources.
 
 Keep persistence ownership explicit: Node tests cover pure parsers, selectors,
 projections, text-splice helpers, and migration-definition validation. Workers
@@ -596,7 +601,15 @@ pinned Stryker release and must be reverified when that pin changes.
 
 The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` files and `src/**/*.ts`, and `npm run typecheck` runs TypeScript 7. During the TypeScript 7.0 transition, `typescript` is intentionally pinned to the `@typescript/typescript6` compatibility package for tools that import the compiler API, while `typescript-7` provides the compiler used by the typecheck script.
 
-Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a syntactic changed-code audit for production-code complexity and duplication plus project dependency hygiene and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. Fallow 3 compares the branch with its upstream through a temporary Git worktree so its new-only verdict can distinguish introduced findings from inherited context. `npm run diagnostics:type-aware` runs Fallow 3.21's optional TypeScript-Go pass against the explicit root, browser, and Workers-test TypeScript projects. It refines existing export, type, and class-member candidates with exact static-use and contract evidence while conservatively retaining dynamic or incomplete cases; ordinary TypeScript diagnostics remain owned by `npm run typecheck`. The type-aware pass stays separate because new-only audit baselines cannot compare different semantic identities. Unit and end-to-end tests are excluded from Fallow complexity and duplication because exact boundary fixtures intentionally repeat structures; generated Worker declarations are excluded entirely, and Durable Object RPC methods are registered as framework-invoked members. Esbuild-only diagnostic and spike inputs plus the unit-test Cloudflare runtime shim are explicit entry points, while development-only CLI dependencies are classified separately from production dependencies. Formatting, linting, typechecking, and test execution remain authoritative for excluded files. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, refactoring targets, and advisory public-signature type coupling using the same explicit TypeScript projects. `npm run diagnostics:codebase` runs all three diagnostic views. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
+Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a syntactic changed-code audit for production-code complexity and duplication plus project dependency hygiene and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. Fallow 3 compares the branch with its upstream through a temporary Git worktree so its new-only verdict can distinguish introduced findings from inherited context. `npm run diagnostics:type-aware` runs Fallow's optional TypeScript-Go pass against the explicit root, browser, and Workers-test TypeScript projects. It refines existing export, type, and class-member candidates with exact static-use and contract evidence while conservatively retaining dynamic or incomplete cases; ordinary TypeScript diagnostics remain owned by `npm run typecheck`. The type-aware pass stays separate because new-only audit baselines cannot compare different semantic identities. Unit and end-to-end tests are excluded from Fallow complexity and duplication because exact boundary fixtures intentionally repeat structures; generated Worker declarations are excluded entirely, and Durable Object RPC methods are registered as framework-invoked members. Esbuild-only diagnostic and spike inputs plus the unit-test Cloudflare runtime shim are explicit entry points, while development-only CLI dependencies are classified separately from production dependencies. Formatting, linting, typechecking, and test execution remain authoritative for excluded files. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, refactoring targets, and advisory public-signature type coupling using the same explicit TypeScript projects. `npm run diagnostics:codebase` runs all three diagnostic views. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
+
+Fallow 3.42 can report that no semantic query is needed without starting its
+TypeScript companion. The type-aware wrapper distinguishes this result from
+executed analysis: it prints `not needed` only for a complete type-aware
+identity with the explicit `deferred:no-semantic-queries` marker, all diagnostic
+counts at zero, and an empty warnings list. Missing semantic metadata and other
+unexecuted results still fail. See the
+[upstream no-query contract](https://github.com/fallow-rs/fallow/blob/v3.42.0/docs/type-aware-analysis.md).
 
 `npm run diagnostics:dependencies` reports direct production dependencies,
 unique production package/version nodes, and raw plus deterministic gzip sizes

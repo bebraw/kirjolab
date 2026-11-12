@@ -3,9 +3,9 @@
   "description": "Add local Lighthouse web-quality reports and configurable category budgets.",
   "dependencies": {
     "dev": {
-      "@playwright/test": "1.63.0",
-      "chrome-launcher": "1.2.2",
-      "lighthouse": "13.5.0"
+      "@playwright/test": "1.65.0",
+      "chrome-launcher": "1.2.3",
+      "lighthouse": "13.6.0"
     }
   },
   "scripts": {

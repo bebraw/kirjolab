@@ -57,7 +57,7 @@ test("isolates E2E runs from artifact-analysis browser jobs", async () => {
 test("pins the browser Worker runtime with the upstream EPIPE fix", async () => {
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-  assert.equal(packageJson.devDependencies?.wrangler, "4.147.0");
+  assert.equal(packageJson.devDependencies?.wrangler, "4.161.0");
 });
 
 test("fails the browser gate when Playwright discovers no tests", async () => {
