@@ -13,7 +13,7 @@ runtime upgrades need the target project's own integration checks.
 
    | Tool                                                | Version   |
    | --------------------------------------------------- | --------- |
-   | Node.js                                             | `24.22.3` |
+   | Node.js                                             | `24.22.1` |
    | Node declarations                                   | `24.19.2` |
    | Vitest and V8 coverage                              | `5.1.0`   |
    | Cloudflare Vitest plugin                            | `1.8.1`   |
@@ -28,6 +28,15 @@ runtime upgrades need the target project's own integration checks.
 
    Keep the npm 11 major policy and the existing esbuild `0.28.2` pin. Mirror
    the Node pin in `.nvmrc` and any existing development or evaluation image.
+
+   Kirjolab temporarily uses 24.22.1 with user approval because two Cloudflare
+   builds failed while installing 24.22.3 before npm ran; 24.22.1 was already
+   available in that environment. The installer root cause is unconfirmed.
+   This defers the November 11
+   [24.22.3 security release](https://nodejs.org/en/blog/release/v24.22.3)
+   and its fixes. Targets that can install 24.22.3 should keep the newer
+   security release. Revisit Kirjolab's pin when the hosted build environment
+   can install it, then repeat runtime and deployment verification.
 
 2. Upgrade Vitest and `@vitest/coverage-v8` together. The Cloudflare plugin
    `1.8.1` declares Vitest `^4.1.0 || ^5.0.0`, lifting the October peer hold.

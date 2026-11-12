@@ -34,12 +34,21 @@ runner remains available for optional workflow and Linux-container parity.
 - Install the GitHub Actions runner image once with `docker pull ghcr.io/actions/actions-runner:latest`.
 
 Dependency refreshes must honor declared peer requirements. The November 2026
-baseline uses Node 24.22.3 with Node declarations 24.19.2 and retains the npm 11
+baseline uses Node 24.22.1 with Node declarations 24.19.2 and retains the npm 11
 policy. `@cloudflare/vitest-plugin` 1.8.1 accepts Vitest `^4.1.0 || ^5.0.0`,
 so Vitest and V8 coverage now advance together to 5.1.0. Keep Node declarations
 on the supported Node 24 major, inspect peer requirements before subsequent
 upgrades, and do not use forced installs to bypass them. See the dated
 amendment in [ADR-052](./adrs/implemented/ADR-052-test-durable-objects-in-workers-runtime.md).
+
+Node 24.22.1 is a temporary pin for deployment compatibility, approved on
+November 12. Two Cloudflare builds failed while installing 24.22.3 before npm ran;
+24.22.1 was already available in that build environment. The installer failure's
+root cause is unconfirmed. The November 11
+[Node 24.22.3 security release](https://nodejs.org/en/blog/release/v24.22.3)
+and its security fixes remain deferred. Revisit the pin when Cloudflare can
+install that release, then repeat the runtime and deployment checks. See
+[ADR-011](./adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md).
 
 The November dependency refresh uses Agents 0.33.0 and MCP server, client,
 and core 2.4.0 with Zod 4.6.7. Agents now makes the legacy MCP SDK an optional

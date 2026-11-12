@@ -6,7 +6,7 @@ diff --git a/package.json b/package.json
    "packageManager": "npm@11",
    "engines": {
 -    "node": "24.21.0",
-+    "node": "24.22.3",
++    "node": "24.22.1",
      "npm": ">=11 <12"
    },
    "devEngines": {
@@ -256,19 +256,19 @@ index bcc0fc32..40b95949 100644
      steps:
        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 diff --git a/.nvmrc b/.nvmrc
-index 166aae11..22fbfc06 100644
+index 166aae11..474d750b 100644
 --- a/.nvmrc
 +++ b/.nvmrc
 @@ -1 +1 @@
 -v24.21.0
-+v24.22.3
++v24.22.1
 diff --git a/Dockerfile b/Dockerfile
-index ccdcdf58..be1e062d 100644
+index ccdcdf58..ea7da2bf 100644
 --- a/Dockerfile
 +++ b/Dockerfile
 @@ -1,4 +1,4 @@
 -FROM node:24.21.0-bookworm-slim
-+FROM node:24.22.3-bookworm-slim
++FROM node:24.22.1-bookworm-slim
 
  ENV CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false \
      KIRJOLAB_BROWSER_SHELL_MODE=production \

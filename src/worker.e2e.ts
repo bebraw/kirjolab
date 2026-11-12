@@ -4963,8 +4963,9 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
 });
 
 test("converges source edits across two writers", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Collaborative source edits");
   const collaborator = await context.newPage();
-  await Promise.all([page.goto("/editor/demo"), collaborator.goto("/editor/demo")]);
+  await Promise.all([page.goto(`/editor/${workspaceId}`), collaborator.goto(`/editor/${workspaceId}`)]);
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
   await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
@@ -5011,6 +5012,11 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await expect(page.locator("#comments-rail-panel")).toBeVisible();
   await page.locator("#manuscript-comment-body").fill("Keep this collaboration claim concrete.");
   await page.locator("#manuscript-comment-form").getByRole("button", { name: "Add comment" }).click();
+  const comment = page
+    .locator("#manuscript-comment-list [data-comment-resource-id]")
+    .filter({ hasText: "Keep this collaboration claim concrete." });
+  await expect(comment.locator("blockquote")).toHaveText(selectedText);
+  await expect(comment.getByRole("button", { name: "Open linked passage" })).toBeEnabled();
   await expect(collaborator.locator("#manuscript-comment-list")).toContainText("Keep this collaboration claim concrete.");
   await collaborator.getByRole("tab", { name: /Comments/ }).click();
 
@@ -5032,10 +5038,7 @@ test("converges source edits across two writers", async ({ page, context }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   }, revisedText);
   await page.locator("#manuscript-comment-list").getByRole("button", { name: "Re-anchor to selection" }).click();
-  const reanchoredComment = page
-    .locator("#manuscript-comment-list [data-comment-resource-id]")
-    .filter({ hasText: "Keep this collaboration claim concrete." });
-  await expect(reanchoredComment.locator("blockquote")).toHaveText(revisedText);
+  await expect(comment.locator("blockquote")).toHaveText(revisedText);
   await expect(page.locator("#manuscript-comment-list").getByRole("button", { name: "Open linked passage" })).toBeVisible();
 
   await collaborator.locator("#manuscript-comment-list").getByRole("button", { name: "Resolve" }).click();
