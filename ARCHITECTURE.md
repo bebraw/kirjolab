@@ -104,6 +104,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   cross-record Library invariants stay explicit. Preserve the legacy snapshot
   number fields' type-only acceptance; capture-time semantic checks remain with
   the writing authority.
+- Define application-owned Corpus MCP schemas with Valibot and project tool
+  schemas through `@valibot/to-json-schema`'s `toStandardJsonSchema`. Preserve
+  strict input contracts and explicit protocol error mapping. Keep the SDK
+  server and Agents handler; retain patched Zod only for upstream compatibility,
+  with no application Zod imports. See
+  [ADR-248](docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md).
 - Reuse the dependency-free unknown-value guard when a handwritten trust
   boundary only needs the shared plain-record rule: a non-null object that is
   not an array. Do not duplicate that semantic locally or introduce a schema

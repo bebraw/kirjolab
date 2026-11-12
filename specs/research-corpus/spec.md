@@ -116,6 +116,17 @@ recreated by each consumer.
   fingerprint; it never concatenates the document.
 - Tool names and input schemas are stable compatibility surfaces. MCP content
   mirrors the structured result and remains JSON-serializable.
+- Valibot owns tool inputs and resource-variable validation. Tool registration
+  uses `toStandardJsonSchema` from `@valibot/to-json-schema` so discovery and
+  runtime checks share one contract. The SDK server and Agents stateless
+  handler remain the transport. See
+  [ADR-248](../../docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md).
+- Tool inputs reject extra keys and do not coerce types. Artifact ids and
+  optional `after` cursors retain the existing UUID semantics: versions 1–8
+  with the RFC variant, the nil UUID, and the lowercase maximum UUID. Optional
+  `limit` remains an integer from 1 through 100; page numbers remain integers
+  from 1 through 200. `retryFailed` remains an optional boolean. Extraction
+  kinds remain `pdf-text`, `pdf-highlights`, and `pdf-references`.
 - Expected resource and tool failures use stable owner-safe messages.
 - Malformed MCP resource-template variables return protocol `InvalidParams`
   with a stable validation message and do not invoke the application service.
@@ -225,6 +236,11 @@ copy or dual write.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler, including strict decimal resource-page variables and
   sanitized resource and tool failures.
+- Schema migration tests cover advertised required and optional fields, strict
+  extra-key rejection, UUID acceptance, numeric bounds, absent optional inputs,
+  and unchanged validation error envelopes without invoking the service for
+  malformed input. Application code imports Valibot; the patched direct Zod
+  pin remains solely for Agents/MCP peer compatibility.
 - Agents/MCP upgrades use patched, peer-compatible packages without MCP peer
   overrides. The dependency graph, production audit, TypeScript, MCP contracts,
   Workers tests, and native CI must pass before release; the stateless handler,

@@ -22,6 +22,129 @@ describe("Research Corpus MCP adapter", () => {
     expect(JSON.stringify(tools)).toContain("start_extraction");
   });
 
+  it("advertises strict JSON schemas with the same bounds used by tool validation", async () => {
+    const tools = await sendMcp(serviceFixture(), "tools/list", {});
+
+    expect(tools).toMatchObject({
+      result: {
+        tools: expect.arrayContaining([
+          expect.objectContaining({
+            name: "list_corpus_artifacts",
+            inputSchema: expect.objectContaining({
+              type: "object",
+              additionalProperties: false,
+              properties: expect.objectContaining({
+                after: expect.objectContaining({ type: "string", format: "uuid" }),
+                limit: expect.objectContaining({ type: "integer", minimum: 1, maximum: 100 }),
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            name: "start_extraction",
+            inputSchema: expect.objectContaining({
+              type: "object",
+              additionalProperties: false,
+              required: ["artifactId", "kind"],
+              properties: expect.objectContaining({
+                artifactId: expect.objectContaining({ type: "string", format: "uuid" }),
+                kind: { type: "string", enum: ["pdf-highlights", "pdf-references", "pdf-text"] },
+                retryFailed: { type: "boolean" },
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            name: "read_pdf_text_page",
+            inputSchema: expect.objectContaining({
+              type: "object",
+              additionalProperties: false,
+              required: ["artifactId", "page"],
+              properties: expect.objectContaining({ page: { type: "integer", minimum: 1, maximum: 200 } }),
+            }),
+          }),
+        ]),
+      },
+    });
+  });
+
+  it.each([
+    { name: "list_corpus_artifacts", arguments: { limit: 0 } },
+    { name: "list_corpus_artifacts", arguments: { limit: 101 } },
+    { name: "list_corpus_artifacts", arguments: { limit: 1.5 } },
+    { name: "list_corpus_artifacts", arguments: { limit: "25" } },
+    { name: "list_corpus_artifacts", arguments: { after: "not-a-uuid" } },
+    { name: "list_corpus_artifacts", arguments: { extra: true } },
+    { name: "get_corpus_artifact", arguments: {} },
+    { name: "get_corpus_artifact", arguments: { artifactId, extra: true } },
+    { name: "get_extraction_status", arguments: { artifactId, kind: "pdf-summary" } },
+    { name: "get_extraction_status", arguments: { artifactId, kind: "pdf-text", extra: true } },
+    { name: "start_extraction", arguments: { artifactId, kind: "pdf-text", retryFailed: "true" } },
+    { name: "start_extraction", arguments: { artifactId, kind: "pdf-text", extra: true } },
+    { name: "read_pdf_text_page", arguments: { artifactId, page: 0 } },
+    { name: "read_pdf_text_page", arguments: { artifactId, page: 201 } },
+    { name: "read_pdf_text_page", arguments: { artifactId, page: 2.5 } },
+    { name: "read_pdf_text_page", arguments: { artifactId, page: "2" } },
+    { name: "read_pdf_text_page", arguments: { artifactId, page: 2, extra: true } },
+  ])("rejects malformed $name arguments $arguments before invoking the service", async (params) => {
+    const service = serviceFixture();
+
+    const response = await sendMcp(service, "tools/call", params);
+
+    expect(response).toMatchObject({ result: { isError: true } });
+    expect(service.listArtifacts).not.toHaveBeenCalled();
+    expect(service.getArtifact).not.toHaveBeenCalled();
+    expect(service.getExtraction).not.toHaveBeenCalled();
+    expect(service.startExtraction).not.toHaveBeenCalled();
+    expect(service.readPdfTextPage).not.toHaveBeenCalled();
+  });
+
+  it.each(["22222222-2222-9222-8222-222222222222", "22222222-2222-4222-7222-222222222222", "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"])(
+    "rejects unsupported UUID variant %s in tools and resource variables",
+    async (invalidId) => {
+      const service = serviceFixture();
+
+      const tool = await sendMcp(service, "tools/call", { name: "get_corpus_artifact", arguments: { artifactId: invalidId } });
+      const resource = await sendMcp(service, "resources/read", {
+        uri: `corpus://artifacts/${invalidId}/extractions/pdf-text/pages/2`,
+      });
+
+      expect(tool).toMatchObject({ result: { isError: true } });
+      expect(resource).toMatchObject({ error: { code: -32_602, message: "Corpus resource parameters are invalid" } });
+      expect(service.getArtifact).not.toHaveBeenCalled();
+      expect(service.readPdfTextPage).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["00000000-0000-0000-0000-000000000000", "ffffffff-ffff-ffff-ffff-ffffffffffff", "ABCDEFAB-ABCD-8ABC-BABC-ABCDEFABCDEF"])(
+    "preserves supported UUID %s without normalizing it",
+    async (id) => {
+      const service = serviceFixture();
+
+      await sendMcp(service, "tools/call", { name: "get_corpus_artifact", arguments: { artifactId: id } });
+      await sendMcp(service, "resources/read", { uri: `corpus://artifacts/${id}/extractions/pdf-text/pages/0002` });
+
+      expect(service.getArtifact).toHaveBeenCalledWith(id);
+      expect(service.readPdfTextPage).toHaveBeenCalledWith(id, 2);
+    },
+  );
+
+  it("preserves omitted options and accepts inclusive list and page bounds", async () => {
+    const service = serviceFixture();
+
+    await sendMcp(service, "tools/call", { name: "list_corpus_artifacts", arguments: {} });
+    await sendMcp(service, "tools/call", { name: "start_extraction", arguments: { artifactId, kind: "pdf-highlights" } });
+    for (const limit of [1, 100]) {
+      await sendMcp(service, "tools/call", { name: "list_corpus_artifacts", arguments: { limit } });
+      expect(service.listArtifacts).toHaveBeenCalledWith({ limit });
+    }
+    for (const page of [1, 200]) {
+      await sendMcp(service, "tools/call", { name: "read_pdf_text_page", arguments: { artifactId, page } });
+      expect(service.readPdfTextPage).toHaveBeenCalledWith(artifactId, page);
+    }
+
+    expect(service.listArtifacts).toHaveBeenCalledWith({});
+    expect(service.startExtraction).toHaveBeenCalledWith(artifactId, "pdf-highlights", false);
+  });
+
   it("returns safe structured artifact metadata and a protected HTTP link", async () => {
     const service = serviceFixture();
 
@@ -95,7 +218,7 @@ describe("Research Corpus MCP adapter", () => {
     expect(service.readPdfTextPage).not.toHaveBeenCalled();
   });
 
-  it.each(["0x2", "2e0", "+2"])("rejects non-decimal resource page variable %s", async (page) => {
+  it.each(["0x2", "2e0", "+2", "0", "201", "2.5"])("rejects invalid resource page variable %s", async (page) => {
     const service = serviceFixture();
 
     const response = await sendMcp(service, "resources/read", {

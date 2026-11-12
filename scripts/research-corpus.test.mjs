@@ -46,6 +46,7 @@ test("pins the supported stateless MCP runtime as direct dependencies", async ()
 
   assert.equal(packageJson.dependencies?.agents, "0.28.1");
   assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.3.1");
+  assert.equal(packageJson.dependencies?.["@valibot/to-json-schema"], "1.8.0");
   assert.equal(packageJson.dependencies?.zod, "4.6.7");
   for (const name of ["@modelcontextprotocol/client", "@modelcontextprotocol/core", "@modelcontextprotocol/sdk"]) {
     assert.equal(packageJson.overrides?.[name], undefined, "patched MCP peers must resolve without the retired compatibility bridge");
