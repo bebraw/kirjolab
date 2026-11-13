@@ -146,9 +146,12 @@
     }
   }
   .pdf-note-card {
+    --pdf-note-card-width: min(18rem, 72%);
     position: absolute;
     z-index: 2;
-    width: min(18rem, 72%);
+    left: clamp(0.5rem, var(--pdf-note-x), calc(100% - var(--pdf-note-card-width) - 0.5rem));
+    width: var(--pdf-note-card-width);
+    min-height: 3.25rem;
     translate: 0 0.8rem;
     border: 1px solid rgb(137 93 0 / 0.45);
     border-radius: 0.2rem;

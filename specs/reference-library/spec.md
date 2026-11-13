@@ -460,6 +460,10 @@ memory and makes citation aliases compete with stable source identity.
   movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
+  Open note cards clamp their horizontal position using their rendered width,
+  keeping the text and full close target within the page's left and right edges
+  at desktop, tablet, and phone widths. Short cards retain enough height for the
+  close target; closing a card returns keyboard focus to its saved pin.
 - Successful private drawing saves, drawing undo, note moves, and saved-markup
   deletion converge through one canonical Library refresh. The completion
   notice is shown after refresh, and refresh failure remains visible instead of

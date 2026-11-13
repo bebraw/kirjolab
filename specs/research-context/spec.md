@@ -61,7 +61,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   the restore affordance; standalone Library hides the complete global and
   context-tab header, then exposes a floating restore control that reserves no
   layout height. The active surface expands to use the released viewport
-  height.
+  height. While navigation is hidden, the annotation inspector stays below the
+  floating restore control on tablet and desktop layouts, with both controls
+  independently reachable. Phone layouts retain the inspector's bottom-sheet
+  placement.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor

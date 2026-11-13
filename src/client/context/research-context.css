@@ -581,6 +581,14 @@
     display: none;
   }
 
+  @media (min-width: 720px) {
+    body[data-app-mode="library"][data-preview-navigation="hidden"] .library-pdf-tools {
+      --library-pdf-inspector-top: calc(max(0.5rem, env(safe-area-inset-top)) + var(--ui-control-default) + 0.75rem);
+      top: var(--library-pdf-inspector-top);
+      max-height: calc(100% - var(--library-pdf-inspector-top) - 0.75rem);
+    }
+  }
+
   .library-pdf-inspector-header {
     position: sticky;
     z-index: 2;
