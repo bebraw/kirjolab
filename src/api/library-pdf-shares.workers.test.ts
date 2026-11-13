@@ -8,6 +8,46 @@ import type { LibraryPdfShare } from "../domain/library-pdf-share";
 import { handleRequest } from "../worker";
 
 describe("annotated PDF links in the Workers runtime", () => {
+  it("rejects malformed source cross references before publishing a link or PDF copy", async () => {
+    const document = await PDFDocument.create();
+    document.addPage([600, 800]);
+    const validBytes = await document.save({ useObjectStreams: false });
+    const bytes = validBytes.slice(0, new TextDecoder("latin1").decode(validBytes).lastIndexOf("startxref"));
+    const fixture = await createFixture(bytes);
+    await fixture.library.createPdfNote(fixture.referenceId, fixture.artifactId, 1, 0.2, 0.3, "Keep my private note.");
+    const originalSource = await fixture.library.getPdfShareSource(fixture.artifactId);
+    const copiesBefore = await env.PAPERS.list({ prefix: "pdf-shares/" });
+
+    const response = await handleLibraryPdfSharesApi(fixture.request("POST"), env, fixture.identity);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Cannot safely prepare this PDF: missing final cross-reference marker." });
+    const listed = await handleLibraryPdfSharesApi(fixture.request("GET"), env, fixture.identity);
+    expect(await listed.json()).toEqual({ shares: [] });
+    expect(await env.PAPERS.list({ prefix: "pdf-shares/" })).toEqual(copiesBefore);
+    expect(await fixture.library.getPdfShareSource(fixture.artifactId)).toEqual(originalSource);
+    const stored = await env.PAPERS.get(fixture.objectKey);
+    expect(new Uint8Array(await stored!.arrayBuffer())).toEqual(bytes);
+  });
+
+  it.each(["bounded", "open-ended", "suffix"] as const)("serves exact bytes and numeric headers for a %s range", async (mode) => {
+    const fixture = await createFixture();
+    const created = await handleLibraryPdfSharesApi(fixture.request("POST"), env, fixture.identity);
+    const { share } = await created.json<{ share: LibraryPdfShare }>();
+    const url = `https://example.test${share.href}/document.pdf`;
+    const complete = await handlePublicPdfShareRequest(new Request(url), env);
+    const bytes = new Uint8Array(await complete!.arrayBuffer());
+    const start = mode === "bounded" ? 16 : bytes.length - 16;
+    const end = mode === "bounded" ? 31 : bytes.length - 1;
+    const range = mode === "bounded" ? "bytes=16-31" : mode === "suffix" ? "bytes=-16" : `bytes=${start}-`;
+    const partial = await handlePublicPdfShareRequest(new Request(url, { headers: { range } }), env);
+
+    expect(partial?.status).toBe(206);
+    expect(partial?.headers.get("content-range")).toBe(`bytes ${start}-${end}/${bytes.length}`);
+    expect(partial?.headers.get("content-length")).toBe("16");
+    expect(new Uint8Array(await partial!.arrayBuffer())).toEqual(bytes.slice(start, end + 1));
+  });
+
   it("keeps the public bearer route outside Access authentication and management behind authentication and origin checks", async () => {
     const fixture = await createFixture();
     const created = await handleLibraryPdfSharesApi(fixture.request("POST"), env, fixture.identity);
@@ -156,13 +196,13 @@ describe("annotated PDF links in the Workers runtime", () => {
   });
 });
 
-async function createFixture() {
+async function createFixture(sourceBytes?: Uint8Array) {
   const ownerKey = `pdf-share-test-${crypto.randomUUID()}`;
   const identity: AuthIdentity = { subject: "owner", email: "owner@example.test", ownerKey, mode: "local" };
   const library = env.REFERENCE_LIBRARIES.getByName(ownerKey);
   const source = await PDFDocument.create();
   source.addPage([600, 800]);
-  const bytes = await source.save({ useObjectStreams: false });
+  const bytes = sourceBytes ?? (await source.save({ useObjectStreams: false }));
   const artifactId = crypto.randomUUID();
   const objectKey = `libraries/${ownerKey}/${artifactId}.pdf`;
   await env.PAPERS.put(objectKey, bytes, { httpMetadata: { contentType: "application/pdf" } });
@@ -184,6 +224,7 @@ async function createFixture() {
     library,
     identity,
     artifactId,
+    objectKey,
     referenceId: draft.reference.id,
     request: (method: string, suffix = "") =>
       new Request(`https://example.test/api/library/pdfs/${artifactId}/shares${suffix}`, { method }),

@@ -1,11 +1,77 @@
 import { PDFArray, PDFDict, PDFDocument, PDFName, degrees } from "pdf-lib";
 import { describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { LibraryHighlight, LibraryPdfMarkup } from "../domain/reference-library";
+import { createRevisionEvidencePdf } from "../test-support/pdf-revision-fixture";
 import { normalizedPointOnPage, renderAnnotatedPdf } from "./annotated-pdf";
 
 const createdAt = "2026-07-14T10:00:00.000Z";
 
 describe("annotated PDF export", () => {
+  const revisionFixtures: ReadonlyArray<Parameters<typeof createRevisionEvidencePdf>[0]> = [
+    { xref: "table" },
+    { xref: "table", objects: "obsolete-stream" },
+    { xref: "incremental-table" },
+    { xref: "incremental-table", objects: "obsolete-stream" },
+    { xref: "stream" },
+    { xref: "stream", objects: "obsolete-stream" },
+    { xref: "stream", objects: "active-stream" },
+    { xref: "hybrid" },
+    { xref: "hybrid", objects: "obsolete-stream" },
+    { xref: "hybrid", objects: "active-stream" },
+  ];
+
+  it.each(revisionFixtures)("preserves every current page and font with $xref / $objects references", async (fixture) => {
+    const source = createRevisionEvidencePdf(fixture);
+    const result = await renderAnnotatedPdf(source, {
+      highlights: [],
+      markups: [
+        {
+          id: "last-page-note",
+          kind: "note",
+          referenceId: "reference",
+          artifactId: "artifact",
+          page: 3,
+          x: 0.25,
+          y: 0.25,
+          body: "Review the final conclusion.",
+          createdAt,
+          updatedAt: createdAt,
+        },
+      ],
+    });
+    // PDF.js resolves cross-references independently of the editing library.
+    const task = getDocument({
+      data: new Uint8Array(result),
+      standardFontDataUrl: fileURLToPath(new URL("../../node_modules/pdfjs-dist/standard_fonts/", import.meta.url).href),
+    });
+    try {
+      const document = await task.promise;
+      expect(document.numPages).toBe(3);
+      const texts: string[] = [];
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+        const page = await document.getPage(pageNumber);
+        const text = await page.getTextContent();
+        texts.push(text.items.flatMap((item) => ("str" in item ? [item.str] : [])).join(""));
+        expect(Object.values(text.styles).map((style) => style.fontFamily)).toEqual(["serif"]);
+      }
+      expect(texts).toEqual([
+        "First page: inspectable evidence.",
+        "Second page: reproducible methods.",
+        "Final page: the current conclusion survives.",
+      ]);
+      const annotations: unknown[] = await (await document.getPage(3)).getAnnotations();
+      expect(annotations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ subtype: "Text", contentsObj: expect.objectContaining({ str: "Review the final conclusion." }) }),
+        ]),
+      );
+    } finally {
+      await task.destroy();
+    }
+  });
+
   it("preserves pages while embedding printable notes, quote comments, and ink", async () => {
     const source = await PDFDocument.create({ updateMetadata: false });
     source.addPage([600, 800]);

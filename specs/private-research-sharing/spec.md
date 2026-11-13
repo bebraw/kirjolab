@@ -60,6 +60,11 @@ annotated PDF copy for a recipient without an account.
   20 active shares may exist for one artifact; creation enforces that limit
   atomically and reads at most the existing 25 MB source PDF limit. A PDF with
   no saved annotations may still be shared as a snapshot.
+- Snapshot rendering uses the source PDF's authoritative current objects under
+  [ADR-250](../../docs/adrs/implemented/ADR-250-resolve-current-pdf-objects-before-editing.md).
+  A malformed or unsupported structure fails before a sharing copy or token is
+  published. Existing copies remain immutable; corrected rendering takes effect
+  when the owner explicitly creates a new copy.
 - Snapshot creation reads only the selected artifact's highlights and markups,
   independently of Library navigation limits. More than 10,000 combined
   annotations or an artifact-and-annotation input exceeding the 4 MiB
@@ -80,6 +85,8 @@ annotated PDF copy for a recipient without an account.
   `?download=1` on the PDF route requests attachment disposition; the ordinary
   route supports inline viewing and byte ranges. Responses are non-cacheable
   and do not disclose owner identity, artifact keys, or other Library content.
+  Partial responses include finite, exact `Content-Range` offsets and lengths
+  even when R2 exposes an undefined `suffix` property on an offset range.
 - `GET /api/workspaces/{id}/reference-pdfs` returns safe metadata only for PDFs
   attached to linked owner-library references, after membership authorization.
 - `GET /api/workspaces/{id}/reference-pdfs/{artifactId}` revalidates membership,
@@ -118,6 +125,10 @@ annotated PDF copy for a recipient without an account.
   annotation snapshots, unchanged bytes after later note edits, public reading
   and download, range/HEAD handling, and loss of access after revocation or
   permanent source deletion. Portable snapshots omit the share capabilities.
+- The browser sharing workflow exercises a multi-page source containing stale
+  compressed definitions. An independent PDF reader checks every downloaded
+  page and the final-page annotation; Workers tests verify exact range response
+  headers against the actual R2 binding.
 
 ## Current Milestone
 

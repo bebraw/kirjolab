@@ -34,10 +34,12 @@ export async function downloadR2Object(
 
 function resolvedRange(range: R2Range | undefined, size: number): { readonly offset: number; readonly length: number } | null {
   if (!range) return null;
-  if ("suffix" in range) {
+  // R2 exposes suffix with an undefined value on offset/length responses.
+  if ("suffix" in range && typeof range.suffix === "number") {
     const length = Math.min(range.suffix, size);
     return { offset: size - length, length };
   }
-  const offset = range.offset ?? 0;
-  return { offset, length: Math.min(range.length ?? size - offset, size - offset) };
+  const offset = "offset" in range ? (range.offset ?? 0) : 0;
+  const length = "length" in range ? (range.length ?? size - offset) : size - offset;
+  return { offset, length: Math.min(length, size - offset) };
 }
