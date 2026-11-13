@@ -905,7 +905,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
         this.openNoteId === note.id
           ? html`<aside
               class="pdf-note-card"
-              style=${`left: ${Math.min(point.x * 100, 70)}%; top: ${Math.min(point.y * 100, 82)}%`}
+              style=${`--pdf-note-x: ${point.x * 100}%; top: ${Math.min(point.y * 100, 82)}%`}
               aria-label=${`Note on page ${note.page}`}
             >
               <p>${note.body}</p>
