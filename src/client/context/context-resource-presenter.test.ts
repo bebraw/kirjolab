@@ -38,8 +38,10 @@ import { ProjectEvidencePanel } from "../assistant/project-evidence-panel";
 import { ProjectMapWorkspace } from "../project/project-map-workspace";
 import { PublicationContextPanel } from "../publication/publication-context-panel";
 import { PublicationListPanel } from "../publication/publication-list-panel";
-import { PdfReferenceDetailsPanel } from "../pdf/pdf-reference-details-panel";
+import { PdfReferenceDetailsPanel, pdfReferenceDetailsVisibilityEvent } from "../pdf/pdf-reference-details-panel";
 import { PdfRelatedPapersControl } from "../pdf/pdf-related-papers-control";
+import { PdfSearchPanel } from "../pdf/pdf-search-panel";
+import { PdfNavigationPanel } from "../pdf/pdf-navigation-panel";
 import type { ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "../workspace/workspace-rail-tabs";
 
@@ -279,7 +281,7 @@ function projectKnowledgeOwners(
   };
 }
 
-function testPdfViewer(): Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[2] {
+function testPdfViewer(): NonNullable<Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[2]> {
   return {
     clearDraftSelection: vi.fn(),
     currentPage: 1,
@@ -299,6 +301,34 @@ function testPdfViewer(): Parameters<ContextResourcePresenter["bindProjectKnowle
 
 function bindTestProjectKnowledge(presenter: ContextResourcePresenter, owners = projectKnowledgeOwners(), viewer = testPdfViewer()): void {
   presenter.bindProjectKnowledge("/api/workspaces/workspace", owners, viewer);
+}
+
+function readerButton() {
+  const events = new EventTarget();
+  const attributes = new Map<string, string>();
+  return Object.assign(new HTMLElement(), {
+    addEventListener: events.addEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+    setAttribute: (name: string, value: string) => {
+      attributes.set(name, value);
+    },
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+  });
+}
+
+function mountReaderControls(elements: ReturnType<typeof setup>["elements"]) {
+  const controls = {
+    "pdf-search-panel": new PdfSearchPanel(),
+    "pdf-navigation-panel": new PdfNavigationPanel(),
+    "open-paper-search": readerButton(),
+    "open-library-pdf-search": readerButton(),
+    "open-paper-navigation": readerButton(),
+    "open-library-pdf-navigation": readerButton(),
+    "open-paper-details": readerButton(),
+    "open-library-pdf-details": readerButton(),
+  };
+  Object.assign(elements, controls);
+  return controls;
 }
 
 interface TestLibraryPdfCoordinator {
@@ -463,6 +493,65 @@ describe("context resource presenter", () => {
     expect(present).toHaveBeenCalledWith(expect.objectContaining({ activeTab: tab }));
     expect(presentation.activeTab).toEqual(tab);
     expect(presenter.activeTab).toEqual(tab);
+  });
+
+  it("names the standalone article tab from current bibliographic metadata", () => {
+    const { presenter } = setup();
+    const first = { ...reference, title: "{GPU} methods & <results>" };
+    const second = { ...reference, id: "reference:2", title: "Another article" };
+    const secondPdf = { ...libraryPdf, id: "second/pdf", referenceId: second.id, name: "second.pdf" };
+    const currentLibrary = { ...library, references: [first, second], artifacts: [libraryPdf, secondPdf] };
+    const currentSources = {
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library: currentLibrary,
+      projectApiBase: null,
+      snapshot: null,
+    };
+
+    presenter.present(currentSources);
+    expect(presenter.ownerDocument.title).toBe("GPU methods & <results> · Kirjolab");
+
+    presenter.present({ ...currentSources, library: { ...currentLibrary, references: [{ ...first, title: "Revised title" }, second] } });
+    expect(presenter.ownerDocument.title).toBe("Revised title · Kirjolab");
+
+    presenter.present({ ...currentSources, activeTab: resourceTab("library-pdf", secondPdf.id) });
+    expect(presenter.ownerDocument.title).toBe("Another article · Kirjolab");
+
+    presenter.present({ ...currentSources, activeTab: undefined });
+    expect(presenter.ownerDocument.title).toBe("Library · Kirjolab");
+  });
+
+  it.each(["", "   ", "{}"])("uses the PDF filename when the article title is %j", (title) => {
+    const { presenter } = setup();
+    presenter.present({
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library: { ...library, references: [{ ...reference, title }] },
+      projectApiBase: null,
+      snapshot: null,
+    });
+    expect(presenter.ownerDocument.title).toBe("library.pdf · Kirjolab");
+  });
+
+  it("falls back for an unidentified PDF and clears the title when the artifact disappears", () => {
+    const { presenter } = setup();
+    const currentSources = {
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library,
+      projectApiBase: null,
+      snapshot: null,
+    };
+    presenter.present(currentSources);
+    expect(presenter.ownerDocument.title).toBe("library.pdf · Kirjolab");
+
+    presenter.present({ ...currentSources, library: { ...library, artifacts: [] } });
+    expect(presenter.ownerDocument.title).toBe("Library · Kirjolab");
+  });
+
+  it("keeps the project page title when viewing reference PDFs in a writing workspace", () => {
+    const { presenter } = setup();
+    presenter.ownerDocument.title = "Project draft · Kirjolab";
+    presenter.present({ ...sources(resourceTab("library-pdf", libraryPdf.id)), library: { ...library, references: [reference] } });
+    expect(presenter.ownerDocument.title).toBe("Project draft · Kirjolab");
   });
 
   it("enables outline analysis only while its project context is selected", () => {
@@ -800,14 +889,63 @@ describe("context resource presenter", () => {
 
   it("loads and validates the linked-reference PDF catalog", async () => {
     const { presenter } = setup();
+    const fetcher = vi.fn().mockResolvedValue(Response.json([referencePdf]));
 
-    await presenter.refreshReferencePdfs("/api/workspaces/workspace", async () => Response.json([referencePdf]));
+    await presenter.refreshReferencePdfs("/api/workspaces/workspace", fetcher);
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith("/api/workspaces/workspace/reference-pdfs", { credentials: "same-origin" });
+    expect(presenter.referencePdfs).toEqual([referencePdf]);
+    await expect(
+      presenter.refreshReferencePdfs("/api/workspaces/workspace", async () => new Response(null, { status: 403 })),
+    ).rejects.toThrow();
     expect(presenter.referencePdfs).toEqual([referencePdf]);
     await expect(
       presenter.refreshReferencePdfs("/api/workspaces/workspace", async () => Response.json([{ id: "incomplete" }])),
     ).rejects.toThrow("Project reference PDFs returned invalid metadata");
     await presenter.refreshReferencePdfs(null);
     expect(presenter.referencePdfs).toEqual([]);
+  });
+
+  it("reopens a project paper without resetting its page and forces a new load only for an explicit location", async () => {
+    const { presenter, pdfRoutes } = setup();
+    pdfRoutes.openProjectPdf.mockRestore();
+    const load = vi.spyOn(presenter, "loadActivePdf").mockResolvedValue(undefined);
+    const pdf = { ...libraryPdf, id: "project/pdf" };
+    await presenter.openProjectPdf(pdf, 4, "first-annotation");
+    await presenter.openProjectPdf(pdf);
+    expect(presenter.activeContextTab).toMatchObject({ key: "pdf:project/pdf", page: 4, focusedAnnotationId: "first-annotation" });
+    expect(load).toHaveBeenNthCalledWith(1, true);
+    expect(load).toHaveBeenNthCalledWith(2, false);
+    await presenter.openProjectPdf(pdf, undefined, "second-annotation");
+    expect(presenter.activeContextTab).toMatchObject({ page: 4, focusedAnnotationId: "second-annotation" });
+    expect(load).toHaveBeenNthCalledWith(3, true);
+    await presenter.openProjectPdf(pdf, 7);
+    expect(presenter.activeContextTab).toMatchObject({ page: 7, focusedAnnotationId: "second-annotation" });
+    expect(load).toHaveBeenNthCalledWith(4, true);
+  });
+
+  it("opens an owned shared-reference PDF through its private artifact and forwards history intent", async () => {
+    const { presenter, pdfRoutes } = setup();
+    pdfRoutes.openReferencePdf.mockRestore();
+    presenter.present({ ...sources(undefined), library: { ...library, artifacts: [{ ...libraryPdf, id: "unrelated" }, libraryPdf] } });
+    const shared = { ...referencePdf, ownArtifactId: libraryPdf.id };
+    await presenter.openReferencePdf(shared, 6);
+    await presenter.openReferencePdf(shared, 8, false);
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenNthCalledWith(1, libraryPdf, 6, true);
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenNthCalledWith(2, libraryPdf, 8, false);
+  });
+
+  it("retains a shared paper's page when its private artifact is unavailable", async () => {
+    const { presenter, pdfRoutes } = setup();
+    pdfRoutes.openReferencePdf.mockRestore();
+    const load = vi.spyOn(presenter, "loadActivePdf").mockResolvedValue(undefined);
+    presenter.present(sources(undefined));
+    const shared = { ...referencePdf, ownArtifactId: "missing-private-artifact" };
+    await presenter.openReferencePdf(shared, 5);
+    await presenter.openReferencePdf(shared);
+    expect(pdfRoutes.openLibraryPdf).not.toHaveBeenCalled();
+    expect(presenter.activeContextTab).toMatchObject({ key: "library-pdf:reference/pdf", page: 5 });
+    expect(load).toHaveBeenNthCalledWith(1, true);
+    expect(load).toHaveBeenNthCalledWith(2, false);
   });
 
   it("owns bound reference refresh and workspace resource presentation", async () => {
@@ -930,6 +1068,23 @@ describe("context resource presenter", () => {
     expect(fixed.tabs[0]?.scrollTop).toBe(24);
   });
 
+  it("ignores a stale PDF viewer location while retaining scroll and scopes annotation focus to project PDFs", () => {
+    const { elements, presenter } = setup();
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: 5 };
+    const state = { activeKey: tab.key, tabs: [tab] };
+    vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(null);
+    elements["paper-reader"].scrollTop = 48;
+
+    const stale = presenter.captureContext(state, { page: 9, focusedAnnotationId: "other-annotation", renderedContextKey: "pdf:other" });
+    expect(stale.tabs).toEqual([{ ...tab, scrollTop: 48 }]);
+    const current = presenter.captureContext(state, {
+      page: 7,
+      focusedAnnotationId: "project-only-annotation",
+      renderedContextKey: tab.key,
+    });
+    expect(current.tabs).toEqual([{ ...tab, page: 7, focusedAnnotationId: null, scrollTop: 48 }]);
+  });
+
   it("loads and retains the active project PDF through its bound viewer", async () => {
     const { elements, presenter } = setup();
     const pdf = {
@@ -1006,6 +1161,97 @@ describe("context resource presenter", () => {
     expect(presenter.activeContextTab).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });
     await presenter.loadActivePdf(false);
     expect(viewer.open).toHaveBeenCalledOnce();
+  });
+
+  it("connects PDF search, navigation, thumbnails, and details controls to the active reader", async () => {
+    const { elements, presenter } = setup();
+    const controls = mountReaderControls(elements);
+    const searchBind = vi.spyOn(controls["pdf-search-panel"], "bind");
+    const navigationBind = vi.spyOn(controls["pdf-navigation-panel"], "bind");
+    const showSearch = vi.spyOn(controls["pdf-search-panel"], "show").mockImplementation(() => undefined);
+    const showNavigation = vi.spyOn(controls["pdf-navigation-panel"], "show").mockImplementation(() => undefined);
+    const showDetails = vi.spyOn(elements["pdf-reference-details-panel"], "show").mockImplementation(() => undefined);
+    const results = [{ page: 4, excerpt: "Evidence in context", occurrences: 2 }];
+    const outline = { outline: [{ title: "Results", page: 4, children: [] }], pages: 7 };
+    const viewer = {
+      ...testPdfViewer(),
+      search: vi.fn().mockResolvedValue(results),
+      navigation: vi.fn().mockResolvedValue(outline),
+      thumbnail: vi.fn().mockResolvedValue("data:image/png;base64,cGFnZQ=="),
+      goToPage: vi.fn().mockResolvedValue(undefined),
+    };
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(), viewer);
+    const search = searchBind.mock.calls[0]?.[0];
+    const navigation = navigationBind.mock.calls[0]?.[0];
+    if (!search || !navigation) throw new Error("Expected mounted reader controls to be connected");
+
+    expect(await search.search("evidence")).toEqual(results);
+    expect(viewer.search).toHaveBeenCalledExactlyOnceWith("evidence");
+    expect(await navigation.navigation()).toEqual(outline);
+    expect(viewer.navigation).toHaveBeenCalledOnce();
+    expect(await navigation.thumbnail(4)).toBe("data:image/png;base64,cGFnZQ==");
+    expect(viewer.thumbnail).toHaveBeenCalledExactlyOnceWith(4);
+    await search.openPage(4);
+    await navigation.openPage(7);
+    expect(viewer.goToPage.mock.calls).toEqual([[4], [7]]);
+
+    for (const prefix of ["open-paper", "open-library-pdf"] as const) {
+      controls[`${prefix}-search`].dispatchEvent(new Event("click"));
+      controls[`${prefix}-navigation`].dispatchEvent(new Event("click"));
+      controls[`${prefix}-details`].dispatchEvent(new Event("click"));
+    }
+    expect(showSearch).toHaveBeenCalledTimes(2);
+    expect(showNavigation).toHaveBeenCalledTimes(2);
+    expect(showDetails).toHaveBeenCalledTimes(2);
+    for (const open of [true, false]) {
+      elements["pdf-reference-details-panel"].dispatchEvent(new CustomEvent(pdfReferenceDetailsVisibilityEvent, { detail: { open } }));
+      expect(controls["open-paper-details"].getAttribute("aria-expanded")).toBe(String(open));
+      expect(controls["open-library-pdf-details"].getAttribute("aria-expanded")).toBe(String(open));
+    }
+  });
+
+  it("keeps mounted reader controls usable when the viewer lacks optional search and navigation capabilities", async () => {
+    const { elements, presenter } = setup();
+    const controls = mountReaderControls(elements);
+    const searchBind = vi.spyOn(controls["pdf-search-panel"], "bind");
+    const navigationBind = vi.spyOn(controls["pdf-navigation-panel"], "bind");
+    const viewer = testPdfViewer();
+    delete viewer.search;
+    delete viewer.goToPage;
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(), viewer);
+    const search = searchBind.mock.calls[0]?.[0];
+    const navigation = navigationBind.mock.calls[0]?.[0];
+    if (!search || !navigation) throw new Error("Expected mounted reader controls to be connected");
+    expect(await search.search("evidence")).toEqual([]);
+    expect(await navigation.navigation()).toEqual({ outline: [], pages: 0 });
+    expect(await navigation.thumbnail(1)).toBe("");
+    await expect(search.openPage(1)).resolves.toBeUndefined();
+    await expect(navigation.openPage(1)).resolves.toBeUndefined();
+  });
+
+  it("handles Find shortcuts only for the active project or Library PDF", () => {
+    const { elements, presenter } = setup();
+    const controls = mountReaderControls(elements);
+    const events = new EventTarget();
+    Object.assign(presenter.ownerDocument, { addEventListener: events.addEventListener.bind(events) });
+    const showSearch = vi.spyOn(controls["pdf-search-panel"], "show").mockImplementation(() => undefined);
+    bindTestProjectKnowledge(presenter);
+    const publication = { id: "reference:1", key: "publication:reference:1", kind: "publication", scrollTop: 0 } as const;
+    for (const [tab, key, metaKey, ctrlKey, handled] of [
+      [resourceTab("pdf", "project/pdf"), "f", true, false, true],
+      [resourceTab("library-pdf", libraryPdf.id), "F", false, true, true],
+      [resourceTab("library-pdf", libraryPdf.id), "f", false, false, false],
+      [resourceTab("pdf", "project/pdf"), "g", true, false, false],
+      [publication, "f", true, false, false],
+      [undefined, "f", false, true, false],
+    ] as const) {
+      presenter.present(sources(tab));
+      showSearch.mockClear();
+      const event = Object.assign(new Event("keydown", { cancelable: true }), { key, metaKey, ctrlKey });
+      events.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(handled);
+      expect(showSearch).toHaveBeenCalledTimes(handled ? 1 : 0);
+    }
   });
 
   it("presents active PDF loading failures only while the resource remains active", async () => {
@@ -1468,13 +1714,32 @@ describe("context resource presenter", () => {
       objectKey: "pdfs/project.pdf",
       size: 1024,
     };
+    const unrelatedPublication = { ...publication, id: "other-reference", title: "Unrelated publication", citationKey: "Other2025" };
+    const unrelatedPdf = { ...projectPdf, id: "other-pdf", name: "other.pdf" };
     const project = {
       ...workspaceSnapshotFixture,
-      pdfs: [projectPdf],
-      publicationPdfLinks: [{ createdAt: "created", id: "link-1", pdfId: projectPdf.id, publicationId: publication.id }],
-      publications: [publication],
+      pdfs: [unrelatedPdf, projectPdf],
+      publicationPdfLinks: [
+        { createdAt: "created", id: "unrelated-link", pdfId: unrelatedPdf.id, publicationId: unrelatedPublication.id },
+        { createdAt: "created", id: "link-1", pdfId: projectPdf.id, publicationId: publication.id },
+      ],
+      publications: [unrelatedPublication, publication],
     };
-    const libraryWithReference = { ...library, references: [reference] };
+    const privateReference = {
+      ...reference,
+      abstract: "Private abstract",
+      authors: ["Ada Author", "Casey Collaborator"],
+      doi: "10.5555/private",
+      title: "Private source",
+      type: "book",
+      venue: "Private Press",
+      year: "2024",
+    };
+    const libraryWithReference = {
+      ...library,
+      artifacts: [{ ...libraryPdf, id: "unrelated-artifact", referenceId: "other-reference" }, libraryPdf],
+      references: [{ ...privateReference, id: "other-reference", title: "Unrelated private reference" }, privateReference],
+    };
 
     presenter.present({ ...sources(resourceTab("pdf", projectPdf.id)), snapshot: project });
     presenter.present({ ...sources(resourceTab("library-pdf", libraryPdf.id)), library: libraryWithReference, snapshot: project });
@@ -1483,19 +1748,97 @@ describe("context resource presenter", () => {
     expect(setContext).toHaveBeenNthCalledWith(1, {
       pdfId: projectPdf.id,
       pdfName: projectPdf.name,
-      references: [expect.objectContaining({ citationKey: publication.citationKey, id: publication.id, origin: "Project reference" })],
+      references: [
+        {
+          abstract: "Project abstract",
+          authors: ["Jane Doe"],
+          citationKey: "Doe2026",
+          doi: "10.1234/project",
+          id: "reference:1",
+          origin: "Project reference",
+          title: "Project source",
+          type: "article",
+          venue: "Project Journal",
+          year: "2026",
+        },
+      ],
     });
     expect(setContext).toHaveBeenNthCalledWith(2, {
       pdfId: libraryPdf.id,
       pdfName: libraryPdf.name,
-      references: [expect.objectContaining({ citationKey: reference.referenceKey, id: reference.id, origin: "Library reference" })],
+      references: [
+        {
+          abstract: "Private abstract",
+          authors: ["Ada Author", "Casey Collaborator"],
+          citationKey: "doe2026",
+          doi: "10.5555/private",
+          id: "reference:1",
+          origin: "Library reference",
+          title: "Private source",
+          type: "book",
+          venue: "Private Press",
+          year: "2024",
+        },
+      ],
     });
     expect(setContext).toHaveBeenNthCalledWith(3, {
       pdfId: referencePdf.id,
       pdfName: referencePdf.name,
-      references: [expect.objectContaining({ citationKey: publication.citationKey, id: publication.id, origin: "Project reference" })],
+      references: [
+        {
+          abstract: "Project abstract",
+          authors: ["Jane Doe"],
+          citationKey: "Doe2026",
+          doi: "10.1234/project",
+          id: "reference:1",
+          origin: "Project reference",
+          title: "Project source",
+          type: "article",
+          venue: "Project Journal",
+          year: "2026",
+        },
+      ],
+    });
+
+    presenter.present({
+      ...sources(resourceTab("library-pdf", referencePdf.id)),
+      library: libraryWithReference,
+      referencePdfs: [
+        { ...referencePdf, id: "unrelated-shared-pdf" },
+        { ...referencePdf, ownArtifactId: libraryPdf.id },
+      ],
+      snapshot: project,
+    });
+    expect(setContext).toHaveBeenLastCalledWith({
+      pdfId: "library/pdf",
+      pdfName: "library.pdf",
+      references: [
+        {
+          abstract: "Private abstract",
+          authors: ["Ada Author", "Casey Collaborator"],
+          citationKey: "doe2026",
+          doi: "10.5555/private",
+          id: "reference:1",
+          origin: "Library reference",
+          title: "Private source",
+          type: "book",
+          venue: "Private Press",
+          year: "2024",
+        },
+      ],
     });
   });
+
+  it.each([undefined, resourceTab("pdf", "missing-project-pdf"), resourceTab("library-pdf", "missing-library-pdf")])(
+    "clears a previous article's reference details when the next resource is absent: %j",
+    (tab) => {
+      const { elements, presenter } = setup();
+      const setContext = vi.spyOn(elements["pdf-reference-details-panel"], "setContext");
+      presenter.present({ ...sources(resourceTab("library-pdf", libraryPdf.id)), library: { ...library, references: [reference] } });
+      presenter.present(sources(tab));
+      expect(setContext).toHaveBeenLastCalledWith(null);
+    },
+  );
 
   it("opens an unambiguous private-Library paper at the citation locator", () => {
     const { pdfRoutes, presenter } = setup();
