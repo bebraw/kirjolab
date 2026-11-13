@@ -1218,6 +1218,21 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   history, general APIs, or Yjs state. Its same-origin presence socket may
   exchange only validated, ephemeral caret and selection metadata, and must be
   disconnected when the capability rotates or is revoked.
+- Share an annotated Library PDF only through a separately created immutable
+  copy and its own 256-bit bearer at `/share/pdf/{token}`. Keep recoverable
+  tokens and revocation state in the owner Library authority, and store derived
+  bytes under `pdf-shares/{sha256(token)}.pdf` in the existing `PAPERS` binding.
+  Revalidate the active capability and source artifact on every public page or
+  PDF read; revocation and permanent source deletion remove future access.
+  Read annotations through a bounded artifact-specific source; reject overflow
+  rather than silently sharing a navigation snapshot's truncated annotations.
+  Remove tokens before storage cleanup and retain cleanup digests until R2
+  deletion succeeds, retrying bounded batches through owner PDF-share operations
+  and permanent reference deletion. Later annotations require a new share.
+  Keep these delivery copies and bearer
+  records out of portable exports and owner-backup projections, and never let
+  a PDF bearer authorize Library or project APIs. See
+  [ADR-249](docs/adrs/implemented/ADR-249-share-immutable-annotated-pdf-copies.md).
 - Keep authenticated member listing and invitation plus read-only and edit-link
   status, creation, and revocation inside the bounded sharing Lit component.
   Validate responses there and bind the sibling trigger and global toast owner

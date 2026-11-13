@@ -108,7 +108,8 @@ import {
   portableResearch,
   referenceToCslJson,
 } from "../domain/reference-library/library-interchange";
-import { renderAnnotatedPdf } from "./annotated-pdf";
+import { annotatedPdfFilename, renderAnnotatedPdf } from "./annotated-pdf";
+import { cleanupLibraryPdfShares, type LibraryPdfShareCleanupApi } from "./library-pdf-share-cleanup";
 import { downloadR2Object } from "./r2-download";
 import { workspaceStorageKey } from "./reviews";
 
@@ -121,7 +122,7 @@ const maximumBackfillQueueBatch = 25;
 
 type ExternalFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-interface ReferenceLibraryApi {
+interface ReferenceLibraryApi extends LibraryPdfShareCleanupApi {
   getSnapshot(includeArchived?: boolean): Promise<ReferenceLibrarySnapshot>;
   importBibTeX(source: string, actor: string): Promise<ReferenceImportItem[]>;
   registerPdf(artifact: LibraryPdfArtifact): Promise<LibraryPdfArtifact>;
@@ -1122,6 +1123,7 @@ async function handleLibraryReferenceDeletionRoute(context: LibraryReferenceRout
   }
   const artifacts = (await library.getSnapshot(true)).artifacts.filter((artifact) => artifact.referenceId === referenceId);
   const deleted = await library.permanentlyDeleteReference(referenceId, body.expectedProjectIds);
+  await cleanupLibraryPdfShares(env.PAPERS, library);
   const blobAuthority = env.PDF_BLOBS;
   if (blobAuthority) {
     const releases = await Promise.allSettled(
@@ -1903,18 +1905,6 @@ async function downloadAnnotatedLibraryPdf(
       "x-content-type-options": "nosniff",
     },
   });
-}
-
-function annotatedPdfFilename(value: string): string {
-  const stem = value
-    .replace(/\.pdf$/iu, "")
-    .normalize("NFKD")
-    .replaceAll(/[^\x20-\x7e]/gu, "")
-    .replaceAll(/[^a-z0-9 .()_-]+/giu, "-")
-    .replaceAll(/-+/gu, "-")
-    .replaceAll(/^[-.\s]+|[-.\s]+$/gu, "")
-    .slice(0, 180);
-  return `${stem || "paper"}-annotated.pdf`;
 }
 
 function safeFilename(value: string): string {

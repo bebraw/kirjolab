@@ -9,6 +9,18 @@ export interface AnnotatedPdfInput {
   readonly highlights: readonly LibraryHighlight[];
 }
 
+export function annotatedPdfFilename(value: string): string {
+  const stem = value
+    .replace(/\.pdf$/iu, "")
+    .normalize("NFKD")
+    .replaceAll(/[^\x20-\x7e]/gu, "")
+    .replaceAll(/[^a-z0-9 .()_-]+/giu, "-")
+    .replaceAll(/-+/gu, "-")
+    .replaceAll(/^[-.\s]+|[-.\s]+$/gu, "")
+    .slice(0, 180);
+  return `${stem || "paper"}-annotated.pdf`;
+}
+
 export async function renderAnnotatedPdf(source: Uint8Array, input: AnnotatedPdfInput): Promise<Uint8Array> {
   const document = await PDFDocument.load(source, { updateMetadata: false });
   const pages = document.getPages();

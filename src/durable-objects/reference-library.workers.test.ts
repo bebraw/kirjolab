@@ -817,6 +817,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         requestedAt,
         requestedAt,
       );
+      state.storage.sql.exec("DROP TABLE pdf_shares");
       state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
       state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
       state.storage.sql.exec("ALTER TABLE project_dependencies DROP COLUMN archive_created");
@@ -869,6 +870,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       await library.confirmArtifactAnalysisQueuePublication(draft.artifact.id, "pdf-text", reservation.analysis.fingerprint, requestedAt),
     ).toBe(true);
     await runInDurableObject(library, async (_instance: ReferenceLibrary, state) => {
+      state.storage.sql.exec("DROP TABLE pdf_shares");
       state.storage.sql.exec("ALTER TABLE artifacts DROP COLUMN blob_key");
       state.storage.sql.exec("DROP TABLE deleted_pdf_digests");
       state.storage.sql.exec("ALTER TABLE project_dependencies DROP COLUMN archive_created");
@@ -1384,6 +1386,55 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     const tombstone = await library.permanentlyDeleteReference(referenceId, ["project-a"]);
     expect(tombstone).toMatchObject({ id: referenceId, deletedAt: expect.any(String), title: "Field Guide" });
     expect((await library.getReferences([referenceId]))[0]).toMatchObject({ deletedAt: expect.any(String), authors: [] });
+  });
+
+  it("revokes deleted-source PDF links and retains their byte cleanup until confirmed", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`pdf-share-cleanup-${crypto.randomUUID()}`);
+    const createdAt = new Date().toISOString();
+    const draft = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "review.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: "libraries/owner/review.pdf",
+        fingerprint: `sha256:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt,
+      },
+      "owner@example.test",
+    );
+    const registration = {
+      id: crypto.randomUUID(),
+      artifactId: draft.artifact.id,
+      token: "a".repeat(43),
+      digest: "b".repeat(64),
+      name: "review-annotated.pdf",
+      createdAt,
+    };
+    expect((await library.registerPdfShare(registration)).status).toBe("created");
+
+    await library.permanentlyDeleteReference(draft.reference.id, []);
+
+    expect(await library.resolvePdfShare(registration.id, registration.digest)).toBeNull();
+    expect(await library.getPendingPdfShareCleanup()).toEqual([{ id: registration.id, digest: registration.digest }]);
+    await library.completePdfShareCleanup(registration.id, "c".repeat(64));
+    expect(await library.getPendingPdfShareCleanup()).toHaveLength(1);
+    await library.completePdfShareCleanup(registration.id, registration.digest);
+    expect(await library.getPendingPdfShareCleanup()).toEqual([]);
+    expect(await library.revokePdfShare(draft.artifact.id, registration.id)).toEqual({ status: "revoked", digest: registration.digest });
+    const unpublished = { ...registration, id: crypto.randomUUID(), digest: "d".repeat(64) };
+    expect(await library.retainPdfShareCleanup(unpublished)).toBe("retained");
+    expect(await library.getPendingPdfShareCleanup()).toEqual([{ id: unpublished.id, digest: unpublished.digest }]);
+    expect(await library.resolvePdfShare(unpublished.id, unpublished.digest)).toBeNull();
+    expect(await library.retainPdfShareCleanup({ ...unpublished, digest: "e".repeat(64) })).toBe("invalid");
+    expect(await library.retainPdfShareCleanup({ ...unpublished, id: "invalid" })).toBe("invalid");
+    await runInDurableObject(library, (_instance, state) => {
+      expect(
+        state.storage.sql.exec<{ token: string | null }>("SELECT token FROM pdf_shares WHERE id = ?", registration.id).one().token,
+      ).toBeNull();
+    });
   });
 
   it("keeps immutable web captures under one stable source identity", async () => {

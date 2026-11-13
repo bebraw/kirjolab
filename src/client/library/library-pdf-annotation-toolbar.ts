@@ -5,6 +5,7 @@ import type { LibraryPdfDrawing } from "../../domain/reference-library";
 import { renderIcon, type IconName } from "../../ui/icons";
 import { errorMessage, expectOk } from "../platform/http";
 import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
+import "./library-pdf-share-dialog";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }
@@ -188,6 +189,15 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
             </button>
             <button
               class="library-pdf-menu-action"
+              id="share-library-annotated-pdf"
+              type="button"
+              ?disabled=${!this.exportTarget || this.exporting || this.drawingPending}
+              @click=${this.shareAnnotated}
+            >
+              ${icon("arrowRight")}<span>Share annotated copy</span>
+            </button>
+            <button
+              class="library-pdf-menu-action"
               id="export-library-annotated-pdf"
               type="button"
               ?disabled=${this.annotationCount === 0 || !this.exportTarget || this.exporting}
@@ -198,7 +208,15 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
           </div>
         </details>
       </div>
+      <library-pdf-share-dialog></library-pdf-share-dialog>
     `;
+  }
+
+  protected async shareAnnotated(): Promise<void> {
+    if (!this.exportTarget || this.exporting || this.drawingPending) return;
+    this.querySelector("details[open]")?.removeAttribute("open");
+    const dialog = this.querySelector("library-pdf-share-dialog");
+    if (dialog) await dialog.open(this.exportTarget);
   }
 
   protected chooseTool(tool: PdfAnnotationTool): void {

@@ -10,6 +10,7 @@ import { handleGitHubImportApi } from "./api/github-import";
 import { handleLatexImportApi } from "./api/latex-import";
 import { handleProjectImportApi } from "./api/project-interchange";
 import { handleReferenceLibraryApi } from "./api/reference-library";
+import { handleLibraryPdfSharesApi, handlePublicPdfShareRequest, isLibraryPdfSharesPath } from "./api/library-pdf-shares";
 import {
   createReviewResource,
   discoverLegacyReviews,
@@ -94,6 +95,7 @@ const authenticatedApiRoutes: readonly AuthenticatedApiRoute[] = [
   },
   { matches: (path) => matchesApiFamily(path, "/api/reviews"), handle: handleReviewsApi },
   { matches: (path) => matchesApiFamily(path, "/api/workspaces"), handle: handleWorkspaceApi },
+  { matches: isLibraryPdfSharesPath, handle: handleLibraryPdfSharesApi },
   { matches: (path) => matchesApiFamily(path, "/api/library"), handle: handleReferenceLibraryApi },
 ];
 const staticScriptLoaders = new Map<string, () => Promise<string>>([
@@ -310,6 +312,8 @@ function matchesApiFamily(pathname: string, root: string): boolean {
 async function handlePublicRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
   const staticResponse = await handleStaticRequest(request, url, env);
   if (staticResponse) return staticResponse;
+  const pdfShareResponse = await handlePublicPdfShareRequest(request, env);
+  if (pdfShareResponse) return pdfShareResponse;
   const readOnlyShareResponse = await handleReadOnlyShareRequest(request, url, env);
   if (readOnlyShareResponse) return readOnlyShareResponse;
   return await handleEditShareRequest(request, env);

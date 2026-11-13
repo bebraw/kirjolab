@@ -9,7 +9,7 @@ export async function downloadR2Object(
   key: string,
   options: R2DownloadOptions,
 ): Promise<Response | null> {
-  const object = await bucket.get(key, { onlyIf: request.headers, range: request.headers });
+  const object = await bucket.get(key, { onlyIf: request.headers, ...(request.headers.has("range") ? { range: request.headers } : {}) });
   if (!object) return null;
 
   const headers = new Headers();
@@ -21,7 +21,7 @@ export async function downloadR2Object(
 
   if (!("body" in object)) return new Response(null, { status: 412, headers });
 
-  const range = resolvedRange(object.range, object.size);
+  const range = request.headers.has("range") ? resolvedRange(object.range, object.size) : null;
   if (!range) {
     headers.set("content-length", String(object.size));
     return new Response(object.body, { headers });

@@ -176,7 +176,13 @@ export class LibraryPdfAnnotationForms extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`
-      <form class="library-context-composer" id="library-highlight-form" ?hidden=${!this.highlightVisible} @submit=${this.saveHighlight}>
+      <form
+        class="library-context-composer"
+        id="library-highlight-form"
+        ?hidden=${!this.highlightVisible}
+        @submit=${this.saveHighlight}
+        @keydown=${this.saveShortcut}
+      >
         <input id="library-highlight-page" type="hidden" .value=${String(this.highlightPage)} />
         <textarea id="library-highlight-quote" hidden maxlength="20000" required .value=${this.highlightQuote}></textarea>
         <blockquote class="library-selection-excerpt" id="library-highlight-excerpt">
@@ -192,7 +198,14 @@ export class LibraryPdfAnnotationForms extends LightDomElement {
           .value=${this.highlightComment}
           @input=${this.updateHighlightComment}
         />
-        <button class="button-primary" id="save-library-highlight" type="submit" ?disabled=${Boolean(this.saving)}>
+        <button
+          class="button-primary"
+          id="save-library-highlight"
+          type="submit"
+          title="Save note (Cmd/Ctrl+Enter)"
+          aria-keyshortcuts="Meta+Enter Control+Enter"
+          ?disabled=${Boolean(this.saving)}
+        >
           ${this.saving === "highlight" ? "Saving…" : this.#highlightId ? "Save note" : "Save"}
         </button>
         <button
@@ -206,7 +219,13 @@ export class LibraryPdfAnnotationForms extends LightDomElement {
         </button>
         <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </form>
-      <form class="library-context-composer" id="library-note-form" ?hidden=${!this.noteVisible} @submit=${this.saveNote}>
+      <form
+        class="library-context-composer"
+        id="library-note-form"
+        ?hidden=${!this.noteVisible}
+        @submit=${this.saveNote}
+        @keydown=${this.saveShortcut}
+      >
         <textarea
           class="field"
           id="library-note-body"
@@ -217,7 +236,13 @@ export class LibraryPdfAnnotationForms extends LightDomElement {
           .value=${this.noteBody}
           @input=${this.updateNoteBody}
         ></textarea>
-        <button class="button-primary" type="submit" ?disabled=${Boolean(this.saving)}>
+        <button
+          class="button-primary"
+          type="submit"
+          title="Save note (Cmd/Ctrl+Enter)"
+          aria-keyshortcuts="Meta+Enter Control+Enter"
+          ?disabled=${Boolean(this.saving)}
+        >
           ${this.saving === "note" ? "Saving…" : "Save note"}
         </button>
         <button
@@ -306,6 +331,26 @@ export class LibraryPdfAnnotationForms extends LightDomElement {
 
   protected updateDrawingWidth(event: Event): void {
     this.drawingWidth = Number(inputValue(event));
+  }
+
+  protected saveShortcut(event: KeyboardEvent): void {
+    if (
+      event.key !== "Enter" ||
+      (!event.metaKey && !event.ctrlKey) ||
+      event.altKey ||
+      event.shiftKey ||
+      event.isComposing ||
+      event.repeat ||
+      event.defaultPrevented ||
+      this.saving
+    )
+      return;
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement) || form.hidden) return;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!button || button.disabled) return;
+    event.preventDefault();
+    form.requestSubmit(button);
   }
 
   protected async saveHighlight(event: SubmitEvent): Promise<void> {

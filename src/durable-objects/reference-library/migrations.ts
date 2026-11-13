@@ -452,4 +452,24 @@ export const referenceLibraryMigrations = [
       return undefined;
     },
   },
+  {
+    version: 21,
+    name: "share-annotated-pdf-snapshots",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE pdf_shares (
+          id TEXT PRIMARY KEY,
+          artifact_id TEXT NOT NULL,
+          token TEXT,
+          digest TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          revoked_at TEXT,
+          cleaned_at TEXT
+        );
+        CREATE INDEX pdf_shares_artifact ON pdf_shares(artifact_id, created_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];

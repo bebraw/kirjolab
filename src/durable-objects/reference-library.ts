@@ -82,6 +82,14 @@ import { runSQLiteMigrations } from "../persistence/sqlite/migrations";
 import { referenceLibraryMigrations } from "./reference-library/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 import type { ProjectReferenceLink } from "../domain/workspace/workspace";
+import type {
+  LibraryPdfShare,
+  LibraryPdfShareRegistration,
+  LibraryPdfShareListResult,
+  LibraryPdfShareRegistrationResult,
+  LibraryPdfShareRevocationResult,
+  LibraryPdfShareSourceResult,
+} from "../domain/library-pdf-share";
 
 const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
 const maximumMetadataPreviewCacheEntries = 16;
@@ -92,6 +100,17 @@ const uuidPattern = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu;
 interface MetadataPreviewCacheEntry {
   readonly preview: MetadataRefinementPreview;
   readonly expiresAt: number;
+}
+
+interface PdfShareRow extends Record<string, SqlStorageValue> {
+  id: string;
+  artifact_id: string;
+  token: string | null;
+  digest: string;
+  name: string;
+  created_at: string;
+  revoked_at: string | null;
+  cleaned_at: string | null;
 }
 
 interface ReferenceRow extends Record<string, SqlStorageValue> {
@@ -1676,6 +1695,132 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return pdfMarkupFromRow(row);
   }
 
+  getPdfShareSource(artifactId: string): LibraryPdfShareSourceResult {
+    const source = this.getPdfArtifact(artifactId);
+    if (!source) return { status: "missing" };
+    const highlights: LibraryHighlight[] = [];
+    const markups: LibraryPdfMarkup[] = [];
+    let size = new TextEncoder().encode(JSON.stringify(source.artifact)).byteLength + 256;
+    for (const row of this.ctx.storage.sql.exec<HighlightRow>(
+      "SELECT * FROM highlights WHERE artifact_id = ? ORDER BY page, id",
+      artifactId,
+    )) {
+      const highlight = highlightFromRow(row);
+      size += new TextEncoder().encode(JSON.stringify(highlight)).byteLength + 1;
+      if (size > 4 * 1024 * 1024 || highlights.length >= 10_000) return { status: "limit" };
+      highlights.push(highlight);
+    }
+    for (const row of this.ctx.storage.sql.exec<PdfMarkupRow>(
+      "SELECT * FROM pdf_markups WHERE artifact_id = ? ORDER BY page, id",
+      artifactId,
+    )) {
+      const markup = pdfMarkupFromRow(row);
+      size += new TextEncoder().encode(JSON.stringify(markup)).byteLength + 1;
+      if (size > 4 * 1024 * 1024 || highlights.length + markups.length >= 10_000) return { status: "limit" };
+      markups.push(markup);
+    }
+    return { status: "ok", artifact: source.artifact, highlights, markups };
+  }
+
+  listPdfShares(artifactId: string): LibraryPdfShareListResult {
+    if (!this.getPdfArtifact(artifactId)) return { status: "missing" };
+    const shares = this.ctx.storage.sql
+      .exec<PdfShareRow>("SELECT * FROM pdf_shares WHERE artifact_id = ? AND revoked_at IS NULL ORDER BY created_at DESC, id", artifactId)
+      .toArray()
+      .map((row) => ({ id: row.id, name: row.name, createdAt: row.created_at, href: `/share/pdf/${row.token}` }));
+    return { status: "ok", shares };
+  }
+
+  registerPdfShare(input: LibraryPdfShareRegistration): LibraryPdfShareRegistrationResult {
+    const current = this.listPdfShares(input.artifactId);
+    if (current.status === "missing") return current;
+    if (
+      !uuidPattern.test(input.id) ||
+      !/^[A-Za-z0-9_-]{43}$/u.test(input.token) ||
+      !/^[a-f0-9]{64}$/u.test(input.digest) ||
+      !input.name ||
+      input.name.length > 200 ||
+      !Number.isFinite(Date.parse(input.createdAt))
+    ) {
+      return { status: "invalid" };
+    }
+    if (current.shares.length >= 20) return { status: "limit" };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO pdf_shares (id, artifact_id, token, digest, name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      input.id,
+      input.artifactId,
+      input.token,
+      input.digest,
+      input.name,
+      input.createdAt,
+    );
+    return { status: "created", share: { id: input.id, name: input.name, createdAt: input.createdAt, href: `/share/pdf/${input.token}` } };
+  }
+
+  resolvePdfShare(shareId: string, digest: string): Pick<LibraryPdfShare, "name" | "createdAt"> | null {
+    const row = this.ctx.storage.sql
+      .exec<PdfShareRow>("SELECT * FROM pdf_shares WHERE id = ? AND digest = ? AND revoked_at IS NULL", shareId, digest)
+      .toArray()[0];
+    if (!row || !this.getPdfArtifact(row.artifact_id)) return null;
+    return { name: row.name, createdAt: row.created_at };
+  }
+
+  revokePdfShare(artifactId: string, shareId: string): LibraryPdfShareRevocationResult {
+    const row = this.ctx.storage.sql
+      .exec<PdfShareRow>("SELECT * FROM pdf_shares WHERE id = ? AND artifact_id = ?", shareId, artifactId)
+      .toArray()[0];
+    if (!row) return { status: "missing" };
+    this.ctx.storage.sql.exec(
+      "UPDATE pdf_shares SET token = NULL, revoked_at = COALESCE(revoked_at, ?) WHERE id = ?",
+      new Date().toISOString(),
+      shareId,
+    );
+    return { status: "revoked", digest: row.digest };
+  }
+
+  getPendingPdfShareCleanup(): readonly { readonly id: string; readonly digest: string }[] {
+    return this.ctx.storage.sql
+      .exec<{ id: string; digest: string }>(
+        "SELECT id, digest FROM pdf_shares WHERE revoked_at IS NOT NULL AND token IS NULL AND cleaned_at IS NULL ORDER BY revoked_at, id LIMIT 100",
+      )
+      .toArray();
+  }
+
+  retainPdfShareCleanup(input: Omit<LibraryPdfShareRegistration, "token">): "retained" | "invalid" {
+    if (
+      !uuidPattern.test(input.id) ||
+      !uuidPattern.test(input.artifactId) ||
+      !/^[a-f0-9]{64}$/u.test(input.digest) ||
+      !input.name ||
+      input.name.length > 200 ||
+      !Number.isFinite(Date.parse(input.createdAt))
+    )
+      return "invalid";
+    const existing = this.ctx.storage.sql.exec<{ digest: string }>("SELECT digest FROM pdf_shares WHERE id = ?", input.id).toArray()[0];
+    if (existing && existing.digest !== input.digest) return "invalid";
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pdf_shares (id, artifact_id, token, digest, name, created_at, revoked_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET token = NULL, revoked_at = COALESCE(revoked_at, excluded.revoked_at), cleaned_at = NULL`,
+      input.id,
+      input.artifactId,
+      input.digest,
+      input.name,
+      input.createdAt,
+      new Date().toISOString(),
+    );
+    return "retained";
+  }
+
+  completePdfShareCleanup(id: string, digest: string): void {
+    this.ctx.storage.sql.exec(
+      "UPDATE pdf_shares SET cleaned_at = COALESCE(cleaned_at, ?) WHERE id = ? AND digest = ? AND revoked_at IS NOT NULL AND token IS NULL",
+      new Date().toISOString(),
+      id,
+      digest,
+    );
+  }
+
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): LibraryPdfArtifact {
     if (rights !== "private" && rights !== "shareable" && rights !== "unknown") throw new Error("Invalid artifact rights");
     const artifact = this.#artifact(artifactId);
@@ -2014,6 +2159,12 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const previous = this.#reference(referenceId);
     const deletedAt = new Date().toISOString();
     this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        `UPDATE pdf_shares SET token = NULL, revoked_at = COALESCE(revoked_at, ?)
+         WHERE artifact_id IN (SELECT id FROM artifacts WHERE reference_id = ?)`,
+        deletedAt,
+        referenceId,
+      );
       this.ctx.storage.sql.exec("DELETE FROM pdf_markups WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM highlights WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM notes WHERE reference_id = ?", referenceId);
