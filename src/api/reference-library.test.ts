@@ -812,6 +812,27 @@ describe("reference library API", () => {
     expect(fixture.library.permanentlyDeleteReference).toHaveBeenCalledWith(id, ["project"]);
   });
 
+  it.each([false, true])("cleans revoked PDF copies after permanent deletion and retains storage failures: %s", async (storageFails) => {
+    const fixture = apiFixture();
+    const pending = { id: crypto.randomUUID(), digest: "b".repeat(64) };
+    const key = `pdf-shares/${pending.digest}.pdf`;
+    await fixture.env.PAPERS.put(key, "annotated copy");
+    fixture.library.getPendingPdfShareCleanup.mockResolvedValue([pending]);
+    if (storageFails) vi.spyOn(fixture.env.PAPERS, "delete").mockRejectedValueOnce(new Error("R2 unavailable"));
+
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}`, { expectedProjectIds: ["project"] }, "DELETE"),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fixture.library.permanentlyDeleteReference).toHaveBeenCalledWith(reference.id, ["project"]);
+    expect(Boolean(await fixture.env.PAPERS.get(key))).toBe(storageFails);
+    if (storageFails) expect(fixture.library.completePdfShareCleanup).not.toHaveBeenCalled();
+    else expect(fixture.library.completePdfShareCleanup).toHaveBeenCalledWith(pending.id, pending.digest);
+  });
+
   it("rejects malformed private-PDF and reading-state mutations at the schema boundary", async () => {
     const fixture = apiFixture();
     const id = reference.id;
@@ -2236,6 +2257,8 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       webSnapshotCount: 0,
     })),
     permanentlyDeleteReference: vi.fn(async () => ({ ...reference, deletedAt: now })),
+    getPendingPdfShareCleanup: vi.fn(async (): Promise<readonly { id: string; digest: string }[]> => []),
+    completePdfShareCleanup: vi.fn(async (_id: string, _digest: string): Promise<void> => undefined),
     registerWebCapture: vi.fn(async (registration: import("../domain/reference-library").WebCaptureRegistration) => ({
       reference,
       source: { referenceId: reference.id, canonicalUrl: registration.canonicalUrl, createdAt: now, updatedAt: now },

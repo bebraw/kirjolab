@@ -9,6 +9,7 @@ export const exampleRoutes = [
   { path: "/review/:id", purpose: "Independent collaborative evidence review" },
   { path: "/workspaces/:id", purpose: "Legacy writing-project redirect" },
   { path: "/share/:token", purpose: "Read-only workspace link" },
+  { path: "/share/pdf/:token", purpose: "Read-only annotated PDF copy" },
   { path: "/edit/:token", purpose: "Editable workspace link" },
   { path: "/api/workspaces", purpose: "Workspace catalog" },
   { path: "/api/workspaces/demo", purpose: "Portable workspace resource" },

@@ -6,8 +6,9 @@
 
 Citing a source must not reveal a researcher's notes, tags, highlights, or
 reading history. Authenticated project collaboration does need direct access to
-the PDFs attached to linked references, while public bearer links must not gain
-that access.
+the PDFs attached to linked references, while manuscript bearer links must not
+gain that access. A separate explicit sharing action may publish one immutable
+annotated PDF copy for a recipient without an account.
 
 ### Architecture
 
@@ -22,6 +23,17 @@ that access.
 - Sharing is a separate owner action naming one project, reference, resource,
   and kind. The library captures an immutable bounded snapshot; the project
   pins it in a new project revision.
+- Standalone annotated-PDF sharing is a separate owner action naming one
+  Library artifact. It creates an immutable copy containing that PDF's saved
+  highlights, comments, page notes, and drawings. Later private edits require
+  another explicit share; the existing link's bytes do not change. The storage,
+  capability, and backup boundary is recorded in
+  [ADR-249](../../docs/adrs/implemented/ADR-249-share-immutable-annotated-pdf-copies.md).
+- The owner can recover, open, copy, and revoke existing PDF links. Anyone with
+  an active link can read or download its copy without signing in. Revocation
+  or permanent source deletion removes future access; already downloaded
+  copies cannot be recalled. Library archive and project unlink do not revoke
+  these independently created links.
 - Linking a bibliographic reference authorizes current authenticated project
   members to stream every PDF currently attached to that owner-library record.
   The stream is resolved from the owner library at request time and does not
@@ -41,6 +53,33 @@ that access.
 
 ### API Contracts
 
+- `GET /api/library/pdfs/{artifactId}/shares` lists that owner's active links
+  as `{ shares }`, containing each link's id, name, creation time, and
+  recoverable URL. `POST` creates a new annotated copy through the same owner
+  boundary and returns `{ share }`. Both use non-cacheable responses. At most
+  20 active shares may exist for one artifact; creation enforces that limit
+  atomically and reads at most the existing 25 MB source PDF limit. A PDF with
+  no saved annotations may still be shared as a snapshot.
+- Snapshot creation reads only the selected artifact's highlights and markups,
+  independently of Library navigation limits. More than 10,000 combined
+  annotations or an artifact-and-annotation input exceeding the 4 MiB
+  serialized-input bound fails with `413`; no saved feedback is silently
+  omitted.
+- `DELETE /api/library/pdfs/{artifactId}/shares/{id}` revokes one owner-matching
+  link and returns `204`. Creation and revocation require an exact same-origin
+  mutation request. Access is revoked before removing the generated R2 copy;
+  cleanup failure reports a retryable error without reactivating the link.
+- Permanent reference deletion nulls its PDF-share tokens in the same
+  transaction that removes the artifacts. Cleanup digests survive artifact
+  deletion. After that deletion and at the start of later authenticated
+  PDF-share API operations, cleanup retries at most 100 pending rows. Failed
+  deletions remain pending; only successful R2 deletion marks a row cleaned.
+- `GET` and `HEAD /share/pdf/{token}` and its `/document.pdf` route validate
+  the 43-character, 256-bit bearer independently from project share tokens,
+  require an active share and source artifact, and expose only the shared copy.
+  `?download=1` on the PDF route requests attachment disposition; the ordinary
+  route supports inline viewing and byte ranges. Responses are non-cacheable
+  and do not disclose owner identity, artifact keys, or other Library content.
 - `GET /api/workspaces/{id}/reference-pdfs` returns safe metadata only for PDFs
   attached to linked owner-library references, after membership authorization.
 - `GET /api/workspaces/{id}/reference-pdfs/{artifactId}` revalidates membership,
@@ -63,8 +102,9 @@ that access.
 
 - Do not infer private-note or annotation sharing from citing, opening, linking,
   or annotating a source.
-- Do not treat a public read-only or edit bearer as project membership or add a
-  reference-PDF endpoint beneath either public route.
+- Do not treat a manuscript read-only or edit bearer as project membership or
+  use it to authorize a reference-PDF endpoint. Standalone PDF links have their
+  own capability and immutable copy.
 - Do not expose owner library APIs to project members.
 - Do not allow revocation to rewrite an immutable historical revision.
 - Do not assume possession of a PDF grants redistribution rights.
@@ -74,11 +114,17 @@ that access.
 - Workers and browser tests prove member-only linked-PDF access, public bearer
   exclusion, private-resource separation, explicit snapshot pinning for the
   remaining resource kinds, revocation, and tombstone preservation.
+- Standalone share coverage proves owner isolation, recoverable links, explicit
+  annotation snapshots, unchanged bytes after later note edits, public reading
+  and download, range/HEAD handling, and loss of access after revocation or
+  permanent source deletion. Portable snapshots omit the share capabilities.
 
 ## Current Milestone
 
 - Implemented: linked-reference PDF access for authenticated members; public
   read-only and edit links remain manuscript-only.
+- Implemented: separate revocable links to immutable annotated PDF copies for
+  unauthenticated reading or download.
 - Implemented: explicit note/highlight/web-capture snapshots, inert web
   content, forward-only revocation, archive, deletion impact, and
   bibliographic tombstones. Historical artifact pins remain revision data.

@@ -33,6 +33,7 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-249](./implemented/ADR-249-share-immutable-annotated-pdf-copies.md)                  | Implemented          | Share immutable annotated PDF copies through recoverable, revocable owner-created bearer links.                 |
 | [ADR-248](./implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md)                    | Implemented          | Define Corpus MCP schemas with Valibot while retaining the SDK transport and required upstream Zod peer.        |
 | [ADR-247](./implemented/ADR-247-retire-mcp-peer-overrides.md)                             | Implemented          | Replace MCP peer overrides with patched, upstream-compatible Agents and MCP releases.                           |
 | [ADR-246](./implemented/ADR-246-place-live-outline-and-hints-in-context.md)               | Implemented          | Place the live manuscript outline and local hints in Context with opt-in transient paragraph-purpose analysis.  |

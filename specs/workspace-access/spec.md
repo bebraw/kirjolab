@@ -97,9 +97,17 @@ without accidentally widening access to another resource.
   `Origin`, validates the content and safe-integer revision together through a
   bounded schema, enforces the 2 MB content bound, and rejects a stale expected
   revision instead of overwriting concurrent work.
-- Neither `/share/*` nor `/edit/*` has a reference-artifact route. A bearer
-  secret never substitutes for authenticated project membership, even when its
-  editor capability can mutate manuscript files.
+- Neither `/share/{locator}.{secret}` nor `/edit/{locator}.{secret}` has a
+  reference-artifact route. A manuscript bearer secret never substitutes for
+  authenticated project membership, even when its editor capability can mutate
+  manuscript files.
+- `/share/pdf/{token}` is an independent, owner-created capability for one
+  immutable annotated Library PDF copy. Its page and `/document.pdf` route
+  revalidate the active token and source artifact on every request; they expose
+  no Library/project APIs or annotation mutations. Revocation and permanent
+  source deletion remove future access. Its lifecycle is defined in
+  [Private Research Sharing](../private-research-sharing/spec.md) and
+  [ADR-249](../../docs/adrs/implemented/ADR-249-share-immutable-annotated-pdf-copies.md).
 - `GET /edit/{locator}.{secret}/socket` revalidates the edit capability and
   exact same-origin `Origin` before joining writer presence. The socket receives
   and sends current-revision caret/selection controls but never receives Yjs
@@ -240,8 +248,9 @@ without accidentally widening access to another resource.
 - Public share locators must not expose owner-derived storage keys, and target
   mappings must not be returned before bearer-token validation succeeds.
 - Every shared PDF request must independently validate the current bearer token
-  before reading document state or rendering output; rotation and revocation
-  invalidate both the viewer and PDF URL.
+  before reading document state, rendering output, or streaming a stored
+  annotated copy. Rotation or revocation invalidates the corresponding viewer
+  and PDF URL; a manuscript capability cannot authorize an annotated-copy URL.
 - Shared WebSocket upgrades must independently validate the bearer token and
   exact same-origin `Origin` before touching document state. Reader sockets must
   receive only validated revision/reset control messages and close with a policy

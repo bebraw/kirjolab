@@ -478,6 +478,13 @@ memory and makes citation aliases compete with stable source identity.
   retryable local failures. It emits typed cancel, completed-mutation, edit, and
   clear intents. The application coordinator retains canonical Library refresh,
   PDF draft and selection clearing, inspector policy, and toasts.
+- The page-note and highlight-comment forms save with **Cmd+Enter** or
+  **Ctrl+Enter** when creating or editing an annotation. The shortcut submits
+  through the existing form and save button so native validation and save
+  behavior stay identical to a click. Plain Enter remains a newline; keyboard
+  composition, disabled controls, and an in-flight save cannot trigger another
+  submission. Save controls expose the shortcut in their accessible metadata
+  and tooltip.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. From the active page drawings, it derives the
@@ -591,6 +598,19 @@ memory and makes citation aliases compete with stable source identity.
   annotation per saved highlight, preserving continuous line backgrounds and
   one interactive comment target. Legacy quote-only highlights become
   page-level comments.
+- **More PDF actions → Share annotated copy** opens an owner-only dialog.
+  **Create share link** captures the selected PDF with all currently saved
+  highlights, comments, page notes, and drawings. The dialog explains that
+  anyone with the link can read or download this fixed copy without an account
+  and that later annotations require a new link. A PDF without saved
+  annotations may also be shared. Existing links retain their creation time
+  and expose **Copy link**, open, and revoke actions after the dialog is
+  reopened. The dialog owns loading, validation, pending operations, stale
+  response rejection, and retryable errors; creating or revoking a share does
+  not mutate the source artifact or private annotations. See the lifecycle in
+  [Private Research Sharing](../private-research-sharing/spec.md) and storage
+  rationale in
+  [ADR-249](../../docs/adrs/implemented/ADR-249-share-immutable-annotated-pdf-copies.md).
 - The private reader exposes a staged current-project handoff without changing
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
@@ -679,6 +699,22 @@ memory and makes citation aliases compete with stable source identity.
   annotations and returns an attachment with private, non-cacheable headers.
   It uses the same authenticated-owner lookup as the original PDF stream, reads
   at most the existing 25 MB source limit, and never persists the derived copy.
+- `GET /api/library/pdfs/{id}/shares` lists active annotated-copy links for the
+  authenticated owner, including recoverable URLs. `POST` creates one immutable
+  sharing copy, with at most 20 active copies per artifact and the same 25 MB
+  source limit. Its artifact-specific annotation query fails with `413` above
+  10,000 combined highlights/markups or the 4 MiB serialized-input bound,
+  rather than copying a truncated Library navigation snapshot.
+  `DELETE /api/library/pdfs/{id}/shares/{shareId}` revokes one
+  owner-matching link. These delivery records and generated copies are excluded
+  from portable Library/project exports and owner-backup projections. Public
+  reads use only the separate `/share/pdf/{token}` capability contract, never
+  the private Library API or manuscript sharing authority.
+- Revocation and permanent source deletion remove share tokens before R2
+  cleanup. Retained cleanup digests permit retries even after the source
+  artifact is deleted. Permanent reference deletion and later authenticated
+  PDF-share API operations each attempt a batch of at most 100 pending copies;
+  a failed storage deletion remains pending and cannot reactivate access.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
   confirmed deletion routes mutate only the authenticated owner's library.
 - Highlight creation accepts at most 512 normalized rectangles. Missing or
@@ -849,6 +885,17 @@ memory and makes citation aliases compete with stable source identity.
   item in one transaction so a failure leaves the whole batch unchanged.
 - Shell and browser coverage prove `/library` starts from the owner-library API
   alone and retains PDF import, annotation, and annotated-export controls.
+- Browser and form tests exercise Cmd/Ctrl+Enter through the existing note and
+  highlight save flow, including create/edit, ordinary multiline entry,
+  validation, composition, disabled controls, and pending-save suppression.
+- Sharing tests cover explicit creation, later retrieval/copying of existing
+  links, independent revocation, stale dialog requests, and retryable failures.
+  API and real-`workerd` tests prove owner isolation, the atomic active-copy
+  bound, immutable bytes after later annotation edits, no-sign-in page/PDF
+  access, download and range/HEAD behavior, and rejection after revocation or
+  permanent source deletion. Source tests prove artifact-scoped completeness
+  and explicit count/size overflow rejection. Cleanup tests cover retained
+  retry state after storage failure and byte deletion after source removal.
 
 ## Current Milestone
 
@@ -860,5 +907,7 @@ memory and makes citation aliases compete with stable source identity.
   versioned web captures, provenance-bearing citation assertions and network,
   reviewed multi-provider metadata enrichment, explicit private PDF highlights in Context,
   and a permanent owner-private Library context tab.
+- Implemented: standalone annotated PDF snapshot links with owner retrieval
+  and revocation, and Cmd/Ctrl+Enter for page-note and highlight-comment saves.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

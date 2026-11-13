@@ -3419,7 +3419,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const highlightCard = page.locator("#library-highlight-list article").filter({ hasText: "Private reading insight" });
   await highlightCard.getByRole("button", { name: "Edit note" }).click();
   await page.locator("#library-highlight-comment").fill("Revised reading insight");
-  await page.locator("#save-library-highlight").click();
+  await page.locator("#library-highlight-comment").press("Meta+Enter");
   await expect(page.locator("#toast")).toHaveText("Private highlight note updated.");
   await expect(page.locator("#library-highlight-list")).toContainText("Revised reading insight");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Additive follow-up");
@@ -3446,15 +3446,26 @@ test("shares linked reference PDFs with members but not public links", async ({ 
     layer.dispatchEvent(new PointerEvent("pointerup", event));
   });
   await expect(page.locator("#paper-markups .pdf-note-pin[data-draft='true']")).toHaveCount(1);
+  await page.locator("#library-note-body").press("Meta+Enter");
+  await expect(page.locator("#library-note-form")).toBeVisible();
+  await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await page.locator("#library-note-body").fill("Initial page note");
-  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await page.locator("#library-note-body").press("Enter");
+  await page.locator("#library-note-body").pressSequentially("Second line");
+  await expect(page.locator("#library-note-body")).toHaveValue("Initial page note\nSecond line");
+  await expect(page.locator("#library-highlight-count")).toHaveText("1");
+  await expect(page.locator("#library-note-form").getByRole("button", { name: "Save note" })).toHaveAttribute(
+    "title",
+    "Save note (Cmd/Ctrl+Enter)",
+  );
+  await page.locator("#library-note-body").press("Meta+Enter");
   await expect(page.locator("#library-highlight-count")).toHaveText("2");
   await page.getByRole("button", { name: "Select", exact: true }).click();
   await page.locator("#paper-markups .pdf-note-pin").click();
   await expect(page.locator("#library-markup-selection")).toContainText("drag its pin to move");
   await page.locator("#edit-selected-library-note").click();
   await page.locator("#library-note-body").fill("Revised page note");
-  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await page.locator("#library-note-body").press("Control+Enter");
   await expect(page.locator("#toast")).toHaveText("Private note updated.");
   await expect(page.locator("#library-highlight-list")).toContainText("Revised page note");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Initial page note");
@@ -7400,6 +7411,7 @@ test("serves stable health and browser assets", async ({ request }) => {
       "/review/:id",
       "/workspaces/:id",
       "/share/:token",
+      "/share/pdf/:token",
       "/edit/:token",
       "/api/workspaces",
       "/api/workspaces/demo",

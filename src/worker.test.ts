@@ -18,6 +18,7 @@ describe("worker", () => {
       { path: "/review/:id", purpose: "Independent collaborative evidence review" },
       { path: "/workspaces/:id", purpose: "Legacy writing-project redirect" },
       { path: "/share/:token", purpose: "Read-only workspace link" },
+      { path: "/share/pdf/:token", purpose: "Read-only annotated PDF copy" },
       { path: "/edit/:token", purpose: "Editable workspace link" },
       { path: "/api/workspaces", purpose: "Workspace catalog" },
       { path: "/api/workspaces/demo", purpose: "Portable workspace resource" },
@@ -158,6 +159,30 @@ describe("worker", () => {
       routes: exampleRoutes.map((route) => route.path),
       deployment: null,
     });
+  });
+
+  it.each(["GET", "HEAD", "POST", "DELETE"])("routes anonymous PDF share %s requests before private routes", async (method) => {
+    const path = `/share/pdf/${"a".repeat(43)}`;
+    for (const suffix of ["", "/document.pdf"]) {
+      const response = await handleRequest(new Request(`http://example.com${path}${suffix}`, { method }));
+
+      expect(response.status).toBe(method === "GET" || method === "HEAD" ? 503 : 405);
+      await expect(response.text()).resolves.toBe(
+        method === "GET" || method === "HEAD" ? "Worker bindings unavailable" : "Method not allowed",
+      );
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    }
+  });
+
+  it("returns a private missing-link response for malformed PDF share capabilities", async () => {
+    for (const path of ["/share/pdf", "/share/pdf/short", `/share/pdf/${"a".repeat(43)}/extra`]) {
+      const response = await handleRequest(new Request(`http://example.com${path}`));
+
+      expect(response.status).toBe(404);
+      await expect(response.text()).resolves.toBe("Shared PDF not found");
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    }
   });
 
   it("serves the public phrasing source ledger", async () => {
