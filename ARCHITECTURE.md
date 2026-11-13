@@ -1233,6 +1233,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   records out of portable exports and owner-backup projections, and never let
   a PDF bearer authorize Library or project APIs. See
   [ADR-249](docs/adrs/implemented/ADR-249-share-immutable-annotated-pdf-copies.md).
+- Resolve the authoritative current PDF object graph before annotated export
+  or sharing. Follow bounded cross-reference revisions, retain active compressed
+  objects, and remove stale object streams before the editing parser loads the
+  document. Reject unsupported structure before publication. Validate all page
+  text and fonts with an independent reader in compatibility regressions; see
+  [ADR-250](docs/adrs/implemented/ADR-250-resolve-current-pdf-objects-before-editing.md).
 - Keep authenticated member listing and invitation plus read-only and edit-link
   status, creation, and revocation inside the bounded sharing Lit component.
   Validate responses there and bind the sibling trigger and global toast owner

@@ -1,5 +1,6 @@
 import { LineCapStyle, PDFDocument, PDFHexString, PDFName, rgb, type PDFPage } from "pdf-lib";
 import type { LibraryHighlight, LibraryPdfMarkup, LibraryPdfPoint, LibraryPdfRect } from "../domain/reference-library";
+import { normalizePdfForEditing } from "../lib/pdf-cross-reference";
 
 const referencePageWidth = 900;
 const noteMarkerSize = 14;
@@ -22,7 +23,7 @@ export function annotatedPdfFilename(value: string): string {
 }
 
 export async function renderAnnotatedPdf(source: Uint8Array, input: AnnotatedPdfInput): Promise<Uint8Array> {
-  const document = await PDFDocument.load(source, { updateMetadata: false });
+  const document = await PDFDocument.load(await normalizePdfForEditing(source), { updateMetadata: false });
   const pages = document.getPages();
 
   for (const markup of input.markups) {

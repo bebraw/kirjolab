@@ -699,6 +699,13 @@ memory and makes citation aliases compete with stable source identity.
   annotations and returns an attachment with private, non-cacheable headers.
   It uses the same authenticated-owner lookup as the original PDF stream, reads
   at most the existing 25 MB source limit, and never persists the derived copy.
+- Before annotated export or share creation, resolve objects from the final
+  cross-reference table or stream and its revision chain. Current generations
+  and free entries override older definitions; hybrid streams override their
+  companion table. Preserve active compressed objects while excluding obsolete
+  object streams from the editing input. Bound parsing and decoded structure
+  data, and reject unsupported or malformed structure before publishing bytes
+  under [ADR-250](../../docs/adrs/implemented/ADR-250-resolve-current-pdf-objects-before-editing.md).
 - `GET /api/library/pdfs/{id}/shares` lists active annotated-copy links for the
   authenticated owner, including recoverable URLs. `POST` creates one immutable
   sharing copy, with at most 20 active copies per artifact and the same 25 MB
@@ -896,6 +903,12 @@ memory and makes citation aliases compete with stable source identity.
   permanent source deletion. Source tests prove artifact-scoped completeness
   and explicit count/size overflow rejection. Cleanup tests cover retained
   retry state after storage failure and byte deletion after source removal.
+- Annotated-export regressions use synthetic multi-page PDFs with current and
+  obsolete page/font definitions, incremental revisions, ordinary tables,
+  cross-reference streams, hybrid references, and active compressed objects.
+  PDF.js independently checks every exported page's text and font and a note on
+  the final page. Real Workers range tests assert numeric `Content-Range`
+  headers and exact slices for bounded, open-ended, and suffix requests.
 
 ## Current Milestone
 
