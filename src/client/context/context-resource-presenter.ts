@@ -12,6 +12,7 @@ import type {
   ReferenceLibrarySnapshot,
 } from "../../domain/reference-library";
 import { isProjectReferencePdfs } from "../../domain/reference-library";
+import { bibTeXDisplayText } from "../../domain/reference-library/bibliography";
 import { suggestCitationKey } from "../../domain/publication/publication-intake";
 import type {
   AnnotationResource,
@@ -1605,6 +1606,7 @@ export class ContextResourcePresenter extends LightDomController {
     this.currentSnapshot = sources.snapshot;
     const activeLibraryArtifact = this.activeLibraryArtifact(sources);
     this.currentLibraryPdf = activeLibraryArtifact;
+    this.syncLibraryPageTitle(sources, activeLibraryArtifact);
     this.syncPdfPanels(sources, activeLibraryArtifact);
     this.presentPdfReferenceDetails(sources, activeLibraryArtifact);
     this.presentRelatedPapers(sources);
@@ -1617,6 +1619,13 @@ export class ContextResourcePresenter extends LightDomController {
       this.presentLibraryPdfPage(sources.library, viewer.currentPage);
     }
     return { publicationPresented: this.presentPublication(sources) };
+  }
+
+  private syncLibraryPageTitle(sources: ContextResourceSources, artifact: LibraryPdfArtifact | undefined): void {
+    if (sources.projectApiBase !== null) return;
+    const reference = artifact ? sources.library?.references.find(({ id }) => id === artifact.referenceId) : undefined;
+    const title = (reference ? bibTeXDisplayText(reference.title) : "") || artifact?.name.trim();
+    this.ownerDocument.title = `${title || "Library"} · Kirjolab`;
   }
 
   private syncPdfPanels(sources: ContextResourceSources, activeLibraryArtifact: LibraryPdfArtifact | undefined): void {

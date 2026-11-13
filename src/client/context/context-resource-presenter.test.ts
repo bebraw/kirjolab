@@ -465,6 +465,65 @@ describe("context resource presenter", () => {
     expect(presenter.activeTab).toEqual(tab);
   });
 
+  it("names the standalone article tab from current bibliographic metadata", () => {
+    const { presenter } = setup();
+    const first = { ...reference, title: "{GPU} methods & <results>" };
+    const second = { ...reference, id: "reference:2", title: "Another article" };
+    const secondPdf = { ...libraryPdf, id: "second/pdf", referenceId: second.id, name: "second.pdf" };
+    const currentLibrary = { ...library, references: [first, second], artifacts: [libraryPdf, secondPdf] };
+    const currentSources = {
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library: currentLibrary,
+      projectApiBase: null,
+      snapshot: null,
+    };
+
+    presenter.present(currentSources);
+    expect(presenter.ownerDocument.title).toBe("GPU methods & <results> · Kirjolab");
+
+    presenter.present({ ...currentSources, library: { ...currentLibrary, references: [{ ...first, title: "Revised title" }, second] } });
+    expect(presenter.ownerDocument.title).toBe("Revised title · Kirjolab");
+
+    presenter.present({ ...currentSources, activeTab: resourceTab("library-pdf", secondPdf.id) });
+    expect(presenter.ownerDocument.title).toBe("Another article · Kirjolab");
+
+    presenter.present({ ...currentSources, activeTab: undefined });
+    expect(presenter.ownerDocument.title).toBe("Library · Kirjolab");
+  });
+
+  it.each(["", "   ", "{}"])("uses the PDF filename when the article title is %j", (title) => {
+    const { presenter } = setup();
+    presenter.present({
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library: { ...library, references: [{ ...reference, title }] },
+      projectApiBase: null,
+      snapshot: null,
+    });
+    expect(presenter.ownerDocument.title).toBe("library.pdf · Kirjolab");
+  });
+
+  it("falls back for an unidentified PDF and clears the title when the artifact disappears", () => {
+    const { presenter } = setup();
+    const currentSources = {
+      ...sources(resourceTab("library-pdf", libraryPdf.id)),
+      library,
+      projectApiBase: null,
+      snapshot: null,
+    };
+    presenter.present(currentSources);
+    expect(presenter.ownerDocument.title).toBe("library.pdf · Kirjolab");
+
+    presenter.present({ ...currentSources, library: { ...library, artifacts: [] } });
+    expect(presenter.ownerDocument.title).toBe("Library · Kirjolab");
+  });
+
+  it("keeps the project page title when viewing reference PDFs in a writing workspace", () => {
+    const { presenter } = setup();
+    presenter.ownerDocument.title = "Project draft · Kirjolab";
+    presenter.present({ ...sources(resourceTab("library-pdf", libraryPdf.id)), library: { ...library, references: [reference] } });
+    expect(presenter.ownerDocument.title).toBe("Project draft · Kirjolab");
+  });
+
   it("enables outline analysis only while its project context is selected", () => {
     const { elements, presenter } = setup();
     vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);

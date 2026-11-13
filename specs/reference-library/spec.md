@@ -286,6 +286,12 @@ memory and makes citation aliases compete with stable source identity.
   PDF pushes history, page changes replace that location with an optional
   `page` query, direct navigation restores the authorized artifact, and Back
   returns to `/library` without creating project or collaborative state.
+- The standalone reader's browser title is the active article's saved
+  bibliographic title followed by ` · Kirjolab`, using the same readable BibTeX
+  formatting as the Library. Missing or blank titles fall back to the PDF
+  filename. Article switches and canonical Library refreshes update the title;
+  returning to the Library or losing access to the artifact restores
+  `Library · Kirjolab`.
 - The default Library view keeps one **Add reference** control with PDF and
   website intake first. BibTeX and CSL JSON remain secondary, explicitly named
   reference-file imports without intake-time metadata overrides. Search stays
@@ -892,6 +898,9 @@ memory and makes citation aliases compete with stable source identity.
   item in one transaction so a failure leaves the whole batch unchanged.
 - Shell and browser coverage prove `/library` starts from the owner-library API
   alone and retains PDF import, annotation, and annotated-export controls.
+- Browser-title coverage distinguishes two open articles, metadata refreshes,
+  filename fallback, and returning to the Library. Project reference viewing
+  retains its surrounding writing-workspace title.
 - Browser and form tests exercise Cmd/Ctrl+Enter through the existing note and
   highlight save flow, including create/edit, ordinary multiline entry,
   validation, composition, disabled controls, and pending-save suppression.
