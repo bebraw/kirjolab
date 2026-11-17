@@ -3,17 +3,18 @@ import { previewNavigationPresentation, previewNavigationStorageKey, storedPrevi
 
 export class PreviewNavigationControl extends LitElement {
   private toggleButton: HTMLButtonElement | null = null;
+  private restoreButtons: HTMLButtonElement[] = [];
 
   override connectedCallback(): void {
     super.connectedCallback();
     this.connectToggle();
-    this.restoreButton()?.addEventListener("click", this.showNavigation);
     this.restoreNavigation();
   }
 
   override disconnectedCallback(): void {
     this.toggleButton?.removeEventListener("click", this.toggleNavigation);
-    this.restoreButton()?.removeEventListener("click", this.showNavigation);
+    for (const button of this.restoreButtons) button.removeEventListener("click", this.showNavigation);
+    this.restoreButtons = [];
     this.toggleButton = null;
     super.disconnectedCallback();
   }
@@ -29,6 +30,8 @@ export class PreviewNavigationControl extends LitElement {
   protected connectToggle(): void {
     this.toggleButton = document.querySelector<HTMLButtonElement>("#toggle-preview-navigation");
     this.toggleButton?.addEventListener("click", this.toggleNavigation);
+    this.restoreButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-preview-navigation-restore]")];
+    for (const button of this.restoreButtons) button.addEventListener("click", this.showNavigation);
   }
 
   protected restoreNavigation(): void {
@@ -44,7 +47,7 @@ export class PreviewNavigationControl extends LitElement {
   protected readonly toggleNavigation = (): void => {
     const hidden = document.body.dataset.previewNavigation !== "hidden";
     this.setHidden(hidden);
-    if (hidden && this.libraryMode) this.restoreButton()?.focus();
+    if (hidden && this.libraryMode) this.restoreButtons.find((button) => button.getClientRects().length > 0)?.focus();
   };
 
   protected readonly showNavigation = (): void => {
@@ -60,8 +63,7 @@ export class PreviewNavigationControl extends LitElement {
     if (this.toggleButton) this.toggleButton.title = presentation.title;
     const label = this.toggleButton?.querySelector<HTMLElement>("#preview-navigation-toggle-label");
     if (label) label.textContent = presentation.label;
-    const restore = this.restoreButton();
-    if (restore) restore.hidden = !this.libraryMode || !hidden;
+    for (const button of this.restoreButtons) button.hidden = !this.libraryMode || !hidden;
     if (!persist) return;
     try {
       if (hidden) localStorage.setItem(previewNavigationStorageKey, "true");
@@ -73,10 +75,6 @@ export class PreviewNavigationControl extends LitElement {
 
   private get libraryMode(): boolean {
     return this.getAttribute("app-mode") === "library";
-  }
-
-  private restoreButton(): HTMLButtonElement | null {
-    return this.querySelector<HTMLButtonElement>("#restore-preview-navigation");
   }
 }
 

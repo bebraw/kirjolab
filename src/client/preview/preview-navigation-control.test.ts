@@ -38,15 +38,15 @@ describe("preview navigation control", () => {
       title: "",
       hidden: false,
     };
-    const restore = { focus: vi.fn(), hidden: true };
-    Object.defineProperty(control, "querySelector", { value: () => restore });
+    const restore = { focus: vi.fn(), hidden: true, getClientRects: () => [], addEventListener: vi.fn() };
+    const pdfRestore = { focus: vi.fn(), hidden: true, getClientRects: () => [{}], addEventListener: vi.fn() };
     const body = { dataset: {} as Record<string, string> };
     const storage = {
       getItem: vi.fn(() => "true"),
       removeItem: vi.fn(),
       setItem: vi.fn(),
     };
-    vi.stubGlobal("document", { body, querySelector: () => toggle });
+    vi.stubGlobal("document", { body, querySelector: () => toggle, querySelectorAll: () => [restore, pdfRestore] });
     vi.stubGlobal("localStorage", storage);
 
     expect(control.renderForTest()).toBeDefined();
@@ -62,15 +62,21 @@ describe("preview navigation control", () => {
     expect(body.dataset.previewNavigation).toBe("hidden");
     expect(label.textContent).toBe("Show nav");
     expect(restore.hidden).toBe(false);
+    expect(pdfRestore.hidden).toBe(false);
 
     control.showForTest();
     expect(body.dataset.previewNavigation).toBe("visible");
     expect(storage.removeItem).toHaveBeenCalledWith(previewNavigationStorageKey);
     expect(toggle.focus).toHaveBeenCalledOnce();
+    expect(restore.hidden).toBe(true);
+    expect(pdfRestore.hidden).toBe(true);
 
     control.toggleForTest();
     expect(storage.setItem).toHaveBeenCalledWith(previewNavigationStorageKey, "true");
-    expect(restore.focus).toHaveBeenCalledOnce();
+    expect(restore.focus).not.toHaveBeenCalled();
+    expect(pdfRestore.focus).toHaveBeenCalledOnce();
+    expect(restore.hidden).toBe(false);
+    expect(pdfRestore.hidden).toBe(false);
   });
 
   it("keeps visible behavior when browser storage is unavailable", () => {
@@ -83,10 +89,9 @@ describe("preview navigation control", () => {
       title: "",
       hidden: false,
     };
-    const restore = { focus: vi.fn(), hidden: true };
-    Object.defineProperty(control, "querySelector", { value: () => restore });
+    const restore = { focus: vi.fn(), hidden: true, getClientRects: () => [{}], addEventListener: vi.fn() };
     const body = { dataset: {} as Record<string, string> };
-    vi.stubGlobal("document", { body, querySelector: () => toggle });
+    vi.stubGlobal("document", { body, querySelector: () => toggle, querySelectorAll: () => [restore] });
     vi.stubGlobal("localStorage", {
       getItem: () => {
         throw new Error("unavailable");

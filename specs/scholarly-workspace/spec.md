@@ -194,6 +194,17 @@ the precise route, validation, persistence, and regression requirements.
   focus handoff. In workspace mode the toggle follows Preview availability;
   Library readers can restore navigation while it is hidden. The coordinator
   supplies only active-context availability.
+  Library navigation restoration occupies normal layout space: a labelled
+  **Show nav** action shares the Library action row with **Add reference**;
+  an icon action sits at the top of the private PDF control rail while reading.
+  One control owner projects the same hidden state into both triggers and
+  hands focus to the trigger visible in the active surface. Restoring navigation
+  returns focus to the header toggle. Neither trigger floats over Library
+  actions, the document, or the annotation inspector, and hidden-header PDF
+  reading retains the full dynamic viewport. Desktop, tablet, and phone browser
+  coverage checks both color themes, reload persistence, keyboard recovery,
+  usable Library menus, and separation from PDF controls. See
+  [ADR-252](../../docs/adrs/implemented/ADR-252-place-navigation-restore-in-surface-controls.md).
   The application locks browser viewport scaling with fixed-scale viewport
   metadata and root `touch-action: pan-x pan-y`, while retaining ordinary page
   panning and the PDF reader's explicit custom gesture policy. On coarse-pointer
