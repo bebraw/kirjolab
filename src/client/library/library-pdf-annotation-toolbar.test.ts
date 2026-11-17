@@ -41,6 +41,13 @@ class TestLibraryPdfAnnotationToolbar extends LibraryPdfAnnotationToolbar {
     await this.exportAnnotated();
   }
 
+  async exportAnonymousForTest(): Promise<void> {
+    const template = this.renderForTest();
+    const handler = controlBinding(template, 'id="export-library-anonymous-review"', "@click");
+    if (typeof handler !== "function") throw new Error("Anonymous review export is unavailable");
+    await handler.call(this);
+  }
+
   async downloadOriginalForTest(): Promise<void> {
     await this.downloadOriginal();
   }
@@ -98,6 +105,20 @@ afterEach(() => {
 });
 
 describe("library PDF annotation toolbar", () => {
+  it("keeps anonymous export available for imported comments but blocks missing targets and pending drawings", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const disabled = () => controlBinding(toolbar.renderForTest(), 'id="export-library-anonymous-review"', "?disabled");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    expect(disabled()).toBe(true);
+    await toolbar.exportAnonymousForTest();
+    toolbar.setExportArtifact({ id: "paper", name: "paper.pdf" });
+    expect(disabled()).toBe(false);
+    toolbar.setDrawingPending(true);
+    expect(disabled()).toBe(true);
+    await toolbar.exportAnonymousForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("opens sharing for the current PDF only after pending drawing saves finish", async () => {
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     const open = vi.fn().mockResolvedValue(undefined);
@@ -384,7 +405,7 @@ describe("library PDF annotation toolbar", () => {
     ]);
   });
 
-  it("downloads an annotated PDF through a stable encoded artifact target", async () => {
+  it.each(["annotated", "anonymous-review"])("downloads an %s PDF through a stable encoded artifact target", async (mode) => {
     vi.useFakeTimers();
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     const actions: LibraryPdfToolbarAction[] = [];
@@ -399,19 +420,20 @@ describe("library PDF annotation toolbar", () => {
     vi.stubGlobal("navigator", {});
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     vi.stubGlobal("document", { body: { append }, createElement: () => link });
-    toolbar.setAnnotationAvailability(2);
+    toolbar.setAnnotationAvailability(mode === "anonymous-review" ? 0 : 2);
     toolbar.setExportArtifact({ id: "artifact/1", name: "paper.pdf" });
     toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
 
-    await toolbar.exportForTest();
+    if (mode === "anonymous-review") await toolbar.exportAnonymousForTest();
+    else await toolbar.exportForTest();
 
     expect(link).toEqual(
       expect.objectContaining({
-        download: "paper-annotated.pdf",
+        download: mode === "anonymous-review" ? "anonymous-review.pdf" : "paper-annotated.pdf",
         href: "blob:annotated-pdf",
       }),
     );
-    expect(fetchMock).toHaveBeenCalledWith("/api/library/pdfs/artifact%2F1/annotated", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenCalledWith(`/api/library/pdfs/artifact%2F1/${mode}`, { credentials: "same-origin" });
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
     expect(append).toHaveBeenCalledWith(link);
     expect(click).toHaveBeenCalledOnce();
@@ -419,7 +441,12 @@ describe("library PDF annotation toolbar", () => {
     expect(revokeObjectURL).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
-    expect(actions).toEqual([{ action: "export-status", message: "Preparing annotated PDF…" }]);
+    expect(actions).toEqual([
+      {
+        action: "export-status",
+        message: mode === "anonymous-review" ? "Anonymous review exported. Check visible text before sharing." : "Preparing annotated PDF…",
+      },
+    ]);
   });
 
   it("downloads the original PDF without requiring annotations", async () => {

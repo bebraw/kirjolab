@@ -72,6 +72,7 @@ export function renderLibraryPdfRail(): string {
                     <button class="library-pdf-menu-action" id="open-library-pdf-references" type="button" aria-expanded="false" aria-controls="library-highlight-composer">${renderIcon("research")}<span>Bibliography</span></button>
                     <button class="library-pdf-menu-action" id="download-library-original-pdf" type="button" disabled>${renderIcon("guide")}<span>Download original</span></button>
                     <button class="library-pdf-menu-action" id="export-library-annotated-pdf" type="button" disabled>${renderIcon("download")}<span>Export annotated copy</span></button>
+                    <button class="library-pdf-menu-action" id="export-library-anonymous-review" type="button" disabled title="Removes annotation authors and document metadata. Visible text is preserved.">${renderIcon("download")}<span>Export anonymous review</span></button>
                   </div>
                 </details>
                 </div>

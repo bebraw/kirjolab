@@ -1,4 +1,4 @@
-import { PDFArray, PDFDict, PDFDocument, PDFName, degrees } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, degrees } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -9,6 +9,109 @@ import { normalizedPointOnPage, renderAnnotatedPdf } from "./annotated-pdf";
 const createdAt = "2026-07-14T10:00:00.000Z";
 
 describe("annotated PDF export", () => {
+  it("anonymizes imported and new annotations and discards metadata and obsolete objects", async () => {
+    const source = await PDFDocument.create({ updateMetadata: false });
+    const page = source.addPage([600, 800]);
+    source.setAuthor("Ordinary metadata identity");
+    source.setTitle("Identifying document title");
+    source.setCreator("Reviewer workstation");
+    const metadata = source.context.register(
+      source.context.stream("<x:xmpmeta>XMP reviewer identity</x:xmpmeta>", {
+        Type: "Metadata",
+        Subtype: "XML",
+      }),
+    );
+    source.catalog.set(PDFName.of("Metadata"), metadata);
+    page.node.set(PDFName.of("Metadata"), metadata);
+    page.node.set(PDFName.of("PieceInfo"), source.context.obj({ Preview: { Private: PDFString.of("Preview private identity") } }));
+    source.context.register(PDFString.of("Unreachable reviewer identity"));
+    const imported = source.context.obj({
+      Subtype: "Text",
+      Rect: [40, 60, 54, 74],
+      Contents: PDFHexString.fromText("Imported comment — preserve me"),
+      T: source.context.register(PDFHexString.fromText("Preview reviewer identity")),
+      NM: PDFString.of("Identifying annotation identifier"),
+      M: PDFString.of("D:20261117090000Z"),
+      CreationDate: PDFString.of("D:20261116090000Z"),
+      Subj: PDFString.of("Reviewer subject identity"),
+      Author: PDFString.of("Custom reviewer identity"),
+      "AAPL:AKPDFAnnotationDictionary": source.context.obj({ Author: PDFString.of("Preview private annotation identity") }),
+      RC: PDFString.of('<body author="Rich text reviewer identity">Imported comment — preserve me</body>'),
+      F: 4,
+      P: page.ref,
+    });
+    page.node.addAnnot(source.context.register(imported));
+    const original = await source.save({ useObjectStreams: true });
+    const result = await renderAnnotatedPdf(original, {
+      anonymous: true,
+      highlights: [],
+      markups: [
+        {
+          id: "new-note",
+          kind: "note",
+          referenceId: "reference",
+          artifactId: "artifact",
+          page: 1,
+          x: 0.5,
+          y: 0.5,
+          body: "New review comment",
+          createdAt,
+          updatedAt: createdAt,
+        },
+      ],
+    });
+    const exported = await PDFDocument.load(result, { updateMetadata: false });
+    expect(exported.context.trailerInfo.Info).toBeUndefined();
+    expect(exported.context.trailerInfo.ID).toBeUndefined();
+    expect(exported.catalog.has(PDFName.of("Metadata"))).toBe(false);
+    expect(exported.getPage(0).node.has(PDFName.of("Metadata"))).toBe(false);
+    expect(exported.getPage(0).node.has(PDFName.of("PieceInfo"))).toBe(false);
+    const physicalObjects = exported.context
+      .enumerateIndirectObjects()
+      .map(([, object]) => object.toString())
+      .join("\n");
+    for (const identity of [
+      "Ordinary metadata identity",
+      "XMP reviewer identity",
+      "Preview private identity",
+      "Unreachable reviewer identity",
+      "Preview reviewer identity",
+      "Reviewer subject identity",
+      "Rich text reviewer identity",
+      "Custom reviewer identity",
+      "Preview private annotation identity",
+    ]) {
+      expect(physicalObjects).not.toContain(identity);
+      expect(physicalObjects).not.toContain(PDFHexString.fromText(identity).toString());
+    }
+    const annotation = exported.context.lookup(exported.getPage(0).node.Annots()!.get(0), PDFDict);
+    expect(annotation.lookup(PDFName.of("T"), PDFHexString).decodeText()).toBe("Reviewer");
+    expect(annotation.lookup(PDFName.of("Rect"), PDFArray).asArray().map(String)).toEqual(["40", "60", "54", "74"]);
+    for (const key of ["NM", "M", "CreationDate", "Subj", "RC"]) expect(annotation.has(PDFName.of(key))).toBe(false);
+    const task = getDocument({ data: new Uint8Array(result) });
+    try {
+      const pdf = await task.promise;
+      const annotations = await (await pdf.getPage(1)).getAnnotations();
+      expect(
+        annotations
+          .filter((item) => item.subtype === "Text")
+          .map((item) => ({ author: item.titleObj.str, text: item.contentsObj.str, rect: item.rect })),
+      ).toEqual([
+        { author: "Reviewer", text: "Imported comment — preserve me", rect: [40, 52, 62, 74] },
+        { author: "Reviewer", text: "New review comment", rect: [293, 385, 315, 407] },
+      ]);
+    } finally {
+      await task.destroy();
+    }
+    // The comment remains a writable annotation, rather than flattened page content.
+    annotation.set(PDFName.of("Contents"), PDFHexString.fromText("Edited after export"));
+    const edited = await PDFDocument.load(await exported.save(), { updateMetadata: false });
+    expect(
+      edited.context.lookup(edited.getPage(0).node.Annots()!.get(0), PDFDict).lookup(PDFName.of("Contents"), PDFHexString).decodeText(),
+    ).toBe("Edited after export");
+    expect(await source.save({ useObjectStreams: true })).toEqual(original);
+  });
+
   const revisionFixtures: ReadonlyArray<Parameters<typeof createRevisionEvidencePdf>[0]> = [
     { xref: "table" },
     { xref: "table", objects: "obsolete-stream" },

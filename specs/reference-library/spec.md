@@ -608,6 +608,27 @@ memory and makes citation aliases compete with stable source identity.
   annotation per saved highlight, preserving continuous line backgrounds and
   one interactive comment target. Legacy quote-only highlights become
   page-level comments.
+- **More PDF actions → Export anonymous review** downloads `anonymous-review.pdf`
+  through the authenticated owner-only
+  `GET /api/library/pdfs/{artifactId}/anonymous-review` route. It works without
+  Kirjolab annotations so reviews already embedded by Preview or another PDF
+  editor can be anonymized. Export reads all saved artifact-specific annotations
+  through the same bounded source as sharing; overflow fails with `413` instead
+  of silently omitting feedback. Both derived export modes use this source.
+  All annotation authors become **Reviewer**; annotation identifiers, dates,
+  subjects, rich-text author payloads, and private editor extensions are removed.
+  Plain comment text, geometry, appearances, and reply relationships remain
+  editable PDF annotations. Rich-text comments without a plain-text equivalent
+  fail explicitly rather than losing text. Existing freehand export follows the
+  flattened-stroke behavior above.
+  Ordinary document information, trailer identifiers, XMP metadata (including
+  page/resource metadata), and private application data are removed. The PDF is
+  fully rewritten with only reachable objects, then the actual output bytes are
+  reopened and checked before download. No incremental history or unreachable
+  objects are retained. The source and saved private annotations remain intact.
+  The action explains that visible text is preserved and should be reviewed
+  before sharing: it does not redact identities typed into comments or pages.
+  See [ADR-251](../../docs/adrs/implemented/ADR-251-rewrite-anonymous-pdf-reviews.md).
 - **More PDF actions → Share annotated copy** opens an owner-only dialog.
   **Create share link** captures the selected PDF with all currently saved
   highlights, comments, page notes, and drawings. The dialog explains that

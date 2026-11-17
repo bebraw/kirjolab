@@ -1,11 +1,13 @@
 import { LineCapStyle, PDFDocument, PDFHexString, PDFName, rgb, type PDFPage } from "pdf-lib";
 import type { LibraryHighlight, LibraryPdfMarkup, LibraryPdfPoint, LibraryPdfRect } from "../domain/reference-library";
 import { normalizePdfForEditing } from "../lib/pdf-cross-reference";
+import { saveAnonymousReviewPdf } from "./anonymous-review-pdf";
 
 const referencePageWidth = 900;
 const noteMarkerSize = 14;
 
 export interface AnnotatedPdfInput {
+  readonly anonymous?: boolean;
   readonly markups: readonly LibraryPdfMarkup[];
   readonly highlights: readonly LibraryHighlight[];
 }
@@ -26,12 +28,7 @@ export async function renderAnnotatedPdf(source: Uint8Array, input: AnnotatedPdf
   const document = await PDFDocument.load(await normalizePdfForEditing(source), { updateMetadata: false });
   const pages = document.getPages();
 
-  for (const markup of input.markups) {
-    const page = pages[markup.page - 1];
-    if (!page) continue;
-    if (markup.kind === "drawing") drawStroke(page, markup.points, markup.color, markup.width);
-    else addNote(document, page, { x: markup.x, y: markup.y }, markup.body, "Kirjolab note");
-  }
+  for (const markup of input.markups) addMarkup(document, pages, markup);
 
   const highlightOffsets = new Map<number, number>();
   for (const highlight of input.highlights) {
@@ -46,9 +43,17 @@ export async function renderAnnotatedPdf(source: Uint8Array, input: AnnotatedPdf
     }
   }
 
+  if (input.anonymous) return await saveAnonymousReviewPdf(document);
   document.setProducer("Kirjolab annotated PDF");
   document.setModificationDate(new Date());
   return await document.save({ useObjectStreams: false, addDefaultPage: false, updateFieldAppearances: false });
+}
+
+function addMarkup(document: PDFDocument, pages: readonly PDFPage[], markup: LibraryPdfMarkup): void {
+  const page = pages[markup.page - 1];
+  if (!page) return;
+  if (markup.kind === "drawing") drawStroke(page, markup.points, markup.color, markup.width);
+  else addNote(document, page, { x: markup.x, y: markup.y }, markup.body, "Kirjolab note");
 }
 
 function drawStroke(page: PDFPage, points: readonly LibraryPdfPoint[], colorValue: string, width: number): void {

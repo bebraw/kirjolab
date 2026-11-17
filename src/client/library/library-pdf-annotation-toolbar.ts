@@ -205,6 +205,16 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
             >
               ${icon("download")}<span>${this.exporting ? "Preparing export…" : "Export annotated copy"}</span>
             </button>
+            <button
+              class="library-pdf-menu-action"
+              id="export-library-anonymous-review"
+              type="button"
+              title="Removes annotation authors and document metadata. Visible text is preserved."
+              ?disabled=${!this.exportTarget || this.exporting || this.drawingPending}
+              @click=${this.exportAnonymousReview}
+            >
+              ${icon("download")}<span>Export anonymous review</span>
+            </button>
           </div>
         </details>
       </div>
@@ -274,6 +284,17 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
       target.name,
       "Downloading original PDF…",
       "Choose Save to Files to keep the original PDF.",
+    );
+  }
+
+  protected async exportAnonymousReview(): Promise<void> {
+    const target = this.exportTarget;
+    if (!target || this.exporting || this.drawingPending) return;
+    await this.exportPdf(
+      `/api/library/pdfs/${encodeURIComponent(target.id)}/anonymous-review`,
+      "anonymous-review.pdf",
+      "Anonymous review exported. Check visible text before sharing.",
+      "Choose Save to Files to keep the anonymous review. Check visible text before sharing.",
     );
   }
 

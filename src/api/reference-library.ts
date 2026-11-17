@@ -109,6 +109,7 @@ import {
   referenceToCslJson,
 } from "../domain/reference-library/library-interchange";
 import { annotatedPdfFilename, renderAnnotatedPdf } from "./annotated-pdf";
+import type { LibraryPdfShareSourceResult } from "../domain/library-pdf-share";
 import { cleanupLibraryPdfShares, type LibraryPdfShareCleanupApi } from "./library-pdf-share-cleanup";
 import { downloadR2Object } from "./r2-download";
 import { workspaceStorageKey } from "./reviews";
@@ -124,6 +125,7 @@ type ExternalFetch = (input: string | URL | Request, init?: RequestInit) => Prom
 
 interface ReferenceLibraryApi extends LibraryPdfShareCleanupApi {
   getSnapshot(includeArchived?: boolean): Promise<ReferenceLibrarySnapshot>;
+  getPdfShareSource(artifactId: string): Promise<LibraryPdfShareSourceResult>;
   importBibTeX(source: string, actor: string): Promise<ReferenceImportItem[]>;
   registerPdf(artifact: LibraryPdfArtifact): Promise<LibraryPdfArtifact>;
   createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftResult>;
@@ -852,10 +854,11 @@ async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteConte
 
 async function handleLibraryPdfDownloadRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
   const { request, suffix, env, library } = context;
-  const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
+  const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated|anonymous-review))?$/iu.exec(suffix);
   if (!pdfMatch?.[1] || request.method !== "GET") return null;
   if (!pdfMatch[2]) return await downloadLibraryPdf(request, pdfMatch[1], env, library);
-  if (pdfMatch[2] === "annotated") return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library);
+  if (pdfMatch[2] === "annotated" || pdfMatch[2] === "anonymous-review")
+    return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library, pdfMatch[2] === "anonymous-review");
   return null;
 }
 
@@ -1884,19 +1887,23 @@ async function downloadAnnotatedLibraryPdf(
   artifactId: string,
   env: ReferenceLibraryApiEnv,
   library: ReferenceLibraryApi,
+  anonymous: boolean,
 ): Promise<Response> {
-  const snapshot = await library.getSnapshot(true);
-  if (!isReferenceLibrarySnapshot(snapshot)) throw new Error("Reference library returned an invalid snapshot");
-  const artifact = snapshot.artifacts.find((item) => item.id === artifactId);
-  if (!artifact) return jsonError("PDF artifact not found", 404);
+  const snapshot = await library.getPdfShareSource(artifactId);
+  if (snapshot.status !== "ok")
+    return snapshot.status === "missing"
+      ? jsonError("PDF artifact not found", 404)
+      : jsonError("This PDF has too many annotations to export in one copy", 413);
+  const artifact = snapshot.artifact;
   const object = await env.PAPERS.get(artifact.objectKey);
   if (!object) return jsonError("PDF artifact not found", 404);
   if (object.size > maximumPdfBytes) return jsonError("Stored PDF exceeds the 25 MB limit", 413);
   const bytes = await renderAnnotatedPdf(new Uint8Array(await object.arrayBuffer()), {
-    markups: (snapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id),
-    highlights: snapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id),
+    anonymous,
+    markups: snapshot.markups,
+    highlights: snapshot.highlights,
   });
-  const filename = annotatedPdfFilename(artifact.name);
+  const filename = anonymous ? "anonymous-review.pdf" : annotatedPdfFilename(artifact.name);
   return new Response(bytes, {
     headers: {
       "cache-control": "private, no-store",

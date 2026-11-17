@@ -1239,6 +1239,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   document. Reject unsupported structure before publication. Validate all page
   text and fonts with an independent reader in compatibility regressions; see
   [ADR-250](docs/adrs/implemented/ADR-250-resolve-current-pdf-objects-before-editing.md).
+- Anonymous PDF review export is an explicit owner-only download. Apply author
+  removal to embedded and newly rendered annotations, remove ordinary and XMP
+  metadata, and fully serialize only the reachable sanitized object graph.
+  Reopen and validate the exported bytes before delivery; never use an
+  incremental save or substitute flattening for identity removal. Preserve
+  comment text, geometry, and reply links, reject unsupported text preservation,
+  and use a neutral filename. Visible-content redaction is outside this
+  metadata operation. See
+  [ADR-251](docs/adrs/implemented/ADR-251-rewrite-anonymous-pdf-reviews.md).
 - Keep authenticated member listing and invitation plus read-only and edit-link
   status, creation, and revocation inside the bounded sharing Lit component.
   Validate responses there and bind the sibling trigger and global toast owner

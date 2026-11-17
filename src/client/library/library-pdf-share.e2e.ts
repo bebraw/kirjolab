@@ -1,8 +1,87 @@
 import { expect, test } from "@playwright/test";
 import { resolve, sep } from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts } from "pdf-lib";
 import { isPdfDraftResult } from "../../domain/reference-library";
 import { createRevisionEvidencePdf } from "../../test-support/pdf-revision-fixture";
+
+test("exports an anonymous review with editable imported comments and no reviewer metadata", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  await context.setExtraHTTPHeaders({ "x-kirjolab-local-user": `anonymous-review-${crypto.randomUUID()}@example.com` });
+  const source = await PDFDocument.create({ updateMetadata: false });
+  const font = await source.embedFont(StandardFonts.TimesRoman);
+  const paper = source.addPage([600, 800]);
+  paper.drawText("Evidence for anonymous review.", { x: 40, y: 700, size: 18, font });
+  source.setAuthor("Reviewer metadata identity");
+  source.catalog.set(
+    PDFName.of("Metadata"),
+    source.context.register(source.context.stream("<x:xmpmeta>XMP reviewer identity</x:xmpmeta>", { Type: "Metadata", Subtype: "XML" })),
+  );
+  paper.node.addAnnot(
+    source.context.register(
+      source.context.obj({
+        Type: "Annot",
+        Subtype: "Text",
+        Rect: [40, 60, 54, 74],
+        T: PDFHexString.fromText("Preview reviewer identity"),
+        Contents: PDFString.of("Please explain the evidence."),
+        F: 4,
+        P: paper.ref,
+      }),
+    ),
+  );
+  const original = await source.save();
+  const upload = await context.request.post("/api/library/pdfs", {
+    headers: { origin: baseURL, "content-type": "application/pdf", "x-file-name": "reviewer-name.pdf" },
+    data: Buffer.from(original),
+  });
+  expect(upload.ok()).toBe(true);
+  const draft: unknown = await upload.json();
+  if (!isPdfDraftResult(draft)) throw new Error("Expected uploaded PDF draft");
+  await page.goto(`/library/pdfs/${draft.artifact.id}`);
+  await expect(page.locator("#paper-text-layer")).toContainText("Evidence for anonymous review.");
+  await page.getByRole("button", { name: "More PDF actions" }).click();
+  const downloadEvent = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export anonymous review", exact: true }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe("anonymous-review.pdf");
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(Buffer.from(chunk));
+  const bytes = Buffer.concat(chunks);
+  const task = getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
+  try {
+    const pdf = await task.promise;
+    expect(pdf.numPages).toBe(1);
+    const metadata = await pdf.getMetadata();
+    expect(metadata.info).not.toHaveProperty("Author");
+    expect(metadata.metadata).toBeNull();
+    const paper = await pdf.getPage(1);
+    expect((await paper.getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join("")).toBe(
+      "Evidence for anonymous review.",
+    );
+    expect(await paper.getAnnotations()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          subtype: "Text",
+          titleObj: expect.objectContaining({ str: "Reviewer" }),
+          contentsObj: expect.objectContaining({ str: "Please explain the evidence." }),
+        }),
+      ]),
+    );
+  } finally {
+    await task.destroy();
+  }
+  const stored = await context.request.get(`/api/library/pdfs/${draft.artifact.id}`);
+  expect(await stored.body()).toEqual(Buffer.from(original));
+  expect((await context.request.get(`/api/library/pdfs/${crypto.randomUUID()}/anonymous-review`)).status()).toBe(404);
+  expect(
+    (
+      await context.request.get(`/api/library/pdfs/${draft.artifact.id}/anonymous-review`, {
+        headers: { "x-kirjolab-local-user": `other-reviewer-${crypto.randomUUID()}@example.com` },
+      })
+    ).status(),
+  ).toBe(404);
+});
 
 async function expectCurrentRevision(bytes: Uint8Array, note?: string): Promise<void> {
   const task = getDocument({

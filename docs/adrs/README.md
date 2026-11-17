@@ -33,6 +33,7 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-251](./implemented/ADR-251-rewrite-anonymous-pdf-reviews.md)                         | Implemented          | Rewrite anonymous reviews with sanitized annotation authors, metadata removal, and validated fresh PDF bytes.   |
 | [ADR-249](./implemented/ADR-249-share-immutable-annotated-pdf-copies.md)                  | Implemented          | Share immutable annotated PDF copies through recoverable, revocable owner-created bearer links.                 |
 | [ADR-250](./implemented/ADR-250-resolve-current-pdf-objects-before-editing.md)            | Implemented          | Resolve authoritative PDF revisions before editing and independently verify every exported page.                |
 | [ADR-248](./implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md)                    | Implemented          | Define Corpus MCP schemas with Valibot while retaining the SDK transport and required upstream Zod peer.        |
