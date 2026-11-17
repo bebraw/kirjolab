@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
+import type { LibraryPdfShareSourceResult } from "../domain/library-pdf-share";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation/citation-assertions";
 import type {
   ArtifactAnalysis,
@@ -1035,9 +1036,10 @@ describe("reference library API", () => {
     expect(await foreign.json()).toEqual({ error: "PDF artifact not found" });
   });
 
-  it("downloads an owner-only derived PDF with private annotations", async () => {
+  it.each(["annotated", "anonymous-review"])("downloads an owner-only %s PDF with private annotations", async (mode) => {
     const source = await PDFDocument.create({ updateMetadata: false });
     source.addPage([600, 800]);
+    source.setAuthor("Reviewer identity");
     const sourceBytes = await source.save({ useObjectStreams: false });
     const bucket = new MemoryR2Bucket();
     await bucket.put("libraries/owner/guide.pdf", sourceBytes, { httpMetadata: { contentType: "application/pdf" } });
@@ -1073,16 +1075,33 @@ describe("reference library API", () => {
       ],
     });
     const response = await handleReferenceLibraryApi(
-      new Request("https://example.test/api/library/pdfs/22222222-2222-4222-8222-222222222222/annotated"),
+      new Request(`https://example.test/api/library/pdfs/22222222-2222-4222-8222-222222222222/${mode}`),
       fixture.env,
       identity,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/pdf");
-    expect(response.headers.get("content-disposition")).toBe('attachment; filename="guide-annotated.pdf"');
+    expect(response.headers.get("content-disposition")).toBe(
+      `attachment; filename="${mode === "anonymous-review" ? "anonymous-review" : "guide-annotated"}.pdf"`,
+    );
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     const exported = await PDFDocument.load(await response.arrayBuffer(), { updateMetadata: false });
     expect(exported.getPage(0).node.Annots()?.size()).toBe(2);
+    expect(exported.getAuthor()).toBe(mode === "anonymous-review" ? undefined : "Reviewer identity");
+    expect(new Uint8Array(await (await bucket.get("libraries/owner/guide.pdf"))!.arrayBuffer())).toEqual(sourceBytes);
+  });
+
+  it("rejects an anonymous export when its complete annotation input exceeds the bound", async () => {
+    const fixture = apiFixture();
+    fixture.library.getPdfShareSource.mockResolvedValue({ status: "limit" });
+    const response = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/pdfs/22222222-2222-4222-8222-222222222222/anonymous-review"),
+      fixture.env,
+      identity,
+    );
+    expect(response.status).toBe(413);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(await response.json()).toEqual({ error: "This PDF has too many annotations to export in one copy" });
   });
 
   it("returns an existing PDF draft without deleting shared bytes", async () => {
@@ -2067,8 +2086,21 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     ...analysis,
     kind,
   }));
+  const getSnapshot = vi.fn(async () => snapshot);
   const library = {
-    getSnapshot: vi.fn(async () => snapshot),
+    getSnapshot,
+    getPdfShareSource: vi.fn(async (artifactId: string): Promise<LibraryPdfShareSourceResult> => {
+      const current = await getSnapshot();
+      const artifact = current.artifacts.find((item) => item.id === artifactId);
+      return artifact
+        ? {
+            status: "ok",
+            artifact,
+            highlights: current.highlights.filter((item) => item.artifactId === artifactId),
+            markups: (current.pdfMarkups ?? []).filter((item) => item.artifactId === artifactId),
+          }
+        : { status: "missing" };
+    }),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
     registerPdf: vi.fn(async () => artifact),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
