@@ -39,7 +39,11 @@ for (const viewport of [
       const inspectorBounds = await inspector.boundingBox();
       const restoreBounds = await restore.boundingBox();
       if (!inspectorBounds || !restoreBounds) throw new Error("Expected visible inspector and navigation restore");
-      expect(inspectorBounds.y).toBeGreaterThanOrEqual(restoreBounds.y + restoreBounds.height);
+      expect(restoreBounds.x + restoreBounds.width).toBeLessThanOrEqual(inspectorBounds.x);
+      await expect(page.locator(".library-pdf-page-rail [data-preview-navigation-restore]")).toBeVisible();
+      const next = await page.getByRole("button", { name: "Next PDF page" }).boundingBox();
+      if (!next) throw new Error("Expected visible PDF page navigation");
+      expect(restoreBounds.y + restoreBounds.height).toBeLessThanOrEqual(next.y);
       expect(inspectorBounds.y + inspectorBounds.height).toBeLessThanOrEqual(viewport.height);
       await page.getByRole("button", { name: "Close annotation inspector" }).click();
       await expect(inspector).toBeHidden();

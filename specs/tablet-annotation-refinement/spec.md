@@ -86,3 +86,6 @@ identity and downstream work.
   the contextual Draw controls to overflow the viewport.
 - Hiding the top navigation must size the library PDF surface from the visible
   dynamic viewport without retaining the header-height minimum below it.
+- Navigation restoration occupies its own top slot in the PDF control rail.
+  It must not cover page controls or require the annotation inspector to reserve
+  space for a floating navigation button.

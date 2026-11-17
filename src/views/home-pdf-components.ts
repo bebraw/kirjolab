@@ -1,7 +1,9 @@
 import { renderIcon } from "../ui/icons";
+import { renderPreviewNavigationRestore } from "./preview-navigation";
 
 export function renderLibraryPdfRail(): string {
   return `<nav class="library-pdf-page-rail" aria-label="Private PDF controls">
+              ${renderPreviewNavigationRestore("pdf")}
               <div class="library-pdf-page-controls" aria-label="PDF page navigation">
                 <button class="library-pdf-rail-button button-icon" id="previous-library-paper-page" type="button" aria-label="Previous PDF page" title="Previous page" data-touch-target="true">
                   ${renderIcon("chevronUp")}

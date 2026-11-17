@@ -1949,6 +1949,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Route workspace-layout changes and application-version copy notices through
   typed bindings on their Lit owners. Keep global toast presentation in the
   workspace coordinator.
+- Keep top-navigation visibility, persistence, restore actions, and focus
+  handoff under one progressive Lit owner. Library restoration belongs in the
+  Library action row or the private PDF control rail, with each trigger taking
+  normal layout space in its active surface. Do not position shell recovery
+  controls over unrelated actions or add overlay-specific clearance offsets.
+  See [ADR-252](docs/adrs/implemented/ADR-252-place-navigation-restore-in-surface-controls.md).
 - Allow the ancillary project rail to resize only on desktop, persist its
   bounded width as a cross-project browser-local preference, and contract its
   effective maximum before either primary document surface loses its readable

@@ -3,6 +3,7 @@ import type { DeploymentCapabilities } from "../deployment-capabilities";
 import { renderIcon } from "../ui/icons";
 import { renderPrimaryNavigation } from "./app-navigation";
 import { renderLibraryPdfRail } from "./home-pdf-components";
+import { renderPreviewNavigationRestore } from "./preview-navigation";
 import { renderPreferencesMenu } from "./home-preferences";
 import { renderExpandProjectRailButton, renderProjectFileActions, renderProjectRailNavigation } from "./home-rail-components";
 import {
@@ -110,12 +111,7 @@ export function renderHomePage(
       </div>
       <collaborator-selection-list class="sr-only" id="collaborator-selections" aria-live="polite"></collaborator-selection-list>
     </header>
-    <preview-navigation-control id="preview-navigation-control" app-mode="${appMode}">
-    <button class="button-secondary preview-navigation-restore" id="restore-preview-navigation" type="button" aria-controls="app-header" aria-label="Show top navigation" title="Show top navigation" hidden>
-      ${renderIcon("chevronDown")}
-      <span>Show nav</span>
-    </button>
-    </preview-navigation-control>
+    <preview-navigation-control id="preview-navigation-control" app-mode="${appMode}"></preview-navigation-control>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
       <workspace-surface-switcher class="surface-switcher" id="workspace-surface-switcher" aria-label="Project surface">
@@ -403,6 +399,7 @@ export function renderHomePage(
           <div class="context-library-scroll p-5" id="context-library-scroll">
             <reference-library-workspace class="contents" id="reference-library-workspace">
             <header class="library-header" aria-label="Library actions">
+              ${renderPreviewNavigationRestore("library")}
               <details class="action-menu library-add-menu ui-menu" data-action-menu>
                 <summary class="button-primary">Add reference</summary>
                 <div class="library-menu library-add-reference-menu ui-menu-panel">

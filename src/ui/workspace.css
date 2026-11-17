@@ -1469,14 +1469,13 @@
     transform: rotate(180deg);
   }
 
+  preview-navigation-control {
+    display: contents;
+  }
+
   .preview-navigation-restore {
-    position: fixed;
-    top: max(0.5rem, env(safe-area-inset-top));
-    right: max(0.5rem, env(safe-area-inset-right));
-    z-index: 40;
     align-items: center;
     gap: 0.3rem;
-    box-shadow: 0 0.35rem 1.2rem var(--color-app-shadow);
   }
 
   .preview-navigation-restore[hidden] {
