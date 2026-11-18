@@ -49,6 +49,16 @@ describe("model provider preferences", () => {
     expect(session.setItem).toHaveBeenCalledWith(sessionCodexTokenStorageKey, "tab-only-token-with-at-least-24-chars");
   });
 
+  it("keeps the gateway token in session storage with a separate key", () => {
+    const local = storage();
+    const session = storage();
+    const companionToken = "gateway-token-with-at-least-24-characters";
+    persistModelProviderPreferences({ ...initialModelProviderPreferences, connection: "companion", companionToken }, local, session);
+    expect(JSON.parse(local.getItem(modelPreferencesStorageKey) ?? "{}")).not.toHaveProperty("companionToken");
+    expect(readStoredModelProviderPreferences(local, session)).toMatchObject({ companionToken, codexToken: "" });
+    expect(readStoredModelProviderPreferences(local, storage())).not.toHaveProperty("companionToken");
+  });
+
   it("falls back safely and removes malformed durable preferences", () => {
     const local = storage({ [modelPreferencesStorageKey]: "{" });
     expect(readStoredModelProviderPreferences(local, storage())).toEqual(initialModelProviderPreferences);

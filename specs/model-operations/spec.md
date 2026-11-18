@@ -142,19 +142,29 @@ advisory hints; it has no candidate creation or apply action.
   instead of hardcoding a catalog. Discovery is explicit, bounded,
   loopback-only, and available through the same optional companion when
   provider CORS blocks direct browser access. Direct and forwarded local-model
-  discovery is credential-free; Codex companion discovery requires its bearer
-  token and exposes only the configured model. A saved local choice remains
+  discovery is credential-free. Codex and authenticated HTTPS gateway
+  companions require a browser-to-companion bearer token and expose the
+  configured model without upstream model discovery. A saved local choice remains
   visible before refresh; successful discovery replaces stale choices with
   identifiers reported by the configured endpoint.
 - One bounded model-provider settings component owns connection, endpoint,
-  model, reasoning, and tab-scoped Codex companion token values, saved-value
+  model, reasoning, and tab-scoped companion token values, saved-value
   validation, live option presentation, discovery progress, opening its
   enclosing preferences menu, connection-control focus, provider construction,
   and typed change and discovery intents. Only connection, endpoint, model, and
-  reasoning persist in local storage; the Codex token persists only in session
-  storage and is sent only to the loopback companion. The workspace coordinator
+  reasoning persist in local storage. The Codex and gateway tokens use distinct
+  session storage keys and go only to their corresponding loopback companion
+  connection. The workspace coordinator
   retains generation workflows, provider failure presentation, and assistant
   status policy.
+- The npm companion executable accepts an explicit local env file and runs the
+  forwarding backend outside the checkout. The authenticated gateway profile
+  requires an upstream API key, a fixed HTTPS completion URL, one exact model
+  ID, and an independent browser token. The companion forwards validated
+  writing requests from the allowlisted browser origin using the local
+  network and upstream key. The browser uses the ordinary loopback companion
+  endpoint. A configured model listing establishes companion access and a
+  completion verifies upstream reachability and authentication.
 - One bounded assistant workflow status component owns operation-specific
   attribution and initial status copy, subsequent live status presentation,
   selected evidence keys and their count or limit status, reconciliation

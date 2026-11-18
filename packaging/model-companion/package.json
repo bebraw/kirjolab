@@ -1,0 +1,16 @@
+{
+  "name": "kirjolab-model-companion",
+  "version": "0.1.0",
+  "description": "Loopback companion for OpenAI-compatible models in Kirjolab",
+  "license": "MIT",
+  "repository": "https://github.com/bebraw/kirjolab",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "kirjolab-model-companion": "./companion.mjs"
+  },
+  "files": [
+    "companion.mjs"
+  ]
+}

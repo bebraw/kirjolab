@@ -6,6 +6,7 @@ import {
   companionModelEndpoint,
   directModelEndpoint,
   initialModelProviderPreferences,
+  modelCompanionToken,
   persistModelProviderPreferences,
   readStoredModelProviderPreferences,
   type ModelProviderConnection,
@@ -56,6 +57,7 @@ export class ModelProviderSettings extends LightDomElement {
 
   provider(): OpenAICompatibleBrowserProvider {
     const usesCodex = this.preferences.connection === "codex";
+    const bearerToken = modelCompanionToken(this.preferences);
     return new OpenAICompatibleBrowserProvider({
       endpoint: this.preferences.endpoint,
       model: this.preferences.model,
@@ -66,7 +68,8 @@ export class ModelProviderSettings extends LightDomElement {
             ? "Local companion · OpenAI-compatible"
             : "Browser-local OpenAI-compatible",
       reasoningEffort: this.preferences.reasoningEffort,
-      ...(usesCodex ? { bearerToken: this.preferences.codexToken, temperature: 0 } : {}),
+      ...(bearerToken === undefined ? {} : { bearerToken }),
+      ...(usesCodex ? { temperature: 0 } : {}),
     });
   }
 
@@ -83,10 +86,8 @@ export class ModelProviderSettings extends LightDomElement {
     this.emitChange(this.status);
     try {
       const selectedModel = this.preferences.model.trim();
-      const models = await discover(
-        this.preferences.endpoint,
-        this.preferences.connection === "codex" ? { bearerToken: this.preferences.codexToken } : {},
-      );
+      const bearerToken = modelCompanionToken(this.preferences);
+      const models = await discover(this.preferences.endpoint, bearerToken === undefined ? {} : { bearerToken });
       this.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
       this.status = models.length
         ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.preferences.model}.`
@@ -161,6 +162,22 @@ export class ModelProviderSettings extends LightDomElement {
                 </label>`
               : null
           }
+          ${
+            this.preferences.connection === "companion"
+              ? html`<label class="field-label preferences-endpoint"
+                  >Companion token (for remote gateways)
+                  <input
+                    class="field"
+                    id="llm-companion-token"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    .value=${this.preferences.companionToken ?? ""}
+                    @input=${this.changeCompanionToken}
+                  />
+                </label>`
+              : null
+          }
           <label class="field-label preferences-endpoint"
             >Endpoint
             <input class="field" id="llm-endpoint" type="url" .value=${this.preferences.endpoint} @input=${this.changeEndpoint} />
@@ -224,7 +241,7 @@ export class ModelProviderSettings extends LightDomElement {
       connection === "codex"
         ? "Codex uses the local companion; selected writing inputs will be sent to OpenAI."
         : connection === "companion"
-          ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
+          ? "Start the local companion, then find its models."
           : "The browser will contact the configured loopback provider directly.";
     this.status = status;
     this.emitChange(status);
@@ -250,6 +267,11 @@ export class ModelProviderSettings extends LightDomElement {
 
   protected changeCodexToken(event: Event): void {
     this.preferences = { ...this.preferences, codexToken: controlValue(event).slice(0, 512) };
+    this.emitChange();
+  }
+
+  protected changeCompanionToken(event: Event): void {
+    this.preferences = { ...this.preferences, companionToken: controlValue(event).slice(0, 512) };
     this.emitChange();
   }
 
