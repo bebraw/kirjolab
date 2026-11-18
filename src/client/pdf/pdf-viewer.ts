@@ -227,6 +227,7 @@ export class PdfEvidenceViewer {
         ? this.#elements.page.hidden && !this.#elements.continuousPages.hidden
         : !this.#elements.page.hidden && this.#elements.continuousPages.hidden;
     if (mode === this.#displayMode && alreadyPresented) return;
+    this.#cancelPendingWheelZoom();
     const flowRenderGeneration = ++this.#flowRenderGeneration;
     this.#pinchGeneration += 1;
     this.#displayMode = mode;
@@ -265,6 +266,7 @@ export class PdfEvidenceViewer {
   }
 
   async adjustZoom(delta: number): Promise<void> {
+    this.#cancelPendingWheelZoom();
     this.#zoom = adjustPdfZoom(this.#zoom, delta);
     this.#elements.reader.dataset.zoomed = String(Math.abs(this.#zoom - 1) > 0.01);
     if (this.#displayMode === "single") await this.#renderPage();
@@ -272,6 +274,7 @@ export class PdfEvidenceViewer {
   }
 
   async cycleFitMode(): Promise<void> {
+    this.#cancelPendingWheelZoom();
     this.#fitMode = nextPdfFitMode(this.#fitMode);
     this.#zoom = 1;
     this.#fittedWidth = null;
@@ -281,6 +284,7 @@ export class PdfEvidenceViewer {
   }
 
   async rotateClockwise(): Promise<void> {
+    this.#cancelPendingWheelZoom();
     this.#rotation = nextPdfRotation(this.#rotation);
     this.#fittedWidth = null;
     if (this.#displayMode === "single") await this.#renderPage();
@@ -307,7 +311,7 @@ export class PdfEvidenceViewer {
     this.#renderedZoom = renderedZoom;
     this.#presentContinuousReady();
     if (pinchGeneration !== undefined && pinchGeneration !== this.#pinchGeneration) {
-      if (this.#pinchStart?.surface === this.#elements.continuousPages) {
+      if (this.#pinchStart?.surface === this.#elements.continuousPages || this.#wheelZoomRenderTimer !== undefined) {
         this.#elements.continuousPages.style.transform = `scale(${this.#flowPreviewScale(this.#zoom)})`;
       }
       return false;
@@ -316,6 +320,7 @@ export class PdfEvidenceViewer {
   }
 
   async open(options: OpenPdfOptions): Promise<boolean> {
+    this.#cancelPendingWheelZoom();
     this.#flowRenderGeneration += 1;
     this.#pinchGeneration += 1;
     this.#lifecycle.send({ type: "OPEN" });
@@ -338,8 +343,6 @@ export class PdfEvidenceViewer {
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
     window.clearTimeout(this.#selectionCaptureTimer);
-    window.clearTimeout(this.#wheelZoomRenderTimer);
-    this.#wheelZoomRenderTimer = undefined;
     this.#clearNativeSelection();
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
@@ -520,8 +523,7 @@ export class PdfEvidenceViewer {
   }
 
   async resize(): Promise<void> {
-    window.clearTimeout(this.#wheelZoomRenderTimer);
-    this.#wheelZoomRenderTimer = undefined;
+    this.#cancelPendingWheelZoom();
     this.#fittedWidth = null;
     if (this.#displayMode !== "single") await this.#rerenderFlow();
     else await this.#renderPage();
@@ -557,14 +559,12 @@ export class PdfEvidenceViewer {
   }
 
   #handleWheel(event: WheelEvent): void {
-    if (this.#displayMode !== "single") {
-      if (event.ctrlKey) event.preventDefault();
-      return;
-    }
     if (event.ctrlKey) {
-      this.#zoomFromWheel(event);
+      event.preventDefault();
+      if (this.#document && !this.#pinchStart) this.#zoomFromWheel(event);
       return;
     }
+    if (this.#displayMode !== "single") return;
     if (!this.#document || !this.#wheelCanTurnPage(event.deltaX)) {
       this.#wheelPagingState = initialPdfWheelPagingState();
       return;
@@ -588,14 +588,23 @@ export class PdfEvidenceViewer {
   }
 
   #zoomFromWheel(event: WheelEvent): void {
-    event.preventDefault();
     this.#lifecycle.send({ type: "CANCEL_RENDER" });
-    this.#previewZoom(clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4), event.clientX, event.clientY);
+    const surface = this.#zoomPreviewSurface();
+    const generation = ++this.#pinchGeneration;
+    this.#previewZoom(clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4), event.clientX, event.clientY, surface);
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = window.setTimeout(() => {
       this.#wheelZoomRenderTimer = undefined;
-      void this.#renderPage();
+      void this.#commitZoom(surface, generation);
     }, 140);
+  }
+
+  #cancelPendingWheelZoom(): void {
+    if (this.#wheelZoomRenderTimer === undefined) return;
+    window.clearTimeout(this.#wheelZoomRenderTimer);
+    this.#wheelZoomRenderTimer = undefined;
+    this.#clearZoomPreview(this.#zoomPreviewSurface());
+    this.#zoomAnchor = null;
   }
 
   async #renderPage(): Promise<void> {
@@ -1022,12 +1031,7 @@ export class PdfEvidenceViewer {
     const pinchStart = this.#pinchStart;
     if (pinchStart && event.touches.length < 2) {
       this.#pinchStart = null;
-      if (this.#displayMode === "single") await this.#renderPage();
-      else {
-        const zoomAnchor = this.#takeZoomAnchor();
-        this.#clearZoomPreview(pinchStart.surface);
-        if (await this.#rerenderFlow(pinchStart.generation)) this.#restoreZoomAnchor(pinchStart.surface, zoomAnchor);
-      }
+      await this.#commitZoom(pinchStart.surface, pinchStart.generation);
       return;
     }
     const start = this.#swipeStart;
@@ -1067,6 +1071,17 @@ export class PdfEvidenceViewer {
 
   #zoomPreviewSurface(): HTMLElement {
     return this.#displayMode === "single" ? this.#elements.page : this.#elements.continuousPages;
+  }
+
+  async #commitZoom(surface: HTMLElement, generation: number): Promise<void> {
+    if (generation !== this.#pinchGeneration) return;
+    if (this.#displayMode === "single") {
+      await this.#renderPage();
+      return;
+    }
+    const anchor = this.#takeZoomAnchor();
+    this.#clearZoomPreview(surface);
+    if (await this.#rerenderFlow(generation)) this.#restoreZoomAnchor(surface, anchor);
   }
 
   #setZoomAnchor(clientX: number, clientY: number, surface: HTMLElement = this.#elements.page): void {
@@ -1178,12 +1193,13 @@ export class PdfEvidenceViewer {
     this.#focusedAnnotationId = undefined;
     this.#draftSelection = null;
     this.#zoomAnchor = null;
-    window.clearTimeout(this.#wheelZoomRenderTimer);
-    this.#wheelZoomRenderTimer = undefined;
     if (this.#displayMode !== "single") {
       this.#continuousView.scrollToPage(next);
       this.#presentContinuousPage(next);
-    } else await this.#renderPage();
+    } else {
+      this.#cancelPendingWheelZoom();
+      await this.#renderPage();
+    }
   }
 
   #scrollToPdfDestination(destination: readonly unknown[]): void {
