@@ -13,13 +13,14 @@ class TestModelProviderSettings extends ModelProviderSettings {
     return this.createRenderRoot();
   }
 
-  changeForTest(field: "connection" | "endpoint" | "model" | "reasoning" | "token", value: string): void {
+  changeForTest(field: "connection" | "endpoint" | "model" | "reasoning" | "token" | "companion-token", value: string): void {
     const event = eventWithValue(value);
     if (field === "connection") this.changeConnection(event);
     else if (field === "endpoint") this.changeEndpoint(event);
     else if (field === "model") this.changeModel(event);
     else if (field === "reasoning") this.changeReasoningEffort(event);
-    else this.changeCodexToken(event);
+    else if (field === "token") this.changeCodexToken(event);
+    else this.changeCompanionToken(event);
   }
 
   override focusConnection(): void {
@@ -124,7 +125,7 @@ describe("model provider settings", () => {
       codexToken: "",
     });
     expect(statuses).toEqual([
-      "The local companion starts with npm run dev; select manuscript text and grounding evidence.",
+      "Start the local companion, then find its models.",
       null,
       "Using qwen-local for new writing assistant requests.",
       null,
@@ -165,6 +166,22 @@ describe("model provider settings", () => {
       bearerToken: "tab-only-token-with-at-least-24-chars",
     });
     expect(JSON.stringify(panel.renderForTest())).toContain("sent to OpenAI");
+  });
+
+  it("uses the gateway companion token only on the Local companion connection", async () => {
+    const panel = new TestModelProviderSettings();
+    const token = "gateway-token-with-at-least-24-characters";
+    panel.changeForTest("connection", "companion");
+    panel.changeForTest("companion-token", token);
+    const discovery = vi.fn(async () => ["Example/Research-Model"]);
+
+    await panel.discoverModels(discovery);
+    expect(discovery).toHaveBeenLastCalledWith("http://127.0.0.1:8790/v1/chat/completions", { bearerToken: token });
+    expect(panel.value.model).toBe("Example/Research-Model");
+
+    panel.changeForTest("connection", "direct");
+    await panel.discoverModels(discovery);
+    expect(discovery).toHaveBeenLastCalledWith("http://127.0.0.1:1234/v1/chat/completions", {});
   });
 
   it("owns successful model discovery and ignores overlapping requests", async () => {

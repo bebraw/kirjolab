@@ -1,8 +1,6 @@
-import { Codex } from "@openai/codex-sdk";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { isAbsolute, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import {
   createCodexProcessOptions,
   createCodexSdkRunner,
@@ -28,6 +26,11 @@ interface CommonModelCompanionConfig {
 export interface OpenAICompatibleModelCompanionConfig extends CommonModelCompanionConfig {
   readonly kind: "openai-compatible";
   readonly upstream: URL;
+  readonly gateway?: {
+    readonly apiKey: string;
+    readonly bearerToken: string;
+    readonly model: string;
+  };
 }
 
 export interface CodexModelCompanionConfig extends CommonModelCompanionConfig {
@@ -42,7 +45,11 @@ export type ModelCompanionConfig = CodexModelCompanionConfig | OpenAICompatibleM
 interface ModelCompletionRequest {
   readonly messages: readonly CodexChatMessage[];
   readonly model: string;
-  readonly outputSchema: Record<string, unknown> | null;
+  readonly temperature: number;
+  readonly responseFormat: {
+    readonly type: "json_schema";
+    readonly json_schema: { readonly name: string; readonly strict: true; readonly schema: Record<string, unknown> };
+  } | null;
   readonly reasoningEffort: KirjolabReasoningEffort;
 }
 
@@ -59,6 +66,9 @@ export function readModelCompanionConfig(environment: Readonly<Record<string, st
   const common = readCommonConfig(environment);
   const provider = environment.KIRJOLAB_MODEL_PROVIDER ?? "openai-compatible";
   if (provider === "openai-compatible") {
+    if (environment.KIRJOLAB_MODEL_UPSTREAM_API_KEY !== undefined) {
+      return readGatewayConfig(common, environment);
+    }
     return {
       ...common,
       kind: "openai-compatible",
@@ -73,8 +83,33 @@ export function readModelCompanionConfig(environment: Readonly<Record<string, st
     kind: "codex",
     codexHome: codexHome(environment.KIRJOLAB_CODEX_HOME, environment),
     model: codexModel(environment.KIRJOLAB_CODEX_MODEL),
-    bearerToken: bearerToken(environment.KIRJOLAB_CODEX_TOKEN),
+    bearerToken: bearerToken(environment.KIRJOLAB_CODEX_TOKEN, "KIRJOLAB_CODEX_TOKEN"),
   };
+}
+
+function readGatewayConfig(
+  common: CommonModelCompanionConfig,
+  environment: Readonly<Record<string, string | undefined>>,
+): OpenAICompatibleModelCompanionConfig {
+  const upstream = URL.parse(environment.KIRJOLAB_MODEL_UPSTREAM ?? "");
+  if (!upstream || upstream.protocol !== "https:" || upstream.username || upstream.password || upstream.search || upstream.hash) {
+    throw new TypeError("KIRJOLAB_MODEL_UPSTREAM must be an HTTPS URL without credentials, query, or fragment");
+  }
+  if (!upstream.pathname.endsWith("/chat/completions")) {
+    throw new TypeError("KIRJOLAB_MODEL_UPSTREAM must end with /chat/completions");
+  }
+  const browserOrigin = new URL(common.allowedOrigin);
+  if (browserOrigin.protocol !== "https:" && !isLoopbackHost(browserOrigin.hostname)) {
+    throw new TypeError("KIRJOLAB_MODEL_COMPANION_ORIGIN must be an HTTPS origin or a loopback origin");
+  }
+  const apiKey = environment.KIRJOLAB_MODEL_UPSTREAM_API_KEY ?? "";
+  if (!/^[\x21-\x7e]{1,4096}$/.test(apiKey)) {
+    throw new TypeError("KIRJOLAB_MODEL_UPSTREAM_API_KEY must be a nonempty API key without spaces");
+  }
+  const browserToken = bearerToken(environment.KIRJOLAB_MODEL_COMPANION_TOKEN, "KIRJOLAB_MODEL_COMPANION_TOKEN");
+  if (browserToken === apiKey) throw new TypeError("The companion token and upstream API key must be different");
+  const model = modelIdentifier(environment.KIRJOLAB_MODEL_UPSTREAM_MODEL, "KIRJOLAB_MODEL_UPSTREAM_MODEL", 256);
+  return { ...common, kind: "openai-compatible", upstream, gateway: { apiKey, bearerToken: browserToken, model } };
 }
 
 export async function handleModelCompanionRequest(
@@ -92,12 +127,13 @@ export async function handleModelCompanionRequest(
 
   const origin = request.headers.get("origin");
   if (!origin || !isAllowedBrowserOrigin(origin, config.allowedOrigin)) return jsonError("Origin not allowed", 403);
-  const cors = corsHeaders(origin, request.headers.get("access-control-request-private-network") === "true", config.kind === "codex");
+  const connection = config.kind === "codex" ? config : config.gateway;
+  const cors = corsHeaders(origin, request.headers.get("access-control-request-private-network") === "true", connection !== undefined);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-  if (config.kind === "codex" && !isAuthorized(request, config.bearerToken)) {
+  if (connection && !isAuthorized(request, connection.bearerToken)) {
     const headers = new Headers(cors);
     headers.set("www-authenticate", "Bearer");
-    return jsonError("Codex companion authentication failed", 401, headers);
+    return jsonError(config.kind === "codex" ? "Codex companion authentication failed" : "Check the companion token", 401, headers);
   }
 
   const backend = modelCompanionBackend(config, runtime);
@@ -117,9 +153,12 @@ export async function handleModelCompanionRequest(
     completionRequest = validateOpenAICompatibleRequest(
       JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body)),
     );
-    if (config.kind === "codex") {
-      if (completionRequest.model !== config.model) throw new TypeError(`Codex companion permits only ${config.model}`);
-      if (!completionRequest.outputSchema) throw new TypeError("Codex companion requires a JSON Schema response format");
+    if (connection && completionRequest.model !== connection.model) {
+      const label = config.kind === "codex" ? "Codex companion" : "Model gateway companion";
+      throw new TypeError(`${label} permits only ${connection.model}`);
+    }
+    if (config.kind === "codex" && !completionRequest.responseFormat) {
+      throw new TypeError("Codex companion requires a JSON Schema response format");
     }
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Invalid model request", 400, cors);
@@ -137,7 +176,8 @@ export function createCodexModelBackend(config: CodexModelCompanionConfig, runne
     },
     async complete(request, _body, signal) {
       if (activeGeneration) return Response.json({ error: "Codex companion is busy" }, { status: 429 });
-      if (!request.outputSchema) {
+      const outputSchema = request.responseFormat?.json_schema.schema;
+      if (!outputSchema) {
         return Response.json({ error: "Codex companion requires a JSON Schema response format" }, { status: 400 });
       }
       activeGeneration = true;
@@ -150,7 +190,7 @@ export function createCodexModelBackend(config: CodexModelCompanionConfig, runne
         const codexRequest: CodexGenerationRequest = {
           messages: request.messages,
           model: config.model,
-          outputSchema: request.outputSchema,
+          outputSchema,
           reasoningEffort: request.reasoningEffort,
           signal: controller.signal,
         };
@@ -177,26 +217,10 @@ export function createCodexModelBackend(config: CodexModelCompanionConfig, runne
   };
 }
 
-export function createModelCompanionBackend(
-  config: ModelCompanionConfig,
-  fetcher: Fetch = (input, init) => fetch(input, init),
-): ModelCompanionBackend {
-  if (config.kind === "openai-compatible") return createForwardingBackend(config, fetcher);
-  const processOptions = createCodexProcessOptions(config.codexHome);
-  const codex = new Codex(processOptions);
-  return createCodexModelBackend(
-    config,
-    createCodexSdkRunner({
-      startThread(options) {
-        return codex.startThread(options);
-      },
-    }),
-  );
-}
-
-export function startModelCompanion(config: ModelCompanionConfig, backend = createModelCompanionBackend(config)): Server {
-  const server = createServer((request, response) => void serveNodeRequest(request, response, config, backend));
-  server.once("close", () => backend.close?.());
+export function startModelCompanion(config: ModelCompanionConfig, backend?: ModelCompanionBackend): Server {
+  const provider = modelCompanionBackend(config, backend);
+  const server = createServer((request, response) => void serveNodeRequest(request, response, config, provider));
+  server.once("close", () => provider.close?.());
   server.listen(config.port, "127.0.0.1", () => {
     process.stdout.write(startupMessage(config));
   });
@@ -205,13 +229,43 @@ export function startModelCompanion(config: ModelCompanionConfig, backend = crea
 
 export async function runModelCompanion(environment: Readonly<Record<string, string | undefined>> = process.env): Promise<Server> {
   const config = readModelCompanionConfig(environment);
-  if (config.kind === "codex") await validateCodexCompanionHome(config.codexHome);
-  return startModelCompanion(config, createModelCompanionBackend(config));
+  if (config.kind === "openai-compatible") return startModelCompanion(config);
+  await validateCodexCompanionHome(config.codexHome);
+  const { Codex } = await import("@openai/codex-sdk");
+  const codex = new Codex(createCodexProcessOptions(config.codexHome));
+  const runner = createCodexSdkRunner({ startThread: (options) => codex.startThread(options) });
+  return startModelCompanion(config, createCodexModelBackend(config, runner));
 }
 
 function createForwardingBackend(config: OpenAICompatibleModelCompanionConfig, fetcher: Fetch): ModelCompanionBackend {
+  const gateway = config.gateway;
   return {
-    complete(_request, body, signal) {
+    async complete(request, body, signal) {
+      if (gateway) {
+        const response = await fetcher(config.upstream, {
+          method: "POST",
+          redirect: "error",
+          headers: { authorization: `Bearer ${gateway.apiKey}`, "content-type": "application/json" },
+          body: new TextEncoder().encode(
+            JSON.stringify({
+              model: request.model,
+              temperature: request.temperature,
+              stream: false,
+              messages: request.messages,
+              ...(request.reasoningEffort === "provider-default" ? {} : { reasoning_effort: request.reasoningEffort }),
+              ...(request.responseFormat ? { response_format: request.responseFormat } : {}),
+            }),
+          ),
+          signal,
+        });
+        if (response.ok) return response;
+        await response.body?.cancel();
+        const error =
+          response.status === 401 || response.status === 403
+            ? `Model gateway rejected the API key (${response.status})`
+            : `Model gateway request failed (${response.status})`;
+        return Response.json({ error }, { status: 502 });
+      }
       return fetcher(config.upstream, {
         method: "POST",
         redirect: "error",
@@ -221,6 +275,7 @@ function createForwardingBackend(config: OpenAICompatibleModelCompanionConfig, f
       });
     },
     listModels(signal) {
+      if (gateway) return Promise.resolve(Response.json({ object: "list", data: [{ id: gateway.model, object: "model" }] }));
       const upstream = modelListUpstream(config.upstream);
       if (!upstream) {
         return Promise.resolve(
@@ -234,7 +289,7 @@ function createForwardingBackend(config: OpenAICompatibleModelCompanionConfig, f
 
 function modelCompanionBackend(config: ModelCompanionConfig, runtime: ModelCompanionRuntime | undefined): ModelCompanionBackend {
   if (runtime && typeof runtime !== "function") return runtime;
-  if (config.kind === "codex") return createModelCompanionBackend(config);
+  if (config.kind === "codex") throw new TypeError("Codex companion requires a configured backend");
   return createForwardingBackend(config, runtime ?? ((input, init) => fetch(input, init)));
 }
 
@@ -262,7 +317,7 @@ async function runBackendRequest(
     headers.set("cache-control", "no-store");
     return new Response(responseBody, { status: response.status, headers });
   } catch (error) {
-    const label = config.kind === "codex" ? "Codex" : "Local model";
+    const label = config.kind === "codex" ? "Codex" : config.gateway ? "Model gateway" : "Local model";
     const timeoutMessage = action === "discovery" ? `${label} discovery timed out` : `${label} request timed out`;
     const unavailableMessage = `${label} unavailable`;
     const message = timedOut || (error instanceof DOMException && error.name === "AbortError") ? timeoutMessage : unavailableMessage;
@@ -370,7 +425,7 @@ function validateOpenAICompatibleRequest(value: unknown): ModelCompletionRequest
     throw new TypeError("Model parameters are invalid");
   }
   const reasoningEffort = readReasoningEffort(value.reasoning_effort);
-  let outputSchema: Record<string, unknown> | null = null;
+  let responseFormat: ModelCompletionRequest["responseFormat"] = null;
   if (value.response_format !== undefined) {
     const format = value.response_format;
     if (
@@ -385,7 +440,10 @@ function validateOpenAICompatibleRequest(value: unknown): ModelCompletionRequest
     ) {
       throw new TypeError("Model response format is invalid");
     }
-    outputSchema = format.json_schema.schema;
+    responseFormat = {
+      type: "json_schema",
+      json_schema: { name: format.json_schema.name, strict: true, schema: format.json_schema.schema },
+    };
   }
   if (!Array.isArray(value.messages) || value.messages.length < 1 || value.messages.length > 16) {
     throw new TypeError("Model messages are invalid");
@@ -404,7 +462,7 @@ function validateOpenAICompatibleRequest(value: unknown): ModelCompletionRequest
     messages.push({ role: message.role, content: message.content });
   }
   if (combinedLength > 128 * 1_024) throw new RangeError("Combined model messages are too large");
-  return { messages, model: value.model.trim(), outputSchema, reasoningEffort };
+  return { messages, model: value.model.trim(), temperature: value.temperature, responseFormat, reasoningEffort };
 }
 
 function readReasoningEffort(value: unknown): KirjolabReasoningEffort {
@@ -442,23 +500,25 @@ function codexHome(value: string | undefined, environment: Readonly<Record<strin
 }
 
 function codexModel(value: string | undefined): string {
+  return modelIdentifier(value, "KIRJOLAB_CODEX_MODEL", 128);
+}
+
+function modelIdentifier(value: string | undefined, label: string, limit: number): string {
   const model = value?.trim() ?? "";
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(model)) {
-    throw new TypeError("KIRJOLAB_CODEX_MODEL must be a 1-128 character model identifier");
+  if (model.length > limit || !/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(model)) {
+    throw new TypeError(`${label} must be a 1-${limit} character model identifier`);
   }
   return model;
 }
 
-function bearerToken(value: string | undefined): string {
+function bearerToken(value: string | undefined, label: string): string {
   if (
     value === undefined ||
     value.length < minimumBearerTokenLength ||
     value.length > maximumBearerTokenLength ||
     !/^[\x21-\x7e]+$/.test(value)
   ) {
-    throw new TypeError(
-      `KIRJOLAB_CODEX_TOKEN must be ${minimumBearerTokenLength}-${maximumBearerTokenLength} printable characters without spaces`,
-    );
+    throw new TypeError(`${label} must be ${minimumBearerTokenLength}-${maximumBearerTokenLength} printable characters without spaces`);
   }
   return value;
 }
@@ -526,12 +586,4 @@ function jsonError(error: string, status: number, headers?: Headers): Response {
   const responseHeaders = new Headers(headers);
   responseHeaders.set("cache-control", "no-store");
   return Response.json({ error }, { status, headers: responseHeaders });
-}
-
-const entry = process.argv[1];
-if (entry && import.meta.url === pathToFileURL(entry).href) {
-  runModelCompanion().catch((error: unknown) => {
-    process.stderr.write(`Unable to start Kirjolab model companion: ${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 1;
-  });
 }

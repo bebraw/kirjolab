@@ -10,6 +10,7 @@ export interface ModelProviderPreferences {
   readonly model: string;
   readonly reasoningEffort: ModelReasoningEffort;
   readonly codexToken: string;
+  readonly companionToken?: string;
 }
 
 export interface PreferenceStorage {
@@ -22,6 +23,7 @@ export const directModelEndpoint = "http://127.0.0.1:1234/v1/chat/completions";
 export const companionModelEndpoint = "http://127.0.0.1:8790/v1/chat/completions";
 export const modelPreferencesStorageKey = "kirjolab:model-preferences";
 export const sessionCodexTokenStorageKey = "kirjolab:codex-companion-token";
+const sessionGatewayTokenStorageKey = "kirjolab:gateway-companion-token";
 
 export const initialModelProviderPreferences: ModelProviderPreferences = {
   connection: "direct",
@@ -54,16 +56,9 @@ export function readStoredModelProviderPreferences(
       persistentStorage.removeItem(modelPreferencesStorageKey);
     }
   }
-  let codexToken = "";
-  if (sessionStorage) {
-    try {
-      const candidate = sessionStorage.getItem(sessionCodexTokenStorageKey) ?? "";
-      if (candidate.length >= 24 && candidate.length <= 512 && /^[\x21-\x7e]+$/u.test(candidate)) codexToken = candidate;
-    } catch {
-      // The durable settings remain usable when tab storage is unavailable.
-    }
-  }
-  return { ...stored, codexToken };
+  const codexToken = readSessionToken(sessionStorage, sessionCodexTokenStorageKey);
+  const companionToken = readSessionToken(sessionStorage, sessionGatewayTokenStorageKey);
+  return { ...stored, codexToken, ...(companionToken ? { companionToken } : {}) };
 }
 
 export function persistModelProviderPreferences(
@@ -73,7 +68,7 @@ export function persistModelProviderPreferences(
 ): void {
   if (persistentStorage) {
     try {
-      const { codexToken: _codexToken, ...durable } = preferences;
+      const { codexToken: _codexToken, companionToken: _companionToken, ...durable } = preferences;
       persistentStorage.setItem(modelPreferencesStorageKey, JSON.stringify(durable));
     } catch {
       // Preferences remain usable for this page when durable storage is unavailable.
@@ -83,9 +78,26 @@ export function persistModelProviderPreferences(
     try {
       if (preferences.codexToken) sessionStorage.setItem(sessionCodexTokenStorageKey, preferences.codexToken);
       else sessionStorage.removeItem(sessionCodexTokenStorageKey);
+      if (preferences.companionToken) sessionStorage.setItem(sessionGatewayTokenStorageKey, preferences.companionToken);
+      else sessionStorage.removeItem(sessionGatewayTokenStorageKey);
     } catch {
       // The token remains usable for this page when tab storage is unavailable.
     }
+  }
+}
+
+export function modelCompanionToken(preferences: ModelProviderPreferences): string | undefined {
+  if (preferences.connection === "codex") return preferences.codexToken;
+  if (preferences.connection === "companion") return preferences.companionToken || undefined;
+  return undefined;
+}
+
+function readSessionToken(storage: PreferenceStorage | null, key: string): string {
+  try {
+    const candidate = storage?.getItem(key) ?? "";
+    return /^[\x21-\x7e]{24,512}$/u.test(candidate) ? candidate : "";
+  } catch {
+    return "";
   }
 }
 

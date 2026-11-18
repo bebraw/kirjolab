@@ -2082,10 +2082,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical claim directly.
 - Keep local-model network access in the browser or the explicitly launched
   loopback companion so a hosted Worker never assumes it can reach localhost.
-- Configure the companion with one fixed credential-free loopback upstream and
-  one exact allowed browser origin. Bind it only to `127.0.0.1`, bound and
-  validate both sides of the request, reject redirects, and never accept a
-  browser-selected upstream.
+- Configure the companion with one fixed upstream and one exact allowed
+  browser origin. Bind it only to `127.0.0.1`, bound and validate both sides of
+  the request, reject redirects, and select the upstream at process startup.
+  Credential-free forwarding uses loopback. Authenticated gateway forwarding
+  requires HTTPS, one configured model, a local upstream key, and a separate
+  tab-scoped browser token. The npm executable packages the forwarding backend
+  from the same source as the checkout companion.
 - Supervise the configured companion alongside the local Worker under
   `npm run dev`, but strip all model-specific environment variables from the
   Worker child, disable Wrangler's automatic `.env` discovery, keep Worker

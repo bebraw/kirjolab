@@ -33,6 +33,7 @@ No accepted-but-unimplemented ADRs.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-255](./implemented/ADR-255-package-the-gateway-model-companion.md)                   | Implemented          | Distribute the forwarding companion through npm and support one authenticated HTTPS model gateway.              |
 | [ADR-254](./implemented/ADR-254-summarize-the-manuscript-outline-on-demand.md)            | Implemented          | Add disposable reverse-outline summaries with explicit generation and bounded section inputs.                   |
 | [ADR-253](./implemented/ADR-253-use-the-mcp-sdk-handler-directly.md)                      | Implemented          | Use the MCP SDK's stateless handler directly and remove the Agents production build-tool dependency path.       |
 | [ADR-252](./implemented/ADR-252-place-navigation-restore-in-surface-controls.md)          | Implemented          | Place Library navigation restoration in normal-flow action and PDF rail slots under one control owner.          |

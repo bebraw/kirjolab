@@ -6634,7 +6634,7 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await openWritingAssistant(page, true);
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
-  await expect(page.locator("#model-status")).toContainText("npm run dev");
+  await expect(page.locator("#model-status")).toContainText("Start the local companion");
   await selectLocalModel(page, "qwen-local");
   await page.locator("#llm-reasoning-effort").selectOption("low");
   await page.reload();
@@ -6643,6 +6643,36 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
   await expect(page.locator("#llm-model")).toHaveValue("qwen-local");
   await expect(page.locator("#llm-reasoning-effort")).toHaveValue("low");
+});
+
+test("discovers a configured gateway model with a tab-scoped companion token", async ({ page }) => {
+  const token = "test-companion-token-with-24-chars";
+  const model = "Example/Research-Model";
+  await page.route("http://127.0.0.1:8790/v1/models", async (route) => {
+    const headers = {
+      "access-control-allow-origin": "http://127.0.0.1:8788",
+      "access-control-allow-headers": "authorization",
+      "access-control-allow-methods": "GET, OPTIONS",
+    };
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+    expect(await route.request().headerValue("authorization")).toBe(`Bearer ${token}`);
+    await route.fulfill({ status: 200, headers, json: { data: [{ id: model }] } });
+  });
+
+  await page.goto("/editor/demo");
+  await openWritingAssistant(page, true);
+  await page.locator("#llm-connection").selectOption("companion");
+  await page.getByLabel("Companion token (for remote gateways)").fill(token);
+  await page.getByRole("button", { name: "Find loaded models" }).click();
+  await expect(page.locator("#llm-model")).toHaveValue(model);
+
+  await page.reload();
+  await page.locator("#preferences-menu > summary").click();
+  await expect(page.getByLabel("Companion token (for remote gateways)")).toHaveValue(token);
+  expect(await page.evaluate(() => localStorage.getItem("kirjolab:model-preferences"))).not.toContain(token);
 });
 
 test("discovers loaded local models for the writing assistant", async ({ page }) => {

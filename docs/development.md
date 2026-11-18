@@ -475,6 +475,30 @@ For example, an iPad browser cannot reach a companion running on a Mac through
 this path. Keep Worker-only local secrets in `.dev.vars`; the companion settings
 belong in `.env` and are never deployed.
 
+#### Package the Model Companion
+
+The [companion setup guide](../packaging/model-companion/README.md) covers npm
+users and authenticated HTTPS gateways such as Aalto. The npm CLI runs the
+OpenAI-compatible forwarding backend from the same source as the checkout
+companion. The checkout's `npm run model:companion` also supports Codex.
+
+Build the npm tarball with the repository's pinned Node and npm from an
+installed checkout. Pass an existing destination directory explicitly.
+
+```sh
+npm run model:companion:pack -- --pack-destination /path/to/release-directory
+```
+
+The pack command stages the executable, manifest, README, and license in a
+temporary directory and removes it on exit. It writes the tarball to the chosen
+destination. Test the resulting tarball in a directory outside the checkout.
+
+```sh
+npm exec --package=/path/to/release-directory/kirjolab-model-companion-0.1.0.tgz -- kirjolab-model-companion --help
+```
+
+An npm release can publish that same tarball with `npm publish /path/to/release-directory/kirjolab-model-companion-0.1.0.tgz`.
+
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 
 The Node Vitest setup remains the fast home for pure logic. `vitest.config.mts`

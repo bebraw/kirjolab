@@ -105,10 +105,15 @@ the stable canary source. Generated browser assets are written to the ignored
 
 ## Configure a Writing Model
 
-Kirjolab does not require a model API key. A revision request contains only the
-selected passage, your instruction, the evidence you selected, and the model
-identifier. The default path sends it directly from the browser to a
-credential-free, OpenAI-compatible service running on your computer.
+The default connection sends each revision request directly from your browser
+to a credential-free, OpenAI-compatible service on your computer. The request
+contains the selected passage, your instruction, your selected evidence, and
+the model identifier.
+
+For an HTTPS model gateway reachable from your Mac, including the Aalto LLM
+Gateway over VPN, use the [npm companion setup guide](./packaging/model-companion/README.md).
+The companion uses your gateway API key locally and provides the configured
+model ID to Kirjolab.
 
 If the browser cannot reach that service directly, use the optional local
 companion. Configure it once, then restart the ordinary development command:

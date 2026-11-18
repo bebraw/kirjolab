@@ -17,6 +17,17 @@ const config: ModelCompanionConfig = {
   port: 8790,
 };
 const codexToken = "codex-token-with-at-least-24-chars";
+const gatewayToken = "gateway-token-with-at-least-24-chars";
+const gatewayApiKey = "example-upstream-api-key";
+const gatewayModel = "Example/Research-Model";
+const gatewayUrl = "https://llm-gateway.k8s.aalto.fi/api/v1/chat/completions";
+const gatewayEnvironment = {
+  KIRJOLAB_MODEL_UPSTREAM: gatewayUrl,
+  KIRJOLAB_MODEL_UPSTREAM_API_KEY: gatewayApiKey,
+  KIRJOLAB_MODEL_UPSTREAM_MODEL: gatewayModel,
+  KIRJOLAB_MODEL_COMPANION_TOKEN: gatewayToken,
+  KIRJOLAB_MODEL_COMPANION_ORIGIN: "https://kirjolab.example",
+};
 const codexConfig: CodexModelCompanionConfig = {
   kind: "codex",
   allowedOrigin: config.allowedOrigin,
@@ -200,6 +211,74 @@ describe("local model companion", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     expect(String(fetcher.mock.calls[0]?.[0])).toBe("http://127.0.0.1:1234/v1/models");
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ method: "GET", redirect: "error", headers: { accept: "application/json" } });
+  });
+
+  it("requires a separate browser token and exposes the configured gateway model without upstream discovery", async () => {
+    const gateway = readModelCompanionConfig(gatewayEnvironment);
+    const fetcher = vi.fn<typeof fetch>();
+    const url = "http://127.0.0.1:8790/v1/models";
+    const origin = { origin: config.allowedOrigin };
+    const denied = await handleModelCompanionRequest(new Request(url, { headers: origin }), gateway, fetcher);
+    expect(denied.status).toBe(401);
+    const headers = { ...origin, authorization: `Bearer ${gatewayToken}` };
+    const preflight = await handleModelCompanionRequest(new Request(url, { method: "OPTIONS", headers: origin }), gateway, fetcher);
+    expect(preflight.headers.get("access-control-allow-headers")).toBe("authorization, content-type");
+    const wrongOrigin = await handleModelCompanionRequest(
+      new Request(url, { headers: { ...headers, origin: "https://other.example" } }),
+      gateway,
+      fetcher,
+    );
+    expect(wrongOrigin.status).toBe(403);
+    const models = await handleModelCompanionRequest(new Request(url, { headers }), gateway, fetcher);
+    await expect(models.json()).resolves.toEqual({ object: "list", data: [{ id: gatewayModel, object: "model" }] });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("forwards only the configured model with the gateway API key and rejects redirects", async () => {
+    const gateway = readModelCompanionConfig(gatewayEnvironment);
+    const completion = { choices: [{ message: { content: "Example output" } }] };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(completion));
+    const headers = { authorization: `Bearer ${gatewayToken}` };
+    const denied = await handleModelCompanionRequest(request("POST", validPayload, headers), gateway, fetcher);
+    expect(denied.status).toBe(400);
+    const payload = { ...validPayload, model: gatewayModel };
+    const result = await handleModelCompanionRequest(request("POST", payload, headers), gateway, fetcher);
+    await expect(result.json()).resolves.toEqual(completion);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe(gatewayUrl);
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      redirect: "error",
+      headers: { authorization: `Bearer ${gatewayApiKey}`, "content-type": "application/json" },
+      body: new TextEncoder().encode(JSON.stringify(payload)),
+    });
+  });
+
+  it("returns gateway errors without exposing upstream content", async () => {
+    const gateway = readModelCompanionConfig(gatewayEnvironment);
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: gatewayApiKey }, { status: 401 }));
+    const result = await handleModelCompanionRequest(
+      request("POST", { ...validPayload, model: gatewayModel }, { authorization: `Bearer ${gatewayToken}` }),
+      gateway,
+      fetcher,
+    );
+    expect(result.status).toBe(502);
+    await expect(result.json()).resolves.toEqual({ error: "Model gateway rejected the API key (401)" });
+  });
+
+  it.each([
+    [{ KIRJOLAB_MODEL_UPSTREAM: "http://gateway.example/v1/chat/completions" }, "HTTPS"],
+    [{ KIRJOLAB_MODEL_UPSTREAM: "https://gateway.example/v1" }, "/chat/completions"],
+    [{ KIRJOLAB_MODEL_UPSTREAM: `${gatewayUrl}?key=abc` }, "HTTPS"],
+    [{ KIRJOLAB_MODEL_UPSTREAM_MODEL: undefined }, "KIRJOLAB_MODEL_UPSTREAM_MODEL"],
+    [{ KIRJOLAB_MODEL_COMPANION_TOKEN: undefined }, "KIRJOLAB_MODEL_COMPANION_TOKEN"],
+    [
+      { KIRJOLAB_MODEL_COMPANION_TOKEN: "same-secret-at-least-24-chars", KIRJOLAB_MODEL_UPSTREAM_API_KEY: "same-secret-at-least-24-chars" },
+      "different",
+    ],
+    [{ KIRJOLAB_MODEL_COMPANION_ORIGIN: "http://kirjolab.example" }, "HTTPS origin"],
+  ])("rejects unsafe gateway companion configuration %#", (overrides, message) => {
+    expect(() => readModelCompanionConfig({ ...gatewayEnvironment, ...overrides })).toThrow(message);
   });
 
   it("requires the Codex bearer token after origin-gated preflight and lists only the configured model", async () => {

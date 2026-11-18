@@ -24,7 +24,7 @@ import {
   type ReviewModelSnapshot,
   type ScreeningModelResult,
 } from "../../domain/review/review-model";
-import { readStoredModelProviderPreferences } from "../assistant/model-provider-preferences";
+import { modelCompanionToken, readStoredModelProviderPreferences } from "../assistant/model-provider-preferences";
 import { OpenAICompatibleBrowserProvider } from "../assistant/model-provider";
 import {
   assertPublicationTarget,
@@ -775,6 +775,7 @@ export function reviewModelProvider(): OpenAICompatibleBrowserProvider {
   const stored = readStoredModelProviderPreferences();
   if (!stored.model) throw new Error("Choose a writing model in Assistant settings first.");
   const usesCodex = stored.connection === "codex";
+  const bearerToken = modelCompanionToken(stored);
   return new OpenAICompatibleBrowserProvider({
     endpoint: stored.endpoint,
     providerLabel:
@@ -785,7 +786,8 @@ export function reviewModelProvider(): OpenAICompatibleBrowserProvider {
           : "Browser-local OpenAI-compatible",
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
-    ...(usesCodex ? { bearerToken: stored.codexToken, temperature: 0 } : {}),
+    ...(bearerToken === undefined ? {} : { bearerToken }),
+    ...(usesCodex ? { temperature: 0 } : {}),
   });
 }
 
