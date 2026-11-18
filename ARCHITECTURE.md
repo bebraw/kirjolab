@@ -106,10 +106,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the writing authority.
 - Define application-owned Corpus MCP schemas with Valibot and project tool
   schemas through `@valibot/to-json-schema`'s `toStandardJsonSchema`. Preserve
-  strict input contracts and explicit protocol error mapping. Keep the SDK
-  server and Agents handler; retain patched Zod only for upstream compatibility,
+  strict input contracts and explicit protocol error mapping. Use the MCP SDK
+  server and its stateless HTTP handler directly, with explicit Host validation
+  and the existing authenticated exact-origin boundary. Retain patched Zod only for upstream compatibility,
   with no application Zod imports. See
-  [ADR-248](docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md).
+  [ADR-248](docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md) and
+  [ADR-253](docs/adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md).
 - Reuse the dependency-free unknown-value guard when a handwritten trust
   boundary only needs the shared plain-record rule: a non-null object that is
   not an array. Do not duplicate that semantic locally or introduce a schema
@@ -1950,9 +1952,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   typed bindings on their Lit owners. Keep global toast presentation in the
   workspace coordinator.
 - Keep top-navigation visibility, persistence, restore actions, and focus
-  handoff under one progressive Lit owner. Library restoration belongs in the
-  Library action row or the private PDF control rail, with each trigger taking
-  normal layout space in its active surface. Do not position shell recovery
+  handoff under one progressive Lit owner. Workspace context tabs must not
+  hide the navigation toggle. Connection-settings shortcuts restore the header
+  through this owner before opening shared Preferences. Library restoration
+  belongs in the Library action row or the private PDF control rail, with each
+  trigger taking normal layout space in its active surface. Do not position shell recovery
   controls over unrelated actions or add overlay-specific clearance offsets.
   See [ADR-252](docs/adrs/implemented/ADR-252-place-navigation-restore-in-surface-controls.md).
 - Allow the ancillary project rail to resize only on desktop, persist its

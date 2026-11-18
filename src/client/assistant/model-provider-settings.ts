@@ -1,6 +1,7 @@
 import { html, type TemplateResult } from "lit";
 
 import { LightDomElement } from "../platform/light-dom-controller";
+import type { PreviewNavigationControl } from "../preview/preview-navigation-control";
 import {
   companionModelEndpoint,
   directModelEndpoint,
@@ -115,6 +116,7 @@ export class ModelProviderSettings extends LightDomElement {
   open(): void {
     const menu = this.closest("details");
     if (!(menu instanceof HTMLDetailsElement)) throw new Error("Model provider settings require a details parent");
+    document.querySelector<PreviewNavigationControl>("#preview-navigation-control")?.show();
     menu.open = true;
     this.focusConnection();
   }

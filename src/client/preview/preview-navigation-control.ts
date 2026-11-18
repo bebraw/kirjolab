@@ -23,8 +23,8 @@ export class PreviewNavigationControl extends LitElement {
     return html`<slot></slot>`;
   }
 
-  setPreviewActive(active: boolean): void {
-    if (this.toggleButton) this.toggleButton.hidden = !this.libraryMode && !active;
+  show(): void {
+    this.setHidden(false);
   }
 
   protected connectToggle(): void {
@@ -51,7 +51,7 @@ export class PreviewNavigationControl extends LitElement {
   };
 
   protected readonly showNavigation = (): void => {
-    this.setHidden(false);
+    this.show();
     this.toggleButton?.focus();
   };
 

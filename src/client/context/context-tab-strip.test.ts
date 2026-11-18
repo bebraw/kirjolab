@@ -102,11 +102,9 @@ class TestContextTabStrip extends ContextTabStrip {
       hidden: boolean;
       label: string | null;
       labelledBy: string | null;
-      previewActive: boolean;
       scrollTop: number;
       visible: boolean;
       removeAttribute(name: string): void;
-      setPreviewActive(active: boolean): void;
       setAttribute(name: string, value: string): void;
       setVisible(visible: boolean): void;
     }
@@ -153,14 +151,10 @@ class TestContextTabStrip extends ContextTabStrip {
         hidden: false,
         label: "Fallback panel label",
         labelledBy: null,
-        previewActive: false,
         scrollTop: 0,
         visible: false,
         removeAttribute: (name) => {
           if (name === "aria-label") panel!.label = null;
-        },
-        setPreviewActive: (active) => {
-          panel!.previewActive = active;
         },
         setAttribute: (name, value) => {
           if (name === "aria-labelledby") panel!.labelledBy = value;
@@ -265,7 +259,6 @@ describe("context tab strip", () => {
     expect(strip.panels.get("context-preview-panel")?.hidden).toBe(true);
     expect(strip.panels.get("preview-context-controls")?.hidden).toBe(true);
     expect(strip.panels.get("preview-sync-controls")?.visible).toBe(false);
-    expect(strip.panels.get("preview-navigation-control")?.previewActive).toBe(false);
     expect(strip.renderForTest()).toBeDefined();
     expect(strip.rootForTest()).toBe(strip);
     expect(replaced).toBe(true);
@@ -527,13 +520,7 @@ describe("context tab strip", () => {
   it("tolerates children and controlled panels that have not mounted yet", () => {
     const strip = new TestContextTabStrip();
     Object.defineProperty(strip, "querySelector", { value: () => null });
-    for (const id of [
-      "context-pdf-panel",
-      "context-publication-panel",
-      "preview-context-controls",
-      "preview-sync-controls",
-      "preview-navigation-control",
-    ]) {
+    for (const id of ["context-pdf-panel", "context-publication-panel", "preview-context-controls", "preview-sync-controls"]) {
       strip.absentPanels.add(id);
     }
 
@@ -658,7 +645,6 @@ describe("context tab strip", () => {
       expect(panelIds.filter((id) => strip.panels.get(id)?.hidden === false)).toEqual([panelIds[index]]);
       expect(strip.panels.get("preview-context-controls")?.hidden).toBe(tab.key !== "preview");
       expect(strip.panels.get("preview-sync-controls")?.visible).toBe(tab.key === "preview");
-      expect(strip.panels.get("preview-navigation-control")?.previewActive).toBe(tab.key === "preview");
       expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(true);
     }
   });

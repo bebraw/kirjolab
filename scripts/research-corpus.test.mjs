@@ -41,15 +41,19 @@ test("keeps bare corpus deployment fail-closed and develops with both Worker con
   assert.match(command, /--ip 127\.0\.0\.1/u);
 });
 
-test("pins the supported stateless MCP runtime as direct dependencies", async () => {
-  const packageJson = await readJson("package.json");
+test("pins the stateless MCP SDK without production build-tool dependencies", async () => {
+  const [packageJson, lockfile] = await Promise.all([readJson("package.json"), readJson("package-lock.json")]);
 
-  assert.equal(packageJson.dependencies?.agents, "0.33.0");
+  assert.equal(packageJson.dependencies?.agents, undefined, "the stateless server must not pull in Agents build-tool dependencies");
   assert.equal(packageJson.dependencies?.["@modelcontextprotocol/server"], "2.4.0");
   assert.equal(packageJson.dependencies?.["@valibot/to-json-schema"], "1.8.0");
   assert.equal(packageJson.dependencies?.zod, "4.6.7");
   for (const name of ["@modelcontextprotocol/client", "@modelcontextprotocol/core", "@modelcontextprotocol/sdk"]) {
     assert.equal(packageJson.overrides?.[name], undefined, "patched MCP peers must resolve without the retired compatibility bridge");
+  }
+  for (const name of ["agents", "@rolldown/plugin-babel", "vite", "picomatch", "tinyglobby", "fdir"]) {
+    const entry = lockfile.packages?.[`node_modules/${name}`];
+    assert.ok(!entry || entry.dev === true, `${name} must be absent from the production dependency graph`);
   }
 });
 

@@ -546,8 +546,9 @@ The adopted components own bounded presentation:
   resolution, source-map translation, publication resolution, citation
   navigation, and the resulting transitions.
 - The preview navigation control owns browser-local top-navigation visibility,
-  storage restoration, toggle and restore presentation, active-context
-  availability, and focus handoff between its spatially separated controls.
+  storage restoration, toggle and restore presentation, and focus handoff
+  between its spatially separated controls. The workspace toggle is independent
+  of the active context tab.
 - The publication intake panel owns DOI and citation-key input, reviewed
   metadata, active-PDF linked-reference projection and rows, its XState workflow
   actor, preview and acceptance requests, response validation, stale-response
@@ -1482,8 +1483,9 @@ components do not duplicate query-and-error boilerplate.
   reveals its nearest mapped DOM range directly.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,
-  restricted-Preview availability, and focus handoff. The application
-  coordinator supplies only whether Preview is the active workspace context.
+  and focus handoff. Its workspace toggle remains available across context
+  tabs. Model settings ask this owner to restore navigation before opening
+  shared Preferences, retaining one visibility and persistence owner.
 - The context tab strip replaces five shell references, three native primary
   action bindings, fixed-tab ARIA mutations, coordinator-owned roving focus,
   the separate overflow-tab renderer, seven controlled-panel references,

@@ -32,6 +32,11 @@ compatibility, consistent with
 [ADR-247](./ADR-247-retire-mcp-peer-overrides.md). This migration does not claim
 to remove Zod from the installed or bundled upstream dependency graph.
 
+**2026-11-18 transport amendment:**
+[ADR-253](./ADR-253-use-the-mcp-sdk-handler-directly.md) replaces only the Agents
+wrapper with the MCP SDK's own stateless handler. Valibot schemas, `McpServer`,
+the patched upstream Zod dependency, and the Access/owner boundary remain.
+
 ## Consequences
 
 **Positive:**

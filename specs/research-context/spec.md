@@ -56,15 +56,18 @@ changing their canonical data, selector, authorization, or rendering contracts.
   Library keeps identity controls in the first row and gives its horizontally
   scrollable context tabs a dedicated second row without page overflow.
 - The shared context action strip exposes a labelled control that hides or
-  restores global navigation in both workspace Preview and standalone Library.
-  The choice is browser-local. Workspace Preview retains its context strip as
+  restores global navigation across every workspace context tab and standalone
+  Library. The choice is browser-local. Workspace contexts retain their strip as
   the restore affordance; standalone Library hides the complete global and
-  context-tab header, then exposes a floating restore control that reserves no
-  layout height. The active surface expands to use the released viewport
-  height. While navigation is hidden, the annotation inspector stays below the
-  floating restore control on tablet and desktop layouts, with both controls
-  independently reachable. Phone layouts retain the inspector's bottom-sheet
-  placement.
+  context-tab header, then exposes a restore control in the Library action row
+  or private PDF control rail. The active surface expands to use the released
+  viewport height. Restoration controls occupy normal layout space and remain
+  separate from the annotation inspector. Phone layouts retain the inspector's
+  bottom-sheet placement.
+- Connection-settings shortcuts in Outline & hints and Writing assistant
+  restore hidden global navigation before opening shared Preferences and
+  focusing its connection control. Restoring it clears the browser-local
+  hidden-navigation preference without changing the active context tab.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor

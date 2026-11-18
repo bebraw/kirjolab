@@ -46,6 +46,12 @@ MCP contracts, Workers tests, native CI, and production dry run before release.
 Keep the stateless handler, Cloudflare Access identity boundary, and owner
 scope. This upgrade introduces no OAuth client or credential-storage workflow.
 
+**2026-11-18 amendment:** [ADR-253](./ADR-253-use-the-mcp-sdk-handler-directly.md)
+removes Agents and its MCP client peer. Research Corpus calls the existing
+MCP SDK's stateless HTTP handler directly. The SDK/core and patched Zod pins
+remain, and the retired MCP overrides stay absent. The upstream-compatible
+policy still applies to the remaining MCP packages.
+
 ## Consequences
 
 **Positive:**

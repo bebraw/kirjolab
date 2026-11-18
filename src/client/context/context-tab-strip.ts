@@ -6,7 +6,6 @@ import "../preview/preview-navigation-control";
 import type { ContextTabAction } from "./context-tab-action";
 import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
 import { contextTabOverviewActionEvent, type ContextTabOverview } from "./context-tab-overview";
-import type { PreviewNavigationControl } from "../preview/preview-navigation-control";
 import type { PreviewSyncControls } from "../preview/preview-sync-controls";
 import { isPermanentResearchTab, type ResearchContextKey, type ResearchContextTab, type ResearchResourceTab } from "./research-context";
 
@@ -215,7 +214,6 @@ export class ContextTabStrip extends LightDomElement {
     const previewStatus = this.controlledPanel("preview-context-controls");
     if (previewStatus) previewStatus.hidden = !preview;
     (this.controlledPanel("preview-sync-controls") as PreviewSyncControls | null)?.setVisible(preview);
-    (this.controlledPanel("preview-navigation-control") as PreviewNavigationControl | null)?.setPreviewActive(preview);
   }
 
   private syncPdfPresentation(active: ResearchContextTab | undefined, sources: ContextTabStripSources): void {

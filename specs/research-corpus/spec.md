@@ -118,9 +118,13 @@ recreated by each consumer.
   mirrors the structured result and remains JSON-serializable.
 - Valibot owns tool inputs and resource-variable validation. Tool registration
   uses `toStandardJsonSchema` from `@valibot/to-json-schema` so discovery and
-  runtime checks share one contract. The SDK server and Agents stateless
-  handler remain the transport. See
-  [ADR-248](../../docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md).
+  runtime checks share one contract. The SDK server and its stateless HTTP
+  handler provide the transport directly, without the Agents wrapper. The
+  Worker retains `/mcp` routing, Access authentication, and owner selection;
+  the adapter explicitly validates Host and exact browser origins before
+  protocol dispatch. See
+  [ADR-248](../../docs/adrs/implemented/ADR-248-use-valibot-for-corpus-mcp-schemas.md) and
+  [ADR-253](../../docs/adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md).
 - Tool inputs reject extra keys and do not coerce types. Artifact ids and
   optional `after` cursors retain the existing UUID semantics: versions 1–8
   with the RFC variant, the nil UUID, and the lowercase maximum UUID. Optional
@@ -235,17 +239,20 @@ copy or dual write.
   headers, exposed representation metadata, and origin rejection.
 - MCP tests exercise protocol initialization and every exposed tool through the
   stateless handler, including strict decimal resource-page variables and
-  sanitized resource and tool failures.
+  sanitized resource and tool failures. Mismatched Host headers fail before
+  invoking a tool, and session-oriented GET and DELETE requests remain rejected
+  without issuing a session id.
 - Schema migration tests cover advertised required and optional fields, strict
   extra-key rejection, UUID acceptance, numeric bounds, absent optional inputs,
   and unchanged validation error envelopes without invoking the service for
   malformed input. Application code imports Valibot; the patched direct Zod
-  pin remains solely for Agents/MCP peer compatibility.
-- Agents/MCP upgrades use patched, peer-compatible packages without MCP peer
-  overrides. The dependency graph, production audit, TypeScript, MCP contracts,
+  pin remains solely for MCP upstream compatibility.
+- MCP upgrades use patched, compatible packages without MCP peer overrides or
+  an Agents wrapper that introduces unrelated production build tools. The
+  dependency graph, production audit, TypeScript, MCP contracts,
   Workers tests, and native CI must pass before release; the stateless handler,
   Access authentication, and owner boundaries remain covered. See
-  [ADR-247](../../docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md).
+  [ADR-253](../../docs/adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md).
 - Configuration validation proves the corpus Worker binds to the existing
   Reference Library namespace rather than creating a second namespace and
   rejects a corpus hostname that would replace either the canonical primary

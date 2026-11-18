@@ -1,5 +1,11 @@
-import { createMcpHandler } from "agents/mcp/server";
-import { McpServer, ProtocolError, ProtocolErrorCode, ResourceTemplate } from "@modelcontextprotocol/server";
+import {
+  createMcpHandler,
+  hostHeaderValidationResponse,
+  McpServer,
+  ProtocolError,
+  ProtocolErrorCode,
+  ResourceTemplate,
+} from "@modelcontextprotocol/server";
 import { toStandardJsonSchema } from "@valibot/to-json-schema";
 import * as v from "valibot";
 import {
@@ -36,14 +42,10 @@ export async function handleCorpusMcp(
   if (isCorpusOriginRejected(request, allowedOrigins)) return mcpOriginRejection();
   const requestUrl = new URL(request.url);
   const handler = createMcpHandler(() => createCorpusMcpServer(service, requestUrl.origin), {
-    route: "/mcp",
-    corsOptions: false,
-    allowedHostnames: [requestUrl.hostname],
-    allowedOriginHostnames: "*",
     legacy: "stateless",
     onerror: (error) => console.error("Research Corpus MCP request failed", error),
   });
-  const response = await handler.fetch(request);
+  const response = hostHeaderValidationResponse(request, [requestUrl.hostname]) ?? (await handler.fetch(request));
   return origin ? withCorpusCors(response, origin) : response;
 }
 

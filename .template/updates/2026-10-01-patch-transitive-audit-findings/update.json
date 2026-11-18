@@ -1,13 +1,22 @@
 {
   "id": "2026-10-01-patch-transitive-audit-findings",
-  "title": "Patch transitive audit findings and retire MCP peer overrides",
+  "title": "Patch transitive audit findings and remove unneeded MCP dependency bridges",
   "status": "implemented",
   "risk": "medium",
   "supersedes": [],
   "adrs": [
     "docs/adrs/implemented/ADR-245-override-vulnerable-mcp-client-peers.md",
-    "docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md"
+    "docs/adrs/implemented/ADR-247-retire-mcp-peer-overrides.md",
+    "docs/adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md"
   ],
-  "touches": ["package.json", "package-lock.json", "scripts/research-corpus.test.mjs"],
+  "touches": [
+    "package.json",
+    "package-lock.json",
+    "scripts/research-corpus.test.mjs",
+    "src/research-corpus/",
+    "docs/",
+    "specs/",
+    "ARCHITECTURE.md"
+  ],
   "checks": ["npm run security:audit", "npm run ci:local"]
 }

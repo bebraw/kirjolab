@@ -224,11 +224,14 @@ describe("model provider settings", () => {
   it("opens its preferences host and focuses the connection control", () => {
     const panel = new TestModelProviderSettings();
     const menu = new FakeDetails();
+    const navigation = { show: vi.fn() };
+    vi.stubGlobal("document", { querySelector: () => navigation });
     vi.stubGlobal("HTMLDetailsElement", FakeDetails);
     Object.defineProperty(panel, "closest", { value: () => menu });
 
     panel.open();
 
+    expect(navigation.show).toHaveBeenCalledOnce();
     expect(menu.open).toBe(true);
     expect(panel.focusCount).toBe(1);
   });

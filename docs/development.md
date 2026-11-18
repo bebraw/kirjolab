@@ -50,14 +50,21 @@ and its security fixes remain deferred. Revisit the pin when Cloudflare can
 install that release, then repeat the runtime and deployment checks. See
 [ADR-011](./adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md).
 
-The November dependency refresh uses Agents 0.33.0 and MCP server, client,
-and core 2.4.0 with Zod 4.6.7. Agents now makes the legacy MCP SDK an optional
-peer, and the installed graph omits it. The three retired MCP npm overrides
-remain absent. For future upgrades, inspect declared peers and the installed
-graph, then run the production audit, type checks, MCP contract tests, Workers
-tests, full native CI, and production dry run. Do not restore the retired
-bridge or force incompatible installs. See
-[ADR-247](./adrs/implemented/ADR-247-retire-mcp-peer-overrides.md).
+Research Corpus uses MCP server and core 2.4.0 with Zod 4.6.7. The November 18
+audit remediation replaces the Agents wrapper with the SDK's own stateless
+HTTP handler and removes Agents and its unrelated build-tool dependency path.
+Host validation stays explicit, and the existing Access, owner, origin, and
+CORS boundaries remain in place. The MCP client, legacy SDK, and retired MCP
+overrides remain absent. For future upgrades, inspect the installed graph,
+then run the production audit, type checks, MCP contract tests, Workers tests,
+full native CI, and production dry run. See
+[ADR-253](./adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md).
+
+`picomatch@4.0.7` remains in development-only tooling. As of November 18,
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) has no
+patched release, so a whole-graph `npm audit` still reports that advisory.
+The required production audit remains unchanged and reports zero findings.
+Recheck upstream releases before accepting untrusted glob patterns in tooling.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 

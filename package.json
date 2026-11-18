@@ -182,7 +182,6 @@
     "@openai/codex-sdk": "0.167.2",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
     "@valibot/to-json-schema": "1.8.0",
-    "agents": "0.33.0",
     "cytoscape": "3.35.0",
     "fflate": "0.8.3",
     "lit": "3.3.3",
