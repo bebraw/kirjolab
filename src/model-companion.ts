@@ -141,6 +141,15 @@ export async function handleModelCompanionRequest(
     if (request.method !== "GET") return jsonError("Method not allowed", 405, cors);
     return runBackendRequest((signal) => backend.listModels(signal), config, cors, "discovery");
   }
+  return handleCompletionRequest(request, config, backend, cors);
+}
+
+async function handleCompletionRequest(
+  request: Request,
+  config: ModelCompanionConfig,
+  backend: ModelCompanionBackend,
+  cors: Headers,
+): Promise<Response> {
   if (request.method !== "POST") return jsonError("Method not allowed", 405, cors);
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     return jsonError("Content type must be application/json", 415, cors);
@@ -153,9 +162,10 @@ export async function handleModelCompanionRequest(
     completionRequest = validateOpenAICompatibleRequest(
       JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body)),
     );
-    if (connection && completionRequest.model !== connection.model) {
+    const configuredModel = config.kind === "codex" ? config.model : config.gateway?.model;
+    if (configuredModel && completionRequest.model !== configuredModel) {
       const label = config.kind === "codex" ? "Codex companion" : "Model gateway companion";
-      throw new TypeError(`${label} permits only ${connection.model}`);
+      throw new TypeError(`${label} permits only ${configuredModel}`);
     }
     if (config.kind === "codex" && !completionRequest.responseFormat) {
       throw new TypeError("Codex companion requires a JSON Schema response format");
