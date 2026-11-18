@@ -8,8 +8,9 @@ export class ActionMenuController extends LightDomHost {
 
   protected readonly closeFromClick = (event: MouseEvent): void => {
     if (!(event.target instanceof Element)) return;
+    const action = event.target.closest("button, a");
     for (const menu of this.menuDocument.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]")) {
-      if (!menu.contains(event.target) || event.target.closest("button, a")) menu.open = false;
+      if (!menu.contains(event.target) || (action && !action.hasAttribute("data-action-menu-keep-open"))) menu.open = false;
     }
     const settings = this.menuDocument.querySelector<HTMLDetailsElement>("details[data-settings-menu][open]");
     if (settings && !settings.contains(event.target)) settings.open = false;

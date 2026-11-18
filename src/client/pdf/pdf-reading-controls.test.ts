@@ -138,21 +138,53 @@ beforeEach(() => {
   vi.stubGlobal("HTMLElement", FakeElement);
   vi.stubGlobal("Node", FakeElement);
   vi.stubGlobal("window", {
-    clearTimeout,
+    clearTimeout: (timer: number | undefined) => clearTimeout(timer),
     devicePixelRatio: 1,
     getComputedStyle: () => ({ paddingLeft: "0", paddingRight: "0" }),
     getSelection: () => null,
     localStorage: { getItem: () => null, setItem: setStoredDisplayMode },
-    setTimeout,
+    setTimeout: (callback: () => void, delay: number) => setTimeout(callback, delay),
   });
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("PDF reading controls", () => {
+  it.each([
+    { mode: "continuous", width: 1_350 },
+    { mode: "spread", width: 663 },
+  ] as const)("debounces trackpad zoom in $mode view and keeps the current page", async ({ mode, width }) => {
+    vi.useFakeTimers();
+    const elements = viewerElements();
+    const viewer = new PdfEvidenceViewer(elements as never, vi.fn(), vi.fn());
+    const documentModel = pdfDocument(3);
+    pdfjs.getDocument.mockReturnValue({ destroy: vi.fn(), promise: Promise.resolve(documentModel) });
+    const openFlow = vi.spyOn(PdfContinuousView.prototype, "open").mockResolvedValue();
+
+    await viewer.open({ annotations: [], page: 2, url: "/paper.pdf" });
+    await viewer.setDisplayMode(mode);
+    const preventDefault = vi.fn();
+    const wheel = { clientX: 100, clientY: 200, ctrlKey: true, deltaY: -50 * Math.log(1.5), preventDefault };
+    elements.reader.dispatch("wheel", wheel);
+    await vi.advanceTimersByTimeAsync(100);
+    elements.reader.dispatch("wheel", wheel);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(preventDefault).toHaveBeenCalledTimes(2);
+    expect(elements.continuousPages.style.transform).toMatch(/^scale\(/u);
+    expect(openFlow).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(40);
+
+    expect(openFlow).toHaveBeenCalledTimes(2);
+    expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, expect.closeTo(width), 0, false);
+    expect(elements.continuousPages.style.transform).toBe("");
+  });
+
   it.each(["continuous", "spread"] as const)("manually pans a %s Draw surface under one-finger touch", async (mode) => {
     const reader = new FakeElement();
     reader.scrollLeft = 40;

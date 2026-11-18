@@ -19,6 +19,67 @@ async function openPaper(page: Page, draft: PdfDraftResult): Promise<void> {
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
 }
 
+test.describe("PDF pinch zoom", () => {
+  test.use({ hasTouch: true });
+
+  test("zooms in and out in Select mode in continuous view", async ({ page, context, baseURL }) => {
+    if (!baseURL) throw new Error("Expected browser test origin");
+    const draft = await uploadPaper(context, baseURL);
+    await openPaper(page, draft);
+    await page.getByRole("button", { name: "Select", exact: true }).click();
+    await page.locator("#library-pdf-view-options").click();
+    await page.locator("#toggle-library-paper-continuous").click();
+
+    const canvas = page.locator('.pdf-continuous-page[data-pdf-page="1"] canvas');
+    const canvasWidth = async () => Number(await canvas.getAttribute("width"));
+    await expect.poll(canvasWidth).toBeGreaterThan(0);
+    const fittedWidth = await canvasWidth();
+    const reader = page.locator("#paper-reader");
+    const bounds = await reader.boundingBox();
+    if (!bounds) throw new Error("Expected a visible PDF reader");
+    const x = Math.round(bounds.x + bounds.width / 2);
+    const y = Math.round(bounds.y + bounds.height / 3);
+    const input = await context.newCDPSession(page);
+
+    await input.send("Input.synthesizePinchGesture", { x, y, scaleFactor: 1.5, gestureSourceType: "touch" });
+    await expect.poll(canvasWidth).toBeGreaterThan(fittedWidth);
+
+    const zoomedWidth = await canvasWidth();
+    await input.send("Input.synthesizePinchGesture", { x, y, scaleFactor: 0.8, gestureSourceType: "mouse" });
+    await expect
+      .poll(async () => {
+        const width = await canvasWidth();
+        return width > fittedWidth && width < zoomedWidth;
+      })
+      .toBe(true);
+    await expect(reader).toHaveAttribute("data-display-mode", "continuous");
+    await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+test("keeps PDF view options open while stepping zoom", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  const draft = await uploadPaper(context, baseURL);
+  await openPaper(page, draft);
+
+  const canvas = page.locator("#paper-canvas");
+  const canvasWidth = async () => Number(await canvas.getAttribute("width"));
+  const fittedWidth = await canvasWidth();
+  const viewOptions = page.getByRole("button", { name: "View options", exact: true });
+  const panel = page.getByRole("group", { name: "PDF view options" });
+  await viewOptions.click();
+  await panel.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect.poll(canvasWidth).toBeGreaterThan(fittedWidth);
+  await expect(panel).toBeVisible();
+  await panel.getByRole("button", { name: "Zoom out", exact: true }).click();
+  await expect.poll(canvasWidth).toBe(fittedWidth);
+  await expect(panel).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(viewOptions).toBeFocused();
+});
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1024, height: 640 },

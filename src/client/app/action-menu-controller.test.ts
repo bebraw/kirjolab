@@ -2,10 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionMenuController } from "./action-menu-controller";
 
 class FakeTarget {
-  constructor(readonly action = false) {}
+  constructor(
+    readonly action = false,
+    readonly keepOpen = false,
+  ) {}
 
   closest(): FakeTarget | null {
     return this.action ? this : null;
+  }
+
+  hasAttribute(name: string): boolean {
+    return name === "data-action-menu-keep-open" && this.keepOpen;
   }
 }
 
@@ -78,17 +85,25 @@ describe("action menu controller", () => {
   beforeEach(() => vi.stubGlobal("Element", FakeTarget));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("closes action menus outside or after choosing an action", () => {
+  it("keeps the owning menu open for an opted-in action and closes other open menus", () => {
     const root = new FakeMenuDocument();
     const menu = new FakeMenu();
+    const otherMenu = new FakeMenu();
     const inside = new FakeTarget();
+    const keepOpen = new FakeTarget(true, true);
+    const close = new FakeTarget(true);
     menu.inside.add(inside);
-    root.actionMenus = [menu];
+    menu.inside.add(keepOpen);
+    menu.inside.add(close);
+    root.actionMenus = [menu, otherMenu];
     const controller = new TestActionMenuController(root);
 
+    controller.dispatchClick(keepOpen);
+    expect(menu.open).toBe(true);
+    expect(otherMenu.open).toBe(false);
     controller.dispatchClick(inside);
     expect(menu.open).toBe(true);
-    controller.dispatchClick(new FakeTarget(true));
+    controller.dispatchClick(close);
     expect(menu.open).toBe(false);
     expect(controller.renderForTest()).toBeDefined();
     expect(controller.rootForTest()).toBe(controller);
