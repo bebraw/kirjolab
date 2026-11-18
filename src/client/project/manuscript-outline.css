@@ -7,12 +7,24 @@
   }
 
   .outline-toolbar,
+  .outline-summary-toolbar,
   .outline-hints-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--ui-space-2);
+  }
+
+  .outline-summary-toolbar {
+    margin-block-start: var(--ui-space-3);
+  }
+
+  .outline-summary-refresh {
+    padding: var(--ui-space-1) var(--ui-space-2);
+    margin-inline-start: var(--ui-control-compact);
+    font: 0.72rem/1.4 var(--font-sans);
+    color: var(--color-app-text-soft);
   }
 
   :is(.outline-toolbar, .outline-hints-heading, .outline-analysis) label {
@@ -75,6 +87,13 @@
 
   .outline-heading small {
     white-space: nowrap;
+    font-weight: 400;
+    color: var(--color-app-text-soft);
+  }
+
+  .outline-heading-summary {
+    display: block;
+    margin-block-start: var(--ui-space-1);
     font-weight: 400;
     color: var(--color-app-text-soft);
   }

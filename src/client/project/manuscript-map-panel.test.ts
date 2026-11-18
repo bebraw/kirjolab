@@ -31,7 +31,8 @@ function livePanel(
     model: "test",
   };
   const analyzeParagraph = vi.fn().mockResolvedValue(result);
-  const settings = Object.assign(new EventTarget(), { provider: vi.fn(() => ({ analyzeParagraph })), open: vi.fn() });
+  const summarizeOutline = vi.fn();
+  const settings = Object.assign(new EventTarget(), { provider: vi.fn(() => ({ analyzeParagraph, summarizeOutline })), open: vi.fn() });
   const panel = new TestManuscriptMapPanel();
   const focusRange = vi.fn();
   const projectFileDialog = {
@@ -54,7 +55,7 @@ function livePanel(
     },
     document,
   );
-  return { panel, document, text, source, analyzeParagraph, settings, focusRange, result, projectFileDialog, file };
+  return { panel, document, text, source, analyzeParagraph, summarizeOutline, settings, focusRange, result, projectFileDialog, file };
 }
 
 function renderedText(value: unknown): string {
@@ -125,6 +126,37 @@ function interact(panel: TestManuscriptMapPanel, marker: string, label: string, 
 }
 
 describe("manuscript map panel", () => {
+  it("summarizes on demand, starts with the selected section, and refreshes edited sections separately", async () => {
+    const intro = "We examine access to local trails.";
+    const methods = "**Sampling:** We counted visits at three entry points.";
+    const manuscript = `## Introduction\n\n${intro}\n\n## Methods\n\n${methods}`;
+    const { panel, text, summarizeOutline, analyzeParagraph } = livePanel(manuscript, manuscript.indexOf(methods));
+    summarizeOutline.mockResolvedValueOnce({
+      summary: "Describes the sampling design.",
+      paragraphs: ["Counts visits at three entrances."],
+    });
+    summarizeOutline.mockResolvedValueOnce({ summary: "Introduces the trail study.", paragraphs: ["Examines access to trails."] });
+    panel.setVisible(true);
+    interact(panel, "@click=", "Summaries");
+    expect(summarizeOutline).not.toHaveBeenCalled();
+    interact(panel, "@click=", "Summarize outline");
+    await vi.waitFor(() => expect(renderedText(panel.renderForTest())).toContain("Introduces the trail study."));
+    expect(summarizeOutline).toHaveBeenNthCalledWith(1, expect.objectContaining({ sectionTitle: "Methods" }), expect.anything());
+    expect(renderedText(panel.renderForTest())).toContain("Counts visits at three entrances.");
+    expect(renderedText(panel.renderForTest())).toContain("Sampling");
+    text.insert(manuscript.length, " Visits were recorded on weekdays.");
+    expect(renderedText(panel.renderForTest())).toContain("Out of date");
+    expect(renderedText(panel.renderForTest())).toContain("Introduces the trail study.");
+    expect(renderedText(panel.renderForTest())).not.toContain("Describes the sampling design.");
+    expect(summarizeOutline).toHaveBeenCalledTimes(2);
+    summarizeOutline.mockResolvedValueOnce({ summary: "Describes weekday sampling.", paragraphs: ["Counts weekday visits."] });
+    interact(panel, "@click=", "Refresh section", { dataset: { summaryKey: "2:Methods:1" } });
+    await vi.waitFor(() => expect(renderedText(panel.renderForTest())).toContain("Describes weekday sampling."));
+    expect(summarizeOutline).toHaveBeenCalledTimes(3);
+    expect(analyzeParagraph).not.toHaveBeenCalled();
+    panel.disconnectedCallback();
+  });
+
   it("bounds section hints and explicitly switches between passage and whole-document review", () => {
     const manuscript = `# Study\n\n${Array.from({ length: 24 }, (_, index) => `Observation ${index + 1} requires more research context.`).join("\n\n")}`;
     const { panel, source } = livePanel(manuscript, 0);
@@ -174,7 +206,7 @@ describe("manuscript map panel", () => {
     expect(settings.open).toHaveBeenCalledOnce();
     expect(openSettings.cancelBubble).toBe(true);
 
-    settings.provider.mockReturnValue({ analyzeParagraph });
+    settings.provider.mockReturnValue({ analyzeParagraph, summarizeOutline: vi.fn() });
     settings.dispatchEvent(new Event(modelProviderChangeEvent));
     expect(renderedText(panel.renderForTest())).not.toContain("Connect a writing model");
     expect(renderedText(panel.renderForTest())).toContain("Enable AI guidance");

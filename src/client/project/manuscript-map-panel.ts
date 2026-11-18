@@ -17,6 +17,7 @@ import type { WorkspaceSnapshot } from "../../domain/workspace/workspace";
 import { researchDiaryPath } from "../../domain/manuscript/writing-workflows";
 import { outlineOffset, outlineSourceRange } from "./outline-position";
 import { ParagraphAnalysisController } from "./paragraph-analysis";
+import { OutlineSummaries } from "./outline-summaries";
 import { modelProviderChangeEvent } from "../assistant/model-provider-settings";
 import type { ModelProvider } from "../assistant/model-provider";
 import type { ResearchDiarySummary } from "../context/research-diary-summary";
@@ -52,7 +53,7 @@ export type ManuscriptMapApplicationPresentation = ManuscriptMapProjectPresentat
   readonly source: Pick<HTMLTextAreaElement, "value" | "selectionStart" | "addEventListener">;
   readonly previewSyncControls: { sourceScrollOffsetAtCenter(): number };
   readonly modelProviderSettings: Pick<EventTarget, "addEventListener"> & {
-    provider(): Pick<ModelProvider, "analyzeParagraph">;
+    provider(): Pick<ModelProvider, "analyzeParagraph" | "summarizeOutline">;
     open(): void;
   };
   readonly researchDiaryPanel: Pick<ResearchDiarySummary, "bindProject" | "setContent">;
@@ -74,6 +75,9 @@ export class ManuscriptMapPanel extends LightDomElement {
   private document: Y.Doc | null = null;
   private sourceAbort: AbortController | null = null;
   private readonly analysis = new ParagraphAnalysisController();
+  private readonly summaries = new OutlineSummaries(() => this.requestUpdate());
+  private summaryMode = false;
+  private summaryProjectId: string | undefined;
   private unsubscribeAnalysis: (() => void) | null = null;
   private activeOffset: number | null = null;
   private readingOffset: number | null = null;
@@ -108,6 +112,7 @@ export class ManuscriptMapPanel extends LightDomElement {
     const keys = new Set(this.sectionKeys.values());
     this.collapsed = new Set([...this.collapsed].filter((key) => keys.has(key)));
     this.paragraphNumbers = new Map(this.outline.paragraphs.map((paragraph, index) => [paragraph.from, index + 1]));
+    this.summaries.setOutline(source, this.outline, this.sectionKeys);
     this.updateAnalysis();
     this.requestUpdate();
   }
@@ -138,6 +143,11 @@ export class ManuscriptMapPanel extends LightDomElement {
       fallbackSource = this.application?.source.value ?? fallbackSource;
     }
     const composition = snapshot ? composeProject(files, snapshot.entryFileId, {}, snapshot.reviewArtifactPins) : null;
+    if (snapshot?.id !== this.summaryProjectId) {
+      this.summaryProjectId = snapshot?.id;
+      this.summaryMode = false;
+      this.summaries.reset();
+    }
     this.entryFileId = snapshot?.entryFileId ?? "";
     this.sourceMap = composition?.sourceMap ?? [];
     this.setSource(source ?? composition?.content ?? fallbackSource);
@@ -162,13 +172,13 @@ export class ManuscriptMapPanel extends LightDomElement {
   setVisible(visible: boolean): void {
     if (this.visible === visible) return;
     this.visible = visible;
+    if (!visible) this.summaries.cancel();
     this.syncEditorPosition();
     this.updateAnalysis();
   }
 
   setAnalysisEnabled(enabled: boolean): void {
     this.aiEnabled = enabled;
-    this.updateProvider();
     this.updateAnalysis();
     this.analysis.setEnabled(enabled);
     this.requestUpdate();
@@ -208,7 +218,7 @@ export class ManuscriptMapPanel extends LightDomElement {
         <label><input type="checkbox" .checked=${this.follow} @change=${this.changeFollow} /> Follow reading position</label>
         <button class="button-secondary" type="button" @click=${this.showCurrent}>Show current passage</button>
       </div>
-      <p class="outline-status">Paragraph excerpts · The active paragraph is shown in full.</p>
+      ${this.renderSummaryControls()}
       <nav id="manuscript-map-outline" aria-label="Manuscript outline" class="manuscript-outline">
         ${
           this.outline.items.length
@@ -266,6 +276,57 @@ export class ManuscriptMapPanel extends LightDomElement {
     `;
   }
 
+  private renderSummaryControls(): TemplateResult {
+    return html`
+      <div class="outline-summary-toolbar">
+        <div class="ui-cluster" role="group" aria-label="Outline text">
+          <button class="button-secondary" type="button" data-compact aria-pressed=${String(!this.summaryMode)} @click=${this.showExcerpts}>
+            Excerpts
+          </button>
+          <button class="button-secondary" type="button" data-compact aria-pressed=${String(this.summaryMode)} @click=${this.showSummaries}>
+            Summaries
+          </button>
+        </div>
+        ${
+          this.summaryMode && this.modelConfigured
+            ? this.summaries.busy
+              ? html`<button class="button-secondary" type="button" data-compact @click=${this.stopSummaries}>Stop</button>`
+              : html`<button
+                  class="button-secondary"
+                  type="button"
+                  data-compact
+                  ?disabled=${this.composing || !this.summaries.available}
+                  @click=${this.summarizeOutline}
+                >
+                  Summarize outline
+                </button>`
+            : nothing
+        }
+      </div>
+      ${
+        this.summaryMode
+          ? html`
+              <p class="outline-status">AI summaries · Summarizing sends manuscript prose section by section to your configured model.</p>
+              ${
+                !this.modelConfigured
+                  ? html`<button class="button-secondary" type="button" data-compact @click=${this.openModelSettings}>
+                      Connect a writing model
+                    </button>`
+                  : nothing
+              }
+              <p class="outline-status" role="status">${this.summaries.busy ? "Summarizing outline…" : this.summaryStatus}</p>
+            `
+          : html`<p class="outline-status">Paragraph excerpts · The active paragraph is shown in full.</p>`
+      }
+    `;
+  }
+
+  private get summaryStatus(): string {
+    if (this.summaries.failed) return "Summarizing stopped. Try again to continue.";
+    if (this.summaries.hasStale) return "Some summaries are out of date.";
+    return "";
+  }
+
   private renderItems(items: readonly ManuscriptOutlineItem[], activeParagraph: ManuscriptOutlineParagraph | undefined): TemplateResult[] {
     return items.map((item) =>
       item.kind === "section" ? this.renderSection(item, activeParagraph) : this.renderParagraph(item, activeParagraph === item),
@@ -277,6 +338,8 @@ export class ManuscriptMapPanel extends LightDomElement {
     const collapsed = this.collapsed.has(key);
     const active = this.activeOffset !== null && item.from <= this.activeOffset && this.activeOffset < item.to;
     const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset < item.to;
+    const summary = this.summaryMode ? this.summaries.heading(key) : null;
+    const stale = this.summaryMode && this.summaries.isStale(key);
     return html`<li>
       <div class="outline-heading-row">
         <button
@@ -299,9 +362,27 @@ export class ManuscriptMapPanel extends LightDomElement {
           ?disabled=${this.composing}
           @click=${this.selectRange}
         >
-          <span>${item.title}</span><small title="Words including subsections">${item.subtreeWords}w</small>
+          <span>${item.title}${summary ? html`<span class="outline-heading-summary">${summary}</span>` : nothing}</span>
+          <small title="Words including subsections">${item.subtreeWords}w</small>
         </button>
       </div>
+      ${
+        stale
+          ? html`<div class="ui-cluster outline-summary-refresh">
+              <span>Out of date</span>
+              <button
+                class="button-secondary"
+                type="button"
+                data-compact
+                data-summary-key=${key}
+                ?disabled=${!this.modelConfigured || this.summaries.busy || this.composing}
+                @click=${this.refreshSection}
+              >
+                Refresh section
+              </button>
+            </div>`
+          : nothing
+      }
       ${
         collapsed
           ? nothing
@@ -314,6 +395,9 @@ export class ManuscriptMapPanel extends LightDomElement {
 
   private renderParagraph(item: ManuscriptOutlineParagraph, active: boolean): TemplateResult {
     const reading = this.readingOffset !== null && item.from <= this.readingOffset && this.readingOffset <= item.to;
+    const summary = this.summaryMode ? this.summaries.paragraph(item.from) : null;
+    const excerpt = (active && !this.summaryMode) || item.text.length <= 110 ? item.text : `${item.text.slice(0, 110)}…`;
+    const label = summary ? /^\*\*([^*:\n]{1,48}):\*\*/u.exec(item.text)?.[1] : undefined;
     return html`<li>
       <button
         class="outline-paragraph"
@@ -325,8 +409,9 @@ export class ManuscriptMapPanel extends LightDomElement {
         ?disabled=${this.composing}
         @click=${this.selectRange}
       >
-        <small>Paragraph ${this.paragraphNumbers.get(item.from)}</small
-        ><span>${active || item.text.length <= 110 ? item.text : `${item.text.slice(0, 110)}…`}</span>
+        <small
+          >${label ?? `Paragraph ${this.paragraphNumbers.get(item.from)}`}${this.summaryMode && !summary ? " · Source excerpt" : ""}</small
+        ><span>${summary ?? excerpt}</span>
       </button>
     </li>`;
   }
@@ -406,6 +491,30 @@ export class ManuscriptMapPanel extends LightDomElement {
   private readonly retryAnalysis = (): void => {
     this.analysis.retry();
   };
+  private readonly showExcerpts = (): void => {
+    this.summaryMode = false;
+    this.summaries.cancel();
+    this.requestUpdate();
+  };
+  private readonly showSummaries = (): void => {
+    this.summaryMode = true;
+    this.requestUpdate();
+  };
+  private readonly summarizeOutline = (): void => {
+    this.startSummaries();
+  };
+  private readonly refreshSection = (event: Event): void => {
+    const key = (event.currentTarget as HTMLButtonElement).dataset.summaryKey;
+    if (key !== undefined) this.startSummaries(key);
+  };
+  private readonly stopSummaries = (): void => {
+    this.summaries.cancel();
+  };
+  private startSummaries(sectionKey?: string): void {
+    if (this.summaryMode && this.visible && this.layoutVisible && !this.composing) {
+      void this.summaries.generate(this.activeOffset, sectionKey);
+    }
+  }
   private readonly openModelSettings = (event: Event): void => {
     // The document's outside-click handler would immediately close the settings.
     event.stopPropagation();
@@ -441,9 +550,11 @@ export class ManuscriptMapPanel extends LightDomElement {
       const provider = this.application?.modelProviderSettings.provider() ?? null;
       this.modelConfigured = provider !== null;
       this.analysis.setProvider(provider);
+      this.summaries.setProvider(provider);
     } catch {
       this.modelConfigured = false;
       this.analysis.setProvider(null);
+      this.summaries.setProvider(null);
     }
     this.requestUpdate();
   };
@@ -465,6 +576,7 @@ export class ManuscriptMapPanel extends LightDomElement {
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => {
         this.layoutVisible = this.getClientRects().length > 0;
+        if (!this.layoutVisible) this.summaries.cancel();
         this.updateAnalysis();
       });
       this.resizeObserver.observe(this);
@@ -475,6 +587,7 @@ export class ManuscriptMapPanel extends LightDomElement {
   }
 
   private disconnectSource(): void {
+    this.summaries.cancel();
     this.sourceAbort?.abort();
     this.sourceAbort = null;
     this.document?.off("update", this.sourceChanged);
@@ -514,6 +627,7 @@ export class ManuscriptMapPanel extends LightDomElement {
     this.activeOffset = null;
     this.readingOffset = null;
     this.analysis.update(null);
+    this.summaries.cancel();
     this.requestUpdate();
   };
   private readonly compositionEnd = (): void => {
