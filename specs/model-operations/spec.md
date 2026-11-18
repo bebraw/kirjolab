@@ -76,6 +76,17 @@ advisory hints; it has no candidate creation or apply action.
   late completions cannot overwrite current feedback. Results distinguish
   pending, current, stale, unclear, failed, and unavailable states. Enablement,
   results, and retries write neither candidates nor canonical project state.
+- `summarizeOutline` is a separate observational capability under
+  [ADR-254](../../docs/adrs/implemented/ADR-254-summarize-the-manuscript-outline-on-demand.md).
+  Each request sends a heading title (up to 500 characters) and at most 12
+  ordered inputs. Prose inputs are at most 8,000 characters each and 12,000
+  combined. Synthesis inputs are validated summaries of at most 240
+  characters each. Every prose input has a request-local number and the
+  response must return exactly one result per number. Each result is a
+  line of up to 240 characters or null. Synthesis returns a section line
+  only. Unsupported or unclear prose falls back to an excerpt. A section
+  synopsis requires coverage of its prose and subsections. No persistent
+  output, manuscript change, or revision candidate is produced.
 - `clarity-drill` first returns one bounded ambiguity and one focused question.
   Only after the researcher answers does a second typed request return two to
   four bounded passage rewrites with short rationales. The drill is transient;

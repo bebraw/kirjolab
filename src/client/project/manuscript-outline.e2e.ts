@@ -186,6 +186,58 @@ test("navigates an included paragraph to its owning file", async ({ page }) => {
   await expect(editor).toBeFocused();
 });
 
+test("summarizes an included section and navigates from its summary to the source", async ({ page }) => {
+  await configureModel(page);
+  const workspaceId = await createWorkspace(page);
+  const chapter = `## Sampling\n\n${method}\n`;
+  const response = await page.request.post(`/api/workspaces/${workspaceId}/files`, {
+    headers: { origin },
+    data: { path: "chapters/sampling.md", content: chapter },
+  });
+  expect(response.status()).toBe(201);
+  let requests = 0;
+  await page.route(modelEndpoint, async (route) => {
+    if (await preflight(route)) return;
+    requests += 1;
+    const body: unknown = route.request().postDataJSON();
+    expect(body).toMatchObject({ response_format: { json_schema: { name: "kirjolab_outline_summary" } } });
+    if (!isRecord(body) || !Array.isArray(body.messages) || typeof body.messages[1]?.content !== "string") {
+      throw new Error("Expected the numbered outline inputs");
+    }
+    const input: unknown = JSON.parse(body.messages[1].content);
+    if (!isRecord(input)) throw new Error("Expected a section summary prompt");
+    const sampling = input.sectionTitle === "Sampling";
+    const result = {
+      summary: sampling ? "Describes how the trial sample was selected." : "Presents the study and the trial sample.",
+      paragraphs:
+        input.kind === "prose"
+          ? [{ number: 1, summary: sampling ? "Excludes duplicate trial registrations." : "Introduces the study." }]
+          : [],
+    };
+    await route.fulfill({
+      status: 200,
+      headers: { "access-control-allow-origin": "*" },
+      json: { choices: [{ message: { content: JSON.stringify(result) } }] },
+    });
+  });
+  const editor = await openOutline(page, workspaceId, `# Study\n\n${introduction}\n\n::include[chapters/sampling.md]\n`);
+  await page.getByRole("button", { name: "Summaries", exact: true }).click();
+  expect(requests).toBe(0);
+  await page.getByRole("button", { name: "Summarize outline", exact: true }).click();
+  const outline = page.getByRole("navigation", { name: "Manuscript outline" });
+  await expect(outline.getByText("Presents the study and the trial sample.", { exact: true })).toBeVisible();
+  await outline.getByRole("button", { name: "Collapse Sampling", exact: true }).click();
+  await expect(outline.getByText("Describes how the trial sample was selected.", { exact: true })).toBeVisible();
+  await outline.getByRole("button", { name: "Expand Sampling", exact: true }).click();
+  await outline.getByRole("button", { name: "Paragraph 2 Excludes duplicate trial registrations.", exact: true }).click();
+  await expect(editor).toHaveValue(chapter);
+  expect(await selectedText(editor)).toBe(method);
+  await page.getByRole("button", { name: "Excerpts", exact: true }).click();
+  await expect(outline.getByRole("button", { name: `Paragraph 2 ${method}` })).toBeVisible();
+  await expect(page.getByLabel("AI paragraph guidance", { exact: true })).not.toBeChecked();
+  expect(requests).toBe(3);
+});
+
 test("keeps collapsed sections closed when prose edits move their source offsets", async ({ page }) => {
   const editor = await openOutline(page, await createWorkspace(page));
   const outline = page.getByRole("navigation", { name: "Manuscript outline" });

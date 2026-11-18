@@ -1993,13 +1993,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   precise file-qualified source ranges and separate caret targeting from
   viewport reading position. Keep all outline state disposable and preserve
   the native editor and existing responsive surface ownership.
-  After session opt-in, permit only active-paragraph interpretation through the
+  After session opt-in, permit active-paragraph interpretation through the
   existing provider settings with bounded heading/neighbor context and a
   typing-pause scheduler. Suspend hidden/composing work and discard results
-  superseded by source, context, or provider changes. These observations create
+  superseded by source, context, or provider changes. Generate outline summaries
+  through the same provider on explicit request. Batch prose by section and
+  compose parent summaries from child results. Match results to current
+  content and keep them in browser memory. These observations create
   no candidate and have no apply action; all proposed canonical changes retain
   their existing review boundary. See
-  [ADR-246](docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md).
+  [ADR-246](docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md)
+  and [ADR-254](docs/adrs/implemented/ADR-254-summarize-the-manuscript-outline-on-demand.md).
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

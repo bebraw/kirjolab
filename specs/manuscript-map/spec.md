@@ -13,6 +13,8 @@ without treating advisory cues or model interpretations as scientific judgments.
 - [ADR-246](../../docs/adrs/implemented/ADR-246-place-live-outline-and-hints-in-context.md)
   places the guide in the right Context pane. Research questions, diary, and
   reviewer-response workflows remain in the left Writing guide.
+- [ADR-254](../../docs/adrs/implemented/ADR-254-summarize-the-manuscript-outline-on-demand.md)
+  adds a reverse-outline view with short AI summaries on the existing rows.
 - The domain analyzer derives heading hierarchy, paragraphs, counts, and local
   cues from composed Markdown. Prose before the first heading remains a root
   outline item. Branches collapse without changing authored content.
@@ -59,6 +61,22 @@ without treating advisory cues or model interpretations as scientific judgments.
 - Outline state, cues, model results, and session enablement are disposable
   browser state. They never enter manuscript files, Yjs, project history, or
   persisted candidates. Model failure never disables writing or the local map.
+- Excerpts is the default outline view. Switching to Summaries starts no
+  requests. An explicit **Summarize outline** action sends prose through the
+  configured model in serial section batches, starting with the caret's
+  section when present. The action explains that it will send draft prose.
+  **Stop**, switching to Excerpts, and hiding or leaving the guide cancel the
+  run. Completed summaries remain available for that project and provider.
+- A paragraph summary describes what the draft says. A heading summary
+  describes the contribution of its own prose and its subsections and remains
+  visible when the heading collapses. Existing bold paragraph labels can
+  identify authored roles. A row with no current paragraph summary shows a
+  labeled source excerpt. Both views navigate to the original ranges.
+- Edits supersede results for affected sections, including ancestor heading
+  summaries. While a result is out of date, its rows fall back to the source
+  and the section offers **Refresh section**. A refresh may update ancestor
+  summaries using current results. Unchanged results are reused. Input bounds
+  and response validation follow [model operations](../model-operations/spec.md).
 
 ### Anti-Patterns
 
@@ -67,8 +85,9 @@ without treating advisory cues or model interpretations as scientific judgments.
 - Do not require a model or network service to build or navigate the outline.
 - Do not navigate stale offsets, infer source identity by text matching, or
   reuse another paragraph's interpretation after a target change.
-- Do not send the whole manuscript, create background revision candidates, or
-  infer section purposes and whole-document argument flow in this increment.
+- Do not send a whole-document prompt, send manuscript prose for outline
+  summaries without an explicit action, or turn summaries into revision
+  candidates or judgments about the manuscript's argument.
 
 ## Contract
 
@@ -91,6 +110,8 @@ without treating advisory cues or model interpretations as scientific judgments.
       and composition cannot publish an obsolete interpretation as current.
 - [x] Unit and browser checks cover hierarchy, composed-file navigation,
       passage tracking, responsive access, and the non-mutating AI lifecycle.
+- [x] The summary view shows paragraph and section contributions on the existing
+      tree, exposes staleness and refresh, and preserves exact source navigation.
 
 ### Regression Guardrails
 
