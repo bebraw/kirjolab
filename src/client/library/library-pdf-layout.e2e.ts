@@ -1,12 +1,12 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { isPdfDraftResult, type PdfDraftResult } from "../../domain/reference-library";
-import { createEvidencePdf } from "../../test-support/pdf-fixture";
+import { createEvidencePdf, createTwoPageEvidencePdf } from "../../test-support/pdf-fixture";
 
-async function uploadPaper(context: BrowserContext, origin: string): Promise<PdfDraftResult> {
+async function uploadPaper(context: BrowserContext, origin: string, data = createEvidencePdf()): Promise<PdfDraftResult> {
   await context.setExtraHTTPHeaders({ "x-kirjolab-local-user": `pdf-layout-${crypto.randomUUID()}@example.com` });
   const upload = await context.request.post("/api/library/pdfs", {
     headers: { origin, "content-type": "application/pdf", "x-file-name": "layout.pdf" },
-    data: createEvidencePdf(),
+    data,
   });
   expect(upload.ok()).toBe(true);
   const draft: unknown = await upload.json();
@@ -54,6 +54,53 @@ test.describe("PDF pinch zoom", () => {
       .toBe(true);
     await expect(reader).toHaveAttribute("data-display-mode", "continuous");
     await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("keeps the point under the pinch fixed on a scrolled PDF page", async ({ page, context, baseURL }) => {
+    if (!baseURL) throw new Error("Expected browser test origin");
+    const draft = await uploadPaper(context, baseURL, createTwoPageEvidencePdf());
+    await page.goto(`/library/pdfs/${draft.artifact.id}`);
+    await expect(page.locator("#paper-text-layer")).toContainText("First page keeps its reading position.");
+    await page.locator("#library-pdf-view-options").click();
+    await page.locator("#toggle-library-paper-continuous").click();
+    await page.getByRole("button", { name: "Next PDF page" }).click();
+    await expect(page.locator("#library-paper-page-indicator")).toHaveText("2 / 2");
+
+    const pdfPage = page.locator('.pdf-continuous-page[data-pdf-page="2"]');
+    const canvas = pdfPage.locator("canvas");
+    const width = async () => Number(await canvas.getAttribute("width"));
+    await expect.poll(width).toBeGreaterThan(0);
+    const fitted = await width();
+    const before = await pdfPage.boundingBox();
+    if (!before) throw new Error("Expected the second PDF page");
+    const x = Math.round(before.x + before.width * 0.42);
+    const y = Math.round(before.y + 280);
+    const pageFraction = (y - before.y) / before.height;
+    const input = await context.newCDPSession(page);
+    const [maximumDrift] = await Promise.all([
+      pdfPage.evaluate(
+        (element, { fitted, pageFraction, y }) =>
+          new Promise<number>((resolve) => {
+            const startedAt = performance.now();
+            let maximumDrift = 0;
+            let framesAfterRender = 0;
+            function measure(now: number): void {
+              const rect = element.getBoundingClientRect();
+              maximumDrift = Math.max(maximumDrift, Math.abs(rect.top + pageFraction * rect.height - y));
+              if ((element.querySelector("canvas")?.width ?? 0) > fitted) framesAfterRender += 1;
+              if (framesAfterRender >= 5 || now - startedAt > 5_000) resolve(maximumDrift);
+              else requestAnimationFrame(measure);
+            }
+            requestAnimationFrame(measure);
+          }),
+        { fitted, pageFraction, y },
+      ),
+      input.send("Input.synthesizePinchGesture", { x, y, scaleFactor: 1.5, gestureSourceType: "mouse" }),
+    ]);
+
+    await expect.poll(width).toBeGreaterThan(fitted);
+    expect(maximumDrift).toBeLessThan(2);
+    await expect(page.locator("#library-paper-page-indicator")).toHaveText("2 / 2");
   });
 });
 

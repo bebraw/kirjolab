@@ -76,6 +76,16 @@ export type PdfDisplayMode = "continuous" | "single" | "spread";
 export type PdfFitMode = "actual" | "page" | "width";
 type PdfViewerStatusState = "busy" | "error" | "ready";
 
+interface PdfViewerZoomAnchor {
+  readonly element: HTMLElement;
+  readonly position: PdfZoomAnchor;
+}
+
+interface PdfFlowZoomCommit {
+  readonly generation: number;
+  readonly anchor: PdfViewerZoomAnchor | null;
+}
+
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
@@ -110,7 +120,7 @@ export class PdfEvidenceViewer {
   #selectionCaptureTimer: number | undefined;
   #selectionPointerActive = false;
   #selectionSettleDelay = 80;
-  #zoomAnchor: PdfZoomAnchor | null = null;
+  #zoomAnchor: PdfViewerZoomAnchor | null = null;
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
   #displayMode: PdfDisplayMode = readPdfDisplayMode();
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
@@ -228,6 +238,7 @@ export class PdfEvidenceViewer {
         : !this.#elements.page.hidden && this.#elements.continuousPages.hidden;
     if (mode === this.#displayMode && alreadyPresented) return;
     this.#cancelPendingWheelZoom();
+    this.#clearZoomPreview(this.#elements.continuousPages);
     const flowRenderGeneration = ++this.#flowRenderGeneration;
     this.#pinchGeneration += 1;
     this.#displayMode = mode;
@@ -291,36 +302,42 @@ export class PdfEvidenceViewer {
     else await this.#rerenderFlow();
   }
 
-  async #rerenderFlow(pinchGeneration?: number): Promise<boolean> {
+  async #rerenderFlow(zoomCommit?: PdfFlowZoomCommit): Promise<void> {
     const documentModel = this.#document;
     const runtime = this.#runtime;
     const mode = this.#displayMode;
-    if (!documentModel || !runtime || mode === "single") return false;
+    if (!documentModel || !runtime || mode === "single") return;
+    if (!zoomCommit) this.#clearZoomPreview(this.#elements.continuousPages);
     const flowRenderGeneration = ++this.#flowRenderGeneration;
     const renderedZoom = this.#zoom;
     const rotation = this.#rotation;
-    await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), rotation, false);
-    if (
-      flowRenderGeneration !== this.#flowRenderGeneration ||
-      this.#document !== documentModel ||
-      this.#runtime !== runtime ||
-      this.#displayMode !== mode ||
-      this.#rotation !== rotation
-    )
-      return false;
+    const layoutIsCurrent = () =>
+      flowRenderGeneration === this.#flowRenderGeneration &&
+      this.#document === documentModel &&
+      this.#runtime === runtime &&
+      this.#displayMode === mode &&
+      this.#rotation === rotation;
+    const afterLayout = zoomCommit
+      ? () => {
+          if (!layoutIsCurrent()) return;
+          this.#renderedZoom = renderedZoom;
+          if (zoomCommit.generation === this.#pinchGeneration) {
+            this.#clearZoomPreview(this.#elements.continuousPages);
+            this.#restoreZoomAnchor(zoomCommit.anchor);
+          } else if (this.#pinchStart?.surface === this.#elements.continuousPages || this.#wheelZoomRenderTimer !== undefined) {
+            this.#elements.continuousPages.style.transform = `scale(${this.#flowPreviewScale(this.#zoom)})`;
+          }
+        }
+      : undefined;
+    await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), rotation, false, afterLayout);
+    if (!layoutIsCurrent()) return;
     this.#renderedZoom = renderedZoom;
     this.#presentContinuousReady();
-    if (pinchGeneration !== undefined && pinchGeneration !== this.#pinchGeneration) {
-      if (this.#pinchStart?.surface === this.#elements.continuousPages || this.#wheelZoomRenderTimer !== undefined) {
-        this.#elements.continuousPages.style.transform = `scale(${this.#flowPreviewScale(this.#zoom)})`;
-      }
-      return false;
-    }
-    return true;
   }
 
   async open(options: OpenPdfOptions): Promise<boolean> {
     this.#cancelPendingWheelZoom();
+    this.#clearZoomPreview(this.#elements.continuousPages);
     this.#flowRenderGeneration += 1;
     this.#pinchGeneration += 1;
     this.#lifecycle.send({ type: "OPEN" });
@@ -1079,15 +1096,16 @@ export class PdfEvidenceViewer {
       await this.#renderPage();
       return;
     }
-    const anchor = this.#takeZoomAnchor();
-    this.#clearZoomPreview(surface);
-    if (await this.#rerenderFlow(generation)) this.#restoreZoomAnchor(surface, anchor);
+    if (!this.#document) this.#clearZoomPreview(surface);
+    await this.#rerenderFlow({ generation, anchor: this.#takeZoomAnchor() });
   }
 
   #setZoomAnchor(clientX: number, clientY: number, surface: HTMLElement = this.#elements.page): void {
-    const anchor = pdfZoomAnchor(surface.getBoundingClientRect(), { x: clientX, y: clientY });
-    this.#zoomAnchor = anchor;
-    surface.style.transformOrigin = `${anchor.x * 100}% ${anchor.y * 100}%`;
+    const point = { x: clientX, y: clientY };
+    const origin = pdfZoomAnchor(surface.getBoundingClientRect(), point);
+    const element = surface === this.#elements.continuousPages ? (this.#continuousView.pageAtPoint(clientX, clientY) ?? surface) : surface;
+    this.#zoomAnchor = { element, position: element === surface ? origin : pdfZoomAnchor(element.getBoundingClientRect(), point) };
+    surface.style.transformOrigin = `${origin.x * 100}% ${origin.y * 100}%`;
   }
 
   #previewZoom(zoom: number, clientX: number, clientY: number, surface: HTMLElement = this.#elements.page): void {
@@ -1111,17 +1129,17 @@ export class PdfEvidenceViewer {
     surface.style.removeProperty("transform-origin");
   }
 
-  #takeZoomAnchor(): PdfZoomAnchor | null {
+  #takeZoomAnchor(): PdfViewerZoomAnchor | null {
     const anchor = this.#zoomAnchor;
     this.#zoomAnchor = null;
     return anchor;
   }
 
-  #restoreZoomAnchor(surface: HTMLElement = this.#elements.page, anchor = this.#takeZoomAnchor()): void {
+  #restoreZoomAnchor(anchor = this.#takeZoomAnchor()): void {
     if (!anchor) return;
-    const correction = pdfZoomScrollCorrection(anchor, surface.getBoundingClientRect());
-    this.#elements.reader.scrollLeft += correction.left;
-    this.#elements.reader.scrollTop += correction.top;
+    const reader = this.#elements.reader;
+    const correction = pdfZoomScrollCorrection(anchor.position, anchor.element.getBoundingClientRect());
+    reader.scrollTo({ left: reader.scrollLeft + correction.left, top: reader.scrollTop + correction.top, behavior: "instant" });
   }
 
   #renderPdfLinks(

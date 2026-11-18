@@ -64,9 +64,11 @@ export class PdfContinuousView {
     width: number,
     rotation = 0,
     scrollToInitialPage = true,
+    afterLayout?: () => void,
   ): Promise<void> {
     const generation = ++this.#generation;
     const reuseViews = this.#document === documentModel && this.#views.size === documentModel.numPages;
+    const scalePageHeights = afterLayout !== undefined && rotation === this.#rotation;
     this.#observer?.disconnect();
     this.#observer = null;
     this.#document = documentModel;
@@ -83,7 +85,7 @@ export class PdfContinuousView {
     const initialViewport = initialPdfPage.getViewport({ scale: width / initialUnscaled.width, rotation });
     if (reuseViews) {
       for (const view of this.#views.values()) {
-        resetPageView(view, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents);
+        resetPageView(view, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents, scalePageHeights);
       }
     } else {
       for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
@@ -93,6 +95,7 @@ export class PdfContinuousView {
       }
     }
 
+    afterLayout?.();
     this.#observePages(generation);
     await this.#renderPage(initialPage, generation);
     if (generation !== this.#generation) return;
@@ -133,6 +136,12 @@ export class PdfContinuousView {
       node instanceof Element ? node.closest<HTMLElement>("[data-pdf-page]") : node.parentElement?.closest<HTMLElement>("[data-pdf-page]");
     const page = Number(pageElement?.dataset.pdfPage);
     return Number.isInteger(page) ? (this.#views.get(page) ?? null) : null;
+  }
+
+  pageAtPoint(x: number, y: number): HTMLElement | null {
+    const element = this.#reader.ownerDocument.elementFromPoint(x, y);
+    const hit = element && this.pageViewForNode(element);
+    return hit?.pageElement ?? this.#views.get(this.#currentPage)?.pageElement ?? null;
   }
 
   scrollToPage(page: number, behavior: ScrollBehavior = "instant"): void {
@@ -285,9 +294,11 @@ function createPageView(page: number, width: number, height: number, pointerEven
   return { page, pageElement, links, highlights, textLayer, pageOverlay: null, text: "" };
 }
 
-function resetPageView(view: PdfContinuousPageView, width: number, height: number, pointerEvents: string): void {
-  view.pageElement.style.width = `${width}px`;
-  view.pageElement.style.height = `${height}px`;
+function resetPageView(view: PdfContinuousPageView, width: number, height: number, pointerEvents: string, scaleHeight: boolean): void {
+  const style = view.pageElement.style;
+  const pageHeight = scaleHeight ? (Number.parseFloat(style.height) * width) / Number.parseFloat(style.width) : height;
+  style.width = `${width}px`;
+  style.height = `${pageHeight}px`;
   const canvas = document.createElement("canvas");
   canvas.className = "block";
   view.pageElement.querySelector("canvas")?.replaceWith(canvas);

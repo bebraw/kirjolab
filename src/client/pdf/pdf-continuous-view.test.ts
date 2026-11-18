@@ -422,18 +422,27 @@ describe("continuous PDF view", () => {
   it("rerenders a flowing document without forcing its current page to the top", async () => {
     const { container, reader } = viewerElements();
     const documentModel = pdfDocument(3);
+    const renderOverlays = vi.fn();
     const view = new PdfContinuousView({
       container: container as never,
       reader: reader as never,
       onPageChange: vi.fn(),
-      renderOverlays: vi.fn(),
+      renderOverlays,
     });
     await view.open(documentModel, runtime, 2, 500);
+    await view.ensurePageRendered(1);
     const secondPage = pageElement(container, 2);
     expect(secondPage.scrollIntoView).toHaveBeenCalledOnce();
+    renderOverlays.mockClear();
 
-    await view.open(documentModel, runtime, 2, 520, 0, false);
+    const afterLayout = vi.fn(() => {
+      expect(pageElement(container, 1).style.height).toBe("676px");
+      expect(secondPage.style.height).toBe("728px");
+      expect(renderOverlays).not.toHaveBeenCalled();
+    });
+    await view.open(documentModel, runtime, 2, 520, 0, false, afterLayout);
 
+    expect(afterLayout).toHaveBeenCalledOnce();
     expect(secondPage.scrollIntoView).toHaveBeenCalledOnce();
   });
 

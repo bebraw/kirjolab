@@ -98,6 +98,11 @@ class FakeElement {
     this.attributes.set(name, value);
   }
 
+  scrollTo({ left, top }: { left: number; top: number }): void {
+    this.scrollLeft = left;
+    this.scrollTop = top;
+  }
+
   replaceChildren(...children: FakeElement[]): void {
     this.children.length = 0;
     this.append(...children);
@@ -118,6 +123,10 @@ class FakeDocument {
 
   addEventListener(name: string, listener: () => void): void {
     this.listeners.set(name, listener);
+  }
+
+  elementFromPoint(): null {
+    return null;
   }
 
   createElement(tagName: string): FakeElement {
@@ -163,7 +172,7 @@ describe("PDF reading controls", () => {
     const viewer = new PdfEvidenceViewer(elements as never, vi.fn(), vi.fn());
     const documentModel = pdfDocument(3);
     pdfjs.getDocument.mockReturnValue({ destroy: vi.fn(), promise: Promise.resolve(documentModel) });
-    const openFlow = vi.spyOn(PdfContinuousView.prototype, "open").mockResolvedValue();
+    const openFlow = vi.spyOn(PdfContinuousView.prototype, "open").mockImplementation(async (...args) => args[6]?.());
 
     await viewer.open({ annotations: [], page: 2, url: "/paper.pdf" });
     await viewer.setDisplayMode(mode);
@@ -181,7 +190,7 @@ describe("PDF reading controls", () => {
     await vi.advanceTimersByTimeAsync(40);
 
     expect(openFlow).toHaveBeenCalledTimes(2);
-    expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, expect.closeTo(width), 0, false);
+    expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, expect.closeTo(width), 0, false, expect.any(Function));
     expect(elements.continuousPages.style.transform).toBe("");
   });
 
@@ -393,7 +402,7 @@ describe("PDF reading controls", () => {
       elements.reader.dispatch("touchend", { changedTouches: [], target: drawLayer, touches: [] });
 
       await vi.waitFor(() => expect(openFlow).toHaveBeenCalledTimes(2));
-      expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, zoomedWidth, 0, false);
+      expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, zoomedWidth, 0, false, expect.any(Function));
 
       elements.reader.dispatch("touchstart", {
         preventDefault: vi.fn(),
@@ -415,7 +424,7 @@ describe("PDF reading controls", () => {
       expect(elements.continuousPages.style.transform).toBe(`scale(${secondZoomedWidth / zoomedWidth})`);
       elements.reader.dispatch("touchend", { changedTouches: [], target: drawLayer, touches: [] });
       await vi.waitFor(() => expect(openFlow).toHaveBeenCalledTimes(3));
-      expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, secondZoomedWidth, 0, false);
+      expect(openFlow).toHaveBeenLastCalledWith(documentModel, pdfjs, 2, secondZoomedWidth, 0, false, expect.any(Function));
     },
   );
 
@@ -550,7 +559,7 @@ describe("PDF reading controls", () => {
 
     await viewer.open({ annotations: [], page: 2, url: "/paper.pdf" });
     await viewer.setDisplayMode(mode);
-    openFlow.mockImplementationOnce(() => staleFlow.promise);
+    openFlow.mockImplementationOnce((...args) => staleFlow.promise.then(() => args[6]?.()));
 
     startPinch(elements.reader, drawLayer);
     movePinch(elements.reader, drawLayer, 125);
