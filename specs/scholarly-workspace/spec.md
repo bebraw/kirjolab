@@ -191,9 +191,10 @@ the precise route, validation, persistence, and regression requirements.
   policy.
   A bounded progressive Lit control owns browser-local top-navigation
   visibility, persistence, toggle and restore copy, ARIA presentation, and
-  focus handoff. In workspace mode the toggle follows Preview availability;
-  Library readers can restore navigation while it is hidden. The coordinator
-  supplies only active-context availability.
+  focus handoff. In workspace mode the toggle remains available across every
+  context tab; Library readers can restore navigation while it is hidden.
+  Connection-settings shortcuts ask the same owner to restore the header
+  before opening shared Preferences and focusing the connection control.
   Library navigation restoration occupies normal layout space: a labelled
   **Show nav** action shares the Library action row with **Add reference**;
   an icon action sits at the top of the private PDF control rail while reading.

@@ -16,6 +16,31 @@ const artifactId = "22222222-2222-4222-8222-222222222222";
 const createdAt = "2026-08-24T08:00:00.000Z";
 
 describe("Research Corpus MCP adapter", () => {
+  it("rejects a mismatched Host header before invoking a tool", async () => {
+    const service = serviceFixture();
+    const response = await handleCorpusMcp(
+      mcpRequest("tools/call", { name: "list_corpus_artifacts", arguments: {} }, { host: "evil.example" }),
+      service,
+      new Set(),
+    );
+
+    expect(response.status).toBe(403);
+    expect(service.listArtifacts).not.toHaveBeenCalled();
+  });
+
+  it.each(["GET", "DELETE"])("rejects session operation %s without invoking the service", async (method) => {
+    const service = serviceFixture();
+    const response = await handleCorpusMcp(
+      new Request("https://corpus.example/mcp", { method, headers: { host: "corpus.example", accept: "text/event-stream" } }),
+      service,
+      new Set(),
+    );
+
+    expect(response.status).toBe(405);
+    expect(response.headers.has("mcp-session-id")).toBe(false);
+    expect(service.listArtifacts).not.toHaveBeenCalled();
+  });
+
   it("initializes a stateless MCP server and advertises its bounded tools", async () => {
     const service = serviceFixture();
 

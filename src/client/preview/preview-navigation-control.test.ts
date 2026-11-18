@@ -51,18 +51,18 @@ describe("preview navigation control", () => {
 
     expect(control.renderForTest()).toBeDefined();
     control.initializeForTest();
-    control.setPreviewActive(false);
     expect(toggle.hidden).toBe(false);
-    control.setAttribute("app-mode", "workspace");
-    control.setPreviewActive(false);
-    expect(toggle.hidden).toBe(true);
-    control.setPreviewActive(true);
-    expect(toggle.hidden).toBe(false);
-    control.setAttribute("app-mode", "library");
     expect(body.dataset.previewNavigation).toBe("hidden");
     expect(label.textContent).toBe("Show nav");
     expect(restore.hidden).toBe(false);
     expect(pdfRestore.hidden).toBe(false);
+
+    control.show();
+    expect(body.dataset.previewNavigation).toBe("visible");
+    expect(toggle.focus).not.toHaveBeenCalled();
+    expect(storage.removeItem).toHaveBeenCalledWith(previewNavigationStorageKey);
+    expect(restore.hidden).toBe(true);
+    expect(pdfRestore.hidden).toBe(true);
 
     control.showForTest();
     expect(body.dataset.previewNavigation).toBe("visible");

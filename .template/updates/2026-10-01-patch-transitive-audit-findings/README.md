@@ -11,6 +11,41 @@ These releases fix URI authority parsing, HTTP parsing and rendering, and IP
 address classification issues. They retain the installed major versions and
 satisfy their parent dependencies' existing constraints.
 
+## November 18: Remove An Unneeded Agents MCP Wrapper
+
+For projects whose only Agents import is the stateless MCP wrapper, inspect
+whether the existing `@modelcontextprotocol/server` version exposes
+`createMcpHandler` and `hostHeaderValidationResponse`. Kirjolab's SDK 2.4.0 does.
+Agents 0.33.0 brings `@rolldown/plugin-babel` and Vite into the production
+dependency graph, making the unpatched
+[picomatch advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+block its production audit.
+
+1. Replace the Agents wrapper import with the existing SDK's handler and
+   retain `legacy: "stateless"` and request-local server construction.
+2. Keep exact-origin validation, authenticated owner selection, route mounting,
+   and CORS in the application's existing boundary. The SDK handler does not
+   supply Host or Origin validation: retain an explicit
+   `hostHeaderValidationResponse(request, allowedHostnames)` check before dispatch.
+3. Remove `agents` using the target's pinned npm toolchain, then inspect the
+   lockfile and installed graph. Preserve unrelated pins and security overrides.
+4. Cover Host rejection, stateless legacy protocol behavior, tools/resources,
+   and owner/origin isolation. Check that build tools are absent or development
+   only in the production graph. Run the existing audit, typecheck, Workers,
+   full native CI, and deployment dry runs.
+
+Do not apply this removal to projects using Agent classes, Agents-provided
+OAuth context, reverse server requests, or sessionful transports without a
+separate compatibility review. Do not move a runtime Agents import to development
+dependencies to hide it from the audit, force npm's incompatible Agents 0.8.3
+downgrade, or suppress the finding. Development-only picomatch still has no
+published patch as of November 18, 2026. See
+[ADR-253](../../../docs/adrs/implemented/ADR-253-use-the-mcp-sdk-handler-directly.md).
+
+The historical `patch.diff` and November 12 instructions below are not the
+November 18 remedy. Apply this supplement manually to matching existing
+graphs, preserving newer compatible fixes and the recorded update ID.
+
 ## November 12: Retire The MCP Bridge
 
 For affected Agents/MCP projects, use
