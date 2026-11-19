@@ -53,6 +53,13 @@
     scroll-margin-top: clamp(1rem, 3vw, 2rem);
   }
 
+  .pdf-continuous-page-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
   .pdf-reader[data-display-mode="continuous"] {
     scroll-behavior: smooth;
     touch-action: pan-y;

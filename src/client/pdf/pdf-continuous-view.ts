@@ -1,15 +1,23 @@
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { readPdfTextContent } from "./pdf-text-content";
 import type { PdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfContinuousPageView {
   readonly page: number;
   readonly pageElement: HTMLElement;
-  links: HTMLElement;
-  highlights: HTMLElement;
-  textLayer: HTMLElement;
+  frame: PdfContinuousPageFrame;
   pageOverlay: HTMLElement | null;
+  renderedGeneration: number | null;
   text: string;
+}
+
+interface PdfContinuousPageFrame {
+  readonly element: HTMLElement;
+  readonly width: number;
+  readonly canvas: HTMLCanvasElement;
+  readonly links: HTMLElement;
+  readonly highlights: HTMLElement;
+  readonly textLayer: HTMLElement;
 }
 
 interface PdfContinuousViewOptions {
@@ -39,6 +47,7 @@ export class PdfContinuousView {
   #runtime: PdfContinuousRuntime | null = null;
   #observer: IntersectionObserver | null = null;
   #generation = 0;
+  #layoutGeneration = 0;
   #currentPage = 1;
   #textLayerPointerEvents = "auto";
   #scrollFrame: number | undefined;
@@ -68,7 +77,7 @@ export class PdfContinuousView {
   ): Promise<void> {
     const generation = ++this.#generation;
     const reuseViews = this.#document === documentModel && this.#views.size === documentModel.numPages;
-    const scalePageHeights = afterLayout !== undefined && rotation === this.#rotation;
+    const retainFrames = rotation === this.#rotation;
     this.#observer?.disconnect();
     this.#observer = null;
     this.#document = documentModel;
@@ -85,7 +94,7 @@ export class PdfContinuousView {
     const initialViewport = initialPdfPage.getViewport({ scale: width / initialUnscaled.width, rotation });
     if (reuseViews) {
       for (const view of this.#views.values()) {
-        resetPageView(view, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents, scalePageHeights);
+        layoutPageView(view, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents, retainFrames);
       }
     } else {
       for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
@@ -95,6 +104,7 @@ export class PdfContinuousView {
       }
     }
 
+    this.#layoutGeneration = generation;
     afterLayout?.();
     this.#observePages(generation);
     await this.#renderPage(initialPage, generation);
@@ -122,12 +132,12 @@ export class PdfContinuousView {
 
   setTextSelectionEnabled(enabled: boolean): void {
     this.#textLayerPointerEvents = enabled ? "auto" : "none";
-    for (const view of this.#views.values()) view.textLayer.style.pointerEvents = this.#textLayerPointerEvents;
+    for (const { frame } of this.#views.values()) frame.textLayer.style.pointerEvents = this.#textLayerPointerEvents;
   }
 
   refreshOverlays(): void {
-    for (const page of this.#views.keys()) {
-      if (this.#rendering.has(page) || this.#views.get(page)?.text) void this.#renderPage(page, this.#generation, true);
+    for (const view of this.#views.values()) {
+      if (view.renderedGeneration === this.#generation) void this.#renderPage(view.page, this.#generation, true);
     }
   }
 
@@ -163,6 +173,7 @@ export class PdfContinuousView {
     }
     this.#observer = new IntersectionObserver(
       (entries) => {
+        if (generation !== this.#generation) return;
         for (const entry of entries) {
           const page = Number((entry.target as HTMLElement).dataset.pdfPage);
           if (!Number.isInteger(page)) continue;
@@ -181,54 +192,8 @@ export class PdfContinuousView {
     const view = this.#views.get(pageNumber);
     const documentModel = this.#document;
     const runtime = this.#runtime;
-    if (!view || !documentModel || !runtime || generation !== this.#generation) return;
-    if (overlaysOnly && !view.text) return;
-
-    const task = (async () => {
-      const page = await documentModel.getPage(pageNumber);
-      if (generation !== this.#generation) return;
-      const unscaled = page.getViewport({ scale: 1, rotation: this.#rotation });
-      const viewport = page.getViewport({ scale: view.pageElement.clientWidth / unscaled.width, rotation: this.#rotation });
-      view.pageElement.style.width = `${viewport.width}px`;
-      view.pageElement.style.height = `${viewport.height}px`;
-      const annotationsPromise = page.getAnnotations({ intent: "display" });
-      if (!overlaysOnly && !view.text) {
-        const outputScale = window.devicePixelRatio || 1;
-        const canvas = view.pageElement.querySelector("canvas");
-        if (!(canvas instanceof HTMLCanvasElement)) return;
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-        const textContent = await readPdfTextContent(page);
-        if (generation !== this.#generation) return;
-        view.text = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .filter(Boolean)
-          .join(" ");
-        view.textLayer.style.setProperty("--total-scale-factor", String(viewport.scale));
-        const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: view.textLayer, viewport });
-        await Promise.all([
-          page.render({
-            canvas,
-            viewport,
-            transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
-          }).promise,
-          textLayer.render(),
-        ]);
-      }
-      if (generation !== this.#generation) return;
-      if (!view.pageOverlay) {
-        view.pageOverlay = this.#createPageOverlay(pageNumber);
-        if (view.pageOverlay) {
-          view.pageOverlay.addEventListener("pointerdown", () => this.#setCurrentPage(pageNumber), { capture: true });
-          view.pageElement.append(view.pageOverlay);
-        }
-      }
-      const annotations = await annotationsPromise;
-      if (generation !== this.#generation) return;
-      this.#renderOverlays(view, viewport, annotations);
-    })();
+    if (!view || !documentModel || !runtime || generation !== this.#layoutGeneration || generation !== this.#generation) return;
+    const task = this.#paintPage(view, generation, documentModel, runtime, overlaysOnly);
     this.#rendering.set(pageNumber, task);
     try {
       return await task;
@@ -237,20 +202,85 @@ export class PdfContinuousView {
     }
   }
 
+  async #paintPage(
+    view: PdfContinuousPageView,
+    generation: number,
+    documentModel: PdfContinuousDocument,
+    runtime: PdfContinuousRuntime,
+    overlaysOnly: boolean,
+  ): Promise<void> {
+    const page = await documentModel.getPage(view.page);
+    if (generation !== this.#generation) return;
+    const width = Number.parseFloat(view.pageElement.style.width);
+    const unscaled = page.getViewport({ scale: 1, rotation: this.#rotation });
+    const viewport = page.getViewport({ scale: width / unscaled.width, rotation: this.#rotation });
+    const [annotations, replacement] = await Promise.all([
+      page.getAnnotations({ intent: "display" }),
+      !overlaysOnly && view.renderedGeneration !== generation ? this.#paintPageFrame(page, viewport, runtime, generation) : null,
+    ]);
+    if (generation !== this.#generation) return;
+
+    if (replacement) {
+      const { frame, text } = replacement;
+      frame.textLayer.style.pointerEvents = this.#textLayerPointerEvents;
+      view.pageElement.style.height = `${viewport.height}px`;
+      view.frame.element.replaceWith(frame.element);
+      view.frame = frame;
+      view.text = text;
+      view.renderedGeneration = generation;
+    }
+    if (!view.pageOverlay) this.#attachPageOverlay(view);
+    this.#renderOverlays(view, viewport, annotations);
+  }
+
+  async #paintPageFrame(
+    page: PDFPageProxy,
+    viewport: ReturnType<PDFPageProxy["getViewport"]>,
+    runtime: PdfContinuousRuntime,
+    generation: number,
+  ): Promise<{ frame: PdfContinuousPageFrame; text: string } | null> {
+    const textContent = await readPdfTextContent(page);
+    if (generation !== this.#generation) return null;
+    const frame = createPageFrame(viewport.width, viewport.height);
+    const outputScale = window.devicePixelRatio || 1;
+    const { canvas } = frame;
+    canvas.width = Math.floor(viewport.width * outputScale);
+    canvas.height = Math.floor(viewport.height * outputScale);
+    canvas.style.width = `${viewport.width}px`;
+    canvas.style.height = `${viewport.height}px`;
+    frame.textLayer.style.setProperty("--total-scale-factor", String(viewport.scale));
+    const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: frame.textLayer, viewport });
+    await Promise.all([
+      page.render({ canvas, viewport, transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0] }).promise,
+      textLayer.render(),
+    ]);
+    const text = textContent.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .filter(Boolean)
+      .join(" ");
+    return { frame, text };
+  }
+
+  #attachPageOverlay(view: PdfContinuousPageView): void {
+    const overlay = this.#createPageOverlay(view.page);
+    if (!overlay) return;
+    view.pageOverlay = overlay;
+    overlay.addEventListener("pointerdown", () => this.#setCurrentPage(view.page), { capture: true });
+    view.pageElement.append(overlay);
+  }
+
   #releasePage(page: number): void {
     const view = this.#views.get(page);
     if (!view || this.#rendering.has(page)) return;
-    const canvas = view.pageElement.querySelector("canvas");
-    if (canvas instanceof HTMLCanvasElement) {
-      canvas.width = 0;
-      canvas.height = 0;
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-    }
+    const { canvas, element, links, highlights, textLayer } = view.frame;
+    canvas.width = 0;
+    canvas.height = 0;
+    element.style.transform = "";
+    view.renderedGeneration = null;
     view.text = "";
-    view.textLayer.replaceChildren();
-    view.links.replaceChildren();
-    view.highlights.replaceChildren();
+    textLayer.replaceChildren();
+    links.replaceChildren();
+    highlights.replaceChildren();
   }
 
   #queueReadingPositionUpdate(): void {
@@ -284,34 +314,42 @@ function createPageView(page: number, width: number, height: number, pointerEven
   pageElement.setAttribute("aria-label", `Page ${page}`);
   pageElement.style.width = `${width}px`;
   pageElement.style.height = `${height}px`;
-  const canvas = document.createElement("canvas");
-  canvas.className = "block";
-  const links = layer("pdf-links", "PDF links");
-  const highlights = layer("pdf-highlights");
-  const textLayer = layer("textLayer");
-  textLayer.style.pointerEvents = pointerEvents;
-  pageElement.append(canvas, links, highlights, textLayer);
-  return { page, pageElement, links, highlights, textLayer, pageOverlay: null, text: "" };
+  const frame = createPageFrame(width, height);
+  frame.textLayer.style.pointerEvents = pointerEvents;
+  pageElement.append(frame.element);
+  return { page, pageElement, frame, pageOverlay: null, renderedGeneration: null, text: "" };
 }
 
-function resetPageView(view: PdfContinuousPageView, width: number, height: number, pointerEvents: string, scaleHeight: boolean): void {
-  const style = view.pageElement.style;
-  const pageHeight = scaleHeight ? (Number.parseFloat(style.height) * width) / Number.parseFloat(style.width) : height;
-  style.width = `${width}px`;
-  style.height = `${pageHeight}px`;
+function createPageFrame(width: number, height: number): PdfContinuousPageFrame {
+  const element = document.createElement("div");
+  element.className = "pdf-continuous-page-frame";
+  element.style.width = `${width}px`;
+  element.style.height = `${height}px`;
   const canvas = document.createElement("canvas");
   canvas.className = "block";
-  view.pageElement.querySelector("canvas")?.replaceWith(canvas);
+  canvas.width = 0;
+  canvas.height = 0;
   const links = layer("pdf-links", "PDF links");
   const highlights = layer("pdf-highlights");
   const textLayer = layer("textLayer");
-  textLayer.style.pointerEvents = pointerEvents;
-  view.links.replaceWith(links);
-  view.highlights.replaceWith(highlights);
-  view.textLayer.replaceWith(textLayer);
-  view.links = links;
-  view.highlights = highlights;
-  view.textLayer = textLayer;
+  element.append(canvas, links, highlights, textLayer);
+  return { element, width, canvas, links, highlights, textLayer };
+}
+
+function layoutPageView(view: PdfContinuousPageView, width: number, height: number, pointerEvents: string, retainFrame: boolean): void {
+  const style = view.pageElement.style;
+  const pageHeight = retainFrame ? (Number.parseFloat(style.height) * width) / Number.parseFloat(style.width) : height;
+  style.width = `${width}px`;
+  style.height = `${pageHeight}px`;
+  if (retainFrame) {
+    if (view.renderedGeneration !== null) view.frame.element.style.transform = `scale(${width / view.frame.width})`;
+    return;
+  }
+  const frame = createPageFrame(width, height);
+  frame.textLayer.style.pointerEvents = pointerEvents;
+  view.frame.element.replaceWith(frame.element);
+  view.frame = frame;
+  view.renderedGeneration = null;
   view.text = "";
 }
 

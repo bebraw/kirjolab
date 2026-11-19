@@ -18,7 +18,12 @@ Transform the last committed PDF page immediately during trackpad and touch
 pinch input. Debounce trackpad rendering until 140 milliseconds after the last
 event. Render the new PDF canvas and text layer into detached buffers, then
 commit the pixels, text nodes, page dimensions, highlight geometry, and zoom
-state together after both renders complete.
+state together after both renders complete in the single-page reader. In
+continuous and spread layouts, commit page dimensions and the scroll anchor
+together. Scale each retained frame to its new page size while PDF.js renders a
+replacement, then swap the canvas, text, links, and highlights together. Keep
+the page and private markup layer mounted, and keep the existing lazy loading
+and release rules for offscreen pages.
 
 Invalidate an in-flight buffered render when a newer zoom gesture begins.
 Navigation, resize, and document changes cancel any pending trackpad debounce

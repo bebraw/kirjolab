@@ -8,6 +8,7 @@ class FakeStyle {
   width = "";
   height = "";
   pointerEvents = "";
+  transform = "";
   readonly properties = new Map<string, string>();
 
   setProperty(name: string, value: string): void {
@@ -229,8 +230,8 @@ describe("continuous PDF view", () => {
       reader: reader as never,
       onPageChange: vi.fn(),
       renderOverlays: (page) => {
-        page.links.append(new FakeElement("a") as never);
-        page.highlights.append(new FakeElement("span") as never);
+        page.frame.links.append(new FakeElement("a") as never);
+        page.frame.highlights.append(new FakeElement("span") as never);
       },
     });
     await view.open(pdfDocument(5), runtime, 1, 400);
@@ -280,9 +281,9 @@ describe("continuous PDF view", () => {
     const secondOverlay = secondPage.find((element) => element.className === "pdf-markups page-2");
     const secondView = view.pageViewForNode(secondPage as never);
     const firstCanvas = secondPage.querySelector("canvas");
-    const firstLinks = secondView?.links;
-    const firstHighlights = secondView?.highlights;
-    const firstTextLayer = secondView?.textLayer;
+    const firstLinks = secondView?.frame.links;
+    const firstHighlights = secondView?.frame.highlights;
+    const firstTextLayer = secondView?.frame.textLayer;
     view.setTextSelectionEnabled(false);
 
     await view.open(documentModel, runtime, 1, 520, 90);
@@ -294,14 +295,15 @@ describe("continuous PDF view", () => {
     if (!resetSecondView) throw new Error("Expected the second flowing page view to remain available.");
     expect(secondPage.querySelector("canvas")).not.toBe(firstCanvas);
     expect(secondPage.querySelector("canvas")?.className).toBe("block");
-    expect(resetSecondView.links).not.toBe(firstLinks);
-    expect(resetSecondView.links.className).toBe("pdf-links");
-    expect((resetSecondView.links as unknown as FakeElement).attributes.get("aria-label")).toBe("PDF links");
-    expect(resetSecondView.highlights).not.toBe(firstHighlights);
-    expect(resetSecondView.highlights.className).toBe("pdf-highlights");
-    expect(resetSecondView.textLayer).not.toBe(firstTextLayer);
-    expect(resetSecondView.textLayer.className).toBe("textLayer");
-    expect(resetSecondView.textLayer.style.pointerEvents).toBe("none");
+    const { links, highlights, textLayer } = resetSecondView.frame;
+    expect(links).not.toBe(firstLinks);
+    expect(links.className).toBe("pdf-links");
+    expect(pageLayer(secondPage, "pdf-links").attributes.get("aria-label")).toBe("PDF links");
+    expect(highlights).not.toBe(firstHighlights);
+    expect(highlights.className).toBe("pdf-highlights");
+    expect(textLayer).not.toBe(firstTextLayer);
+    expect(textLayer.className).toBe("textLayer");
+    expect(textLayer.style.pointerEvents).toBe("none");
     expect(resetSecondView.text).toBe("");
 
     await view.resize(640);
@@ -408,7 +410,7 @@ describe("continuous PDF view", () => {
     });
 
     const staleOpen = view.open(staleDocument as never, runtime, 1, 400);
-    await vi.waitFor(() => expect(createPageOverlay).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(stalePage.getAnnotations).toHaveBeenCalledOnce());
     await view.open(pdfDocument(1), runtime, 1, 400);
     await vi.waitFor(() => expect(renderOverlays).toHaveBeenCalledTimes(2));
     renderOverlays.mockClear();
@@ -446,6 +448,43 @@ describe("continuous PDF view", () => {
     expect(secondPage.scrollIntoView).toHaveBeenCalledOnce();
   });
 
+  it("keeps the displayed page and highlights visible until its zoomed render is ready", async () => {
+    const { container, reader } = viewerElements();
+    const replacement = deferredVoid();
+    const render = vi.fn().mockReturnValueOnce({ promise: Promise.resolve() }).mockReturnValue({ promise: replacement.promise });
+    const page = Object.assign(pdfPage(1), { render });
+    const documentModel = { numPages: 1, getPage: vi.fn().mockResolvedValue(page) };
+    const view = new PdfContinuousView({
+      container: container as never,
+      reader: reader as never,
+      onPageChange: vi.fn(),
+      renderOverlays: (page) => page.frame.highlights.replaceChildren(new FakeElement("span") as never),
+    });
+    await view.open(documentModel, runtime, 1, 500);
+    const displayedPage = pageElement(container, 1);
+    const previousCanvas = displayedPage.querySelector("canvas");
+    if (!(previousCanvas instanceof FakeCanvas)) throw new Error("Expected a painted page canvas");
+
+    const zoom = view.open(documentModel, runtime, 1, 750, 0, false, () => undefined);
+    try {
+      await vi.waitFor(() => expect(render).toHaveBeenCalledTimes(2));
+      expect(displayedPage.style.width).toBe("750px");
+      expect(displayedPage.querySelector("canvas") === previousCanvas).toBe(true);
+      expect(previousCanvas.width).toBe(500);
+      expect(previousCanvas.parentElement?.style.transform).toBe("scale(1.5)");
+      expect(pageLayer(displayedPage, "pdf-highlights").childElementCount).toBe(1);
+    } finally {
+      replacement.resolve();
+      await zoom;
+    }
+
+    const zoomedCanvas = displayedPage.querySelector("canvas");
+    if (!(zoomedCanvas instanceof FakeCanvas)) throw new Error("Expected a zoomed page canvas");
+    expect(zoomedCanvas.width).toBe(750);
+    expect(zoomedCanvas.parentElement?.style.transform).toBe("");
+    expect(pageLayer(displayedPage, "pdf-highlights").childElementCount).toBe(1);
+  });
+
   it("does not scroll after a stale flowing open loses to a newer render", async () => {
     const { container, reader } = viewerElements();
     const staleRender = deferredVoid();
@@ -473,11 +512,13 @@ describe("continuous PDF view", () => {
     await vi.waitFor(() => expect(stalePage.render).toHaveBeenCalledOnce());
     await view.open(documentModel as never, runtime, 2, 520);
     const secondPage = pageElement(container, 2);
+    const currentCanvas = secondPage.querySelector("canvas");
     expect(secondPage.scrollIntoView).toHaveBeenCalledOnce();
 
     staleRender.resolve();
     await staleOpen;
 
+    expect(secondPage.querySelector("canvas") === currentCanvas).toBe(true);
     expect(secondPage.scrollIntoView).toHaveBeenCalledOnce();
   });
 

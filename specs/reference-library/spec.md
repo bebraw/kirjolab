@@ -591,7 +591,9 @@ memory and makes citation aliases compete with stable source identity.
   pinch midpoint. Trackpad zoom is anchored at the pointer in single-page,
   continuous, and spread layouts, including when Select is active. In flowing
   layouts, the reader keeps the point on the PDF page at the same vertical
-  position as the new page sizes take effect. The reader preserves its
+  position as the new page sizes take effect. Visible pages keep their last
+  painted pixels and marks at the new scale until the replacement canvas and
+  text layer are ready. The reader preserves its
   scrollbar-free fitted width across buffered zoom renders and
   remeasures it only after document or layout changes, so returning to fitted
   zoom cannot leave the page narrower. Live ink updates one draft path between
