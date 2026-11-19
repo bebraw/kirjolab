@@ -56,7 +56,7 @@ test.describe("PDF pinch zoom", () => {
     await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("keeps the point under the pinch fixed on a scrolled PDF page", async ({ page, context, baseURL }) => {
+  test("keeps a scrolled PDF page painted and anchored through pinch zoom", async ({ page, context, baseURL }) => {
     if (!baseURL) throw new Error("Expected browser test origin");
     const draft = await uploadPaper(context, baseURL, createTwoPageEvidencePdf());
     await page.goto(`/library/pdfs/${draft.artifact.id}`);
@@ -69,7 +69,13 @@ test.describe("PDF pinch zoom", () => {
     const pdfPage = page.locator('.pdf-continuous-page[data-pdf-page="2"]');
     const canvas = pdfPage.locator("canvas");
     const width = async () => Number(await canvas.getAttribute("width"));
-    await expect.poll(width).toBeGreaterThan(0);
+    await expect
+      .poll(() =>
+        canvas.evaluate((element) => {
+          if (element instanceof HTMLCanvasElement && element.width > 0) return element.getContext("2d")?.getImageData(0, 0, 1, 1).data[3];
+        }),
+      )
+      .toBe(255);
     const fitted = await width();
     const before = await pdfPage.boundingBox();
     if (!before) throw new Error("Expected the second PDF page");
@@ -77,18 +83,22 @@ test.describe("PDF pinch zoom", () => {
     const y = Math.round(before.y + 280);
     const pageFraction = (y - before.y) / before.height;
     const input = await context.newCDPSession(page);
-    const [maximumDrift] = await Promise.all([
+    const [{ maximumDrift, blankFrame }] = await Promise.all([
       pdfPage.evaluate(
         (element, { fitted, pageFraction, y }) =>
-          new Promise<number>((resolve) => {
+          new Promise<{ maximumDrift: number; blankFrame: boolean }>((resolve) => {
             const startedAt = performance.now();
             let maximumDrift = 0;
+            let blankFrame = false;
             let framesAfterRender = 0;
             function measure(now: number): void {
               const rect = element.getBoundingClientRect();
               maximumDrift = Math.max(maximumDrift, Math.abs(rect.top + pageFraction * rect.height - y));
-              if ((element.querySelector("canvas")?.width ?? 0) > fitted) framesAfterRender += 1;
-              if (framesAfterRender >= 5 || now - startedAt > 5_000) resolve(maximumDrift);
+              const canvas = element.querySelector("canvas");
+              const canvasWidth = canvas?.width ?? 0;
+              if (!canvasWidth || canvas?.getContext("2d")?.getImageData(0, 0, 1, 1).data[3] !== 255) blankFrame = true;
+              if (canvasWidth > fitted) framesAfterRender += 1;
+              if (framesAfterRender >= 5 || now - startedAt > 5_000) resolve({ maximumDrift, blankFrame });
               else requestAnimationFrame(measure);
             }
             requestAnimationFrame(measure);
@@ -99,6 +109,7 @@ test.describe("PDF pinch zoom", () => {
     ]);
 
     await expect.poll(width).toBeGreaterThan(fitted);
+    expect(blankFrame).toBe(false);
     expect(maximumDrift).toBeLessThan(2);
     await expect(page.locator("#library-paper-page-indicator")).toHaveText("2 / 2");
   });

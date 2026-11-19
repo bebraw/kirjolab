@@ -189,8 +189,8 @@ export class PdfEvidenceViewer {
       reader: elements.reader,
       onPageChange: (page) => this.#presentContinuousPage(page),
       renderOverlays: (view, viewport, annotations) => {
-        this.#renderPdfLinks(viewport, annotations, view.links);
-        this.#renderHighlightsForPage(view.page, view.highlights);
+        this.#renderPdfLinks(viewport, annotations, view.frame.links);
+        this.#renderHighlightsForPage(view.page, view.frame.highlights);
       },
     });
     for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
