@@ -166,6 +166,49 @@ describe("PDF reading controls", () => {
     expect(component.open).toHaveBeenCalledOnce();
   });
 
+  it("searches native text until OCR becomes available for a scanned PDF", async () => {
+    const viewer = new PdfEvidenceViewer(viewerElements() as never, vi.fn(), vi.fn());
+    const getPage = vi.fn(async () => ({
+      streamTextContent: () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ items: [{ str: "native caption" }], styles: {} });
+            controller.close();
+          },
+        }),
+    }));
+    pdfjs.getDocument.mockReturnValue({ destroy: vi.fn(), promise: Promise.resolve({ numPages: 1, getPage }) });
+    const fetchAnalysis = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          artifactId: "scan",
+          fingerprint: "fingerprint",
+          kind: "pdf-text",
+          status: "ready",
+          requestedAt: "2026-11-23",
+          startedAt: null,
+          completedAt: "2026-11-23",
+          error: "",
+          result: {
+            pages: [{ page: 1, text: "Recovered caption", source: "ocr" }],
+            pagesTotal: 1,
+            pagesScanned: 1,
+            ocrPages: 1,
+            truncated: false,
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchAnalysis);
+
+    await viewer.open({ annotations: [], artifactId: "scan", url: "/scan.pdf" });
+    expect(await viewer.search("caption")).toEqual([{ page: 1, excerpt: "native caption", occurrences: 1 }]);
+    expect(await viewer.search("caption")).toEqual([{ page: 1, excerpt: "Recovered caption", occurrences: 1 }]);
+    expect(fetchAnalysis).toHaveBeenCalledWith("/api/library/pdfs/scan/analyses/pdf-text", { credentials: "same-origin" });
+    expect(getPage).toHaveBeenCalledOnce();
+  });
+
   it.each(["continuous", "spread"] as const)("manually pans a %s Draw surface under one-finger touch", async (mode) => {
     const reader = new FakeElement();
     reader.scrollLeft = 40;

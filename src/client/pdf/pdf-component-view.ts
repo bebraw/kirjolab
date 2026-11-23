@@ -34,6 +34,15 @@ interface PageOverlays {
   linkRotation: number | null;
 }
 
+interface PdfZoomAnchor {
+  page: HTMLElement;
+  x: number;
+  y: number;
+  clientX: number;
+  clientY: number;
+  at: number;
+}
+
 type PdfLinkAddress = { url: string } | { dest: string | unknown[] } | { action: string };
 
 export function pdfPageLink(value: unknown): ({ rect: [number, number, number, number] } & PdfLinkAddress) | null {
@@ -64,7 +73,7 @@ export class PdfComponentView {
   #fit: PdfFitMode = "page";
   #fitScale = 1;
   #zoom = 1;
-  #zoomAnchor: { page: HTMLElement; clientX: number; clientY: number; x: number; y: number; at: number } | null = null;
+  #zoomAnchor: PdfZoomAnchor | null = null;
   #selectionEnabled = true;
 
   constructor(options: PdfComponentOptions) {
@@ -231,28 +240,10 @@ export class PdfComponentView {
     if (!viewer?.pagesCount || factor <= 0 || !Number.isFinite(factor)) return;
     this.#zoom *= factor;
     const target = this.#fitScale * this.#zoom;
-    let paneOrigin: number[] | undefined;
     const reader = this.#options.reader;
-    const page = origin && reader.ownerDocument?.elementFromPoint(origin[0], origin[1])?.closest<HTMLElement>(".pdfViewer .page");
-    const before = page?.getBoundingClientRect();
-    let anchor = this.#zoomAnchor;
-    if (origin && page && before?.width && before.height && this.#options.container.contains(page)) {
-      const now = performance.now();
-      if (!anchor || anchor.page !== page || anchor.clientX !== origin[0] || anchor.clientY !== origin[1] || now - anchor.at > 250) {
-        anchor = {
-          page,
-          x: (origin[0] - before.left) / before.width,
-          y: (origin[1] - before.top) / before.height,
-          clientX: origin[0],
-          clientY: origin[1],
-          at: now,
-        };
-      }
-      anchor.at = now;
-      anchor.clientX = origin[0] + (pan?.[0] ?? 0);
-      anchor.clientY = origin[1] + (pan?.[1] ?? 0);
-    } else anchor = null;
+    const anchor = origin ? this.#pageZoomAnchor(origin, pan) : null;
     this.#zoomAnchor = anchor;
+    let paneOrigin: number[] | undefined;
     if (origin) {
       const bounds = reader.getBoundingClientRect();
       // PDFViewer subtracts the container's offsets relative to its positioned parent.
@@ -268,6 +259,24 @@ export class PdfComponentView {
       reader.scrollLeft += after.left + anchor.x * after.width - anchor.clientX;
       reader.scrollTop += after.top + anchor.y * after.height - anchor.clientY;
     }
+  }
+
+  #pageZoomAnchor([x, y]: [number, number], [panX, panY]: [number, number] = [0, 0]): PdfZoomAnchor | null {
+    const page = this.#options.reader.ownerDocument?.elementFromPoint(x, y)?.closest<HTMLElement>(".pdfViewer .page");
+    if (!page || !this.#options.container.contains(page)) return null;
+    const bounds = page.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return null;
+    const now = performance.now();
+    const previous = this.#zoomAnchor;
+    const continuing = previous && previous.page === page && previous.clientX === x && previous.clientY === y && now - previous.at <= 250;
+    return {
+      page,
+      x: continuing ? previous.x : (x - bounds.left) / bounds.width,
+      y: continuing ? previous.y : (y - bounds.top) / bounds.height,
+      clientX: x + panX,
+      clientY: y + panY,
+      at: now,
+    };
   }
 
   goToPage(page: number): void {

@@ -1,8 +1,9 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { AnnotationResource, PdfSelectionRect } from "../../domain/workspace/workspace";
-import type { LibraryHighlight } from "../../domain/reference-library";
+import type { LibraryHighlight, PdfTextPage } from "../../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
+import { renderPdfPageJpeg } from "./pdf-page-image";
 import { PdfComponentView } from "./pdf-component-view";
 import type { PdfSearchResult } from "./pdf-search-panel";
 import type { PdfOutlineItem } from "./pdf-navigation-panel";
@@ -17,7 +18,7 @@ import {
   type PdfTouchPanStart,
   type PdfWheelPagingState,
 } from "./pdf-gestures";
-import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
+import { loadPdfJsRuntime } from "./pdfjs-runtime";
 import { createPdfViewerActor, pdfViewerDocumentRequestActive } from "./pdf-viewer-machine";
 import { pdfFailureMessage } from "./pdf-status";
 
@@ -258,38 +259,41 @@ export class PdfEvidenceViewer {
     this.#wheelPagingState = initialPdfWheelPagingState();
     this.#elements.reader.dataset.zoomed = "false";
     this.#setStatus("Loading PDF…", "busy");
-    let runtime: PdfJsRuntime;
-    try {
-      runtime = await loadPdfJsRuntime();
-    } catch (error) {
-      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-      const message = error instanceof Error ? error.message : "Could not load the PDF runtime";
-      this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
-      throw error;
-    }
-    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-    this.#lifecycle.send({ type: "RUNTIME_READY", documentRequest });
-    if (!this.#lifecycle.getSnapshot().matches("loadingDocument")) return false;
-    runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
-    const loadingTask = runtime.getDocument({ url: options.url });
-    this.#loadingTask = loadingTask;
+    return this.#loadDocument(options.url, options.page, documentRequest);
+  }
+
+  async #loadDocument(url: string, page: number | undefined, documentRequest: number): Promise<boolean> {
+    let loadingTask: PDFDocumentLoadingTask;
     let documentModel: PDFDocumentProxy;
+    let failureMessage = "Could not load the PDF runtime";
     try {
+      const runtime = await loadPdfJsRuntime();
+      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+      this.#lifecycle.send({ type: "RUNTIME_READY", documentRequest });
+      if (!this.#lifecycle.getSnapshot().matches("loadingDocument")) return false;
+      failureMessage = "Could not load the PDF";
+      runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+      loadingTask = runtime.getDocument({ url });
+      this.#loadingTask = loadingTask;
       documentModel = await loadingTask.promise;
     } catch (error) {
       if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-      const message = error instanceof Error ? error.message : "Could not load the PDF";
+      const message = error instanceof Error ? error.message : failureMessage;
       this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
       throw error;
     }
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = documentModel;
-    this.#pageNumber = clamp(options.page ?? 1, 1, documentModel.numPages);
+    this.#pageNumber = clamp(page ?? 1, 1, documentModel.numPages);
     this.#lifecycle.send({ type: "DOCUMENT_READY", documentRequest, page: this.#pageNumber, pages: documentModel.numPages });
     if (!this.#lifecycle.getSnapshot().matches("ready")) {
       await loadingTask.destroy();
       return false;
     }
+    return this.#renderDocument(documentModel, documentRequest);
+  }
+
+  async #renderDocument(documentModel: PDFDocumentProxy, documentRequest: number): Promise<boolean> {
     this.#lifecycle.send({ type: "RENDER", page: this.#pageNumber });
     const renderRequest = this.#lifecycle.getSnapshot().context.renderRequest;
     try {
@@ -326,15 +330,7 @@ export class PdfEvidenceViewer {
     }
     let pages = this.#searchTextCache;
     if (this.#artifactId && pages.every(({ text }) => text.trim().length < 24)) {
-      const response = await fetch(`/api/library/pdfs/${encodeURIComponent(this.#artifactId)}/analyses/pdf-text`, {
-        credentials: "same-origin",
-      });
-      if (response.ok) {
-        const value: unknown = await response.json();
-        if (isArtifactAnalysis(value) && value.kind === "pdf-text" && value.status === "ready" && isPdfTextAnalysisResult(value.result)) {
-          pages = value.result.pages.map(({ page, text }) => ({ page, text }));
-        }
-      }
+      pages = (await fetchAnalyzedPdfText(this.#artifactId)) ?? pages;
     }
     return documentModel === this.#document ? searchPdfPageTexts(pages, query) : [];
   }
@@ -358,13 +354,7 @@ export class PdfEvidenceViewer {
     const documentModel = this.#document;
     if (!documentModel) return "";
     const page = await documentModel.getPage(clamp(pageNumber, 1, documentModel.numPages));
-    const unscaled = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: 128 / unscaled.width });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    await page.render({ canvas, viewport }).promise;
-    return canvas.toDataURL("image/jpeg", 0.72);
+    return renderPdfPageJpeg(page, { width: 128, quality: 0.72 });
   }
 
   async #resolveOutline(documentModel: PDFDocumentProxy, items: readonly unknown[]): Promise<PdfOutlineItem[]> {
@@ -900,6 +890,15 @@ function isPdfOutlineSource(
   value: unknown,
 ): value is { readonly title: string; readonly dest: unknown; readonly items?: readonly unknown[] } {
   return typeof value === "object" && value !== null && "title" in value && typeof value.title === "string" && "dest" in value;
+}
+
+async function fetchAnalyzedPdfText(artifactId: string): Promise<readonly PdfTextPage[] | null> {
+  const response = await fetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-text`, { credentials: "same-origin" });
+  if (!response.ok) return null;
+  const value: unknown = await response.json();
+  if (!isArtifactAnalysis(value) || value.kind !== "pdf-text" || value.status !== "ready" || !isPdfTextAnalysisResult(value.result))
+    return null;
+  return value.result.pages;
 }
 
 export function searchPdfPageTexts(
