@@ -11,10 +11,12 @@ with an authored passage.
 
 ### Architecture
 
-- `src/client/pdf/pdf-viewer.ts` owns single-page PDF.js canvas and text-layer
-  rendering, page navigation, stored highlights, browser selection capture,
-  and resolution of its bounded shell elements. The workspace coordinator
-  supplies typed selection, highlight, and page-change hooks.
+- `src/client/pdf/pdf-viewer.ts` binds Kirjolab's controls, gestures,
+  highlights, and browser selection capture to the PDF.js viewer component.
+  PDF.js owns the page views, canvas and text rendering, scroll and spread
+  modes, and scale changes. The workspace coordinator supplies typed
+  selection, highlight, and page-change hooks.
+  [ADR-256](../../docs/adrs/implemented/ADR-256-use-pdfjs-viewer-components.md)
 - `src/client/context/pdf-context-session.ts` owns the bound viewer's active
   document identity, authorized load application, stale-completion rejection,
   scroll restoration, navigation-document setup, failure routing, captured
@@ -22,9 +24,10 @@ with an authored passage.
   in the resource-context presenter.
 - A viewer-local XState actor coordinates closed, runtime-loading,
   document-loading, page-rendering, ready, and failed phases. Its document and
-  render request generations invalidate late work when another PDF, page, zoom,
-  or resize supersedes it. PDF.js documents/tasks, rendered DOM, gestures,
-  annotations, and selection state remain outside the actor.
+  render request generations guard document loading and initial presentation.
+  The PDF.js component cancels superseded page draws during navigation, zoom,
+  and resize. PDF.js documents/tasks, rendered DOM, gestures, annotations, and
+  selection state remain outside the actor.
 - `src/client/pdf/pdf-selection.ts` normalizes selection geometry and derives quote
   context independently of the viewer runtime. Fragmented browser client
   rectangles are clipped and coalesced into continuous visual-line rectangles
@@ -76,8 +79,9 @@ with an authored passage.
   and the eraser; annotation deletion is explicit and blocked by claim usage.
 - The generated PDF.js worker is served from `/pdf.worker.js` and stays version
   matched with the display-layer dependency.
-- The lazy PDF.js display runtime uses a content-fingerprinted immutable URL
-  compiled into the matching application build.
+- The PDF.js display runtime, viewer component, and viewer stylesheet use
+  content-fingerprinted immutable URLs compiled into the matching application
+  build. Metadata extraction loads only the display runtime.
 
 ### Anti-Patterns
 
@@ -92,7 +96,7 @@ with an authored passage.
 ### Definition of Done
 
 - [x] An imported valid PDF renders inside Kirjolab with selectable text.
-- [x] Page navigation renders one page at a time. While the PDF is visible,
+- [x] Single-page navigation shows one page at a time. While the PDF is visible,
       unmodified Left and Right Arrow keys move to the previous and next page;
       editable and interactive controls retain their arrow-key behavior.
 - [x] A selection captures page, quote, prefix, suffix, and normalized geometry.
@@ -131,9 +135,11 @@ with an authored passage.
   deferred resolution and rejection after PDF.js 6.3 removed its bundled shim.
 - Text extraction must consume PDF.js streams through `getReader()` instead of
   requiring `ReadableStream` async iteration, which Safari does not provide.
-- The viewer must render only the active page.
-- Missing required canvas, layer, status, or page-control elements must fail
-  viewer construction instead of leaving a partially bound reader.
+- The viewer renders a bounded set of pages in continuous and spread layouts.
+  Selections, highlights, and note or ink interactions resolve against the
+  page that owns them, including after a zoom redraw or page eviction.
+- The shell supplies a scroll container, viewer host, status, and controls.
+  PDF.js creates canvases and text layers as pages render.
 - A superseded document or render request must never replace the active canvas,
   text layer, page indicators, or viewer status.
 - User-facing PDF and analysis failures must use stable recovery guidance and

@@ -13,11 +13,20 @@
     background: var(--color-app-backdrop);
   }
 
-  .pdf-reader {
+  .pdf-reader-frame {
+    position: relative;
+    min-width: 0;
     min-height: 0;
-    overflow: auto;
     background: var(--color-app-pdf-surround);
-    padding: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pdf-reader {
+    --page-border: 0;
+    --page-margin: 0.5rem auto;
+    --spreadHorizontalWrapped-margin-LR: 0.25rem;
+    position: absolute;
+    inset: 0;
+    overflow: auto;
     overscroll-behavior: contain;
     touch-action: pan-x pan-y;
   }
@@ -26,49 +35,28 @@
     touch-action: pan-y;
   }
 
-  .pdf-page {
-    position: relative;
-    margin-inline: auto;
-    overflow: hidden;
-    background: white;
+  .pdf-reader .page {
     box-shadow: 0 1.2rem 3rem var(--color-app-shadow);
-    transform-origin: top center;
   }
 
-  .pdf-continuous-pages {
-    display: flex;
-    min-width: 100%;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(0.85rem, 2.5vw, 1.5rem);
-    padding-bottom: clamp(1rem, 3vw, 2rem);
+  .pdf-reader .spread:first-child:has(> .page:only-child) {
+    display: grid;
+    width: max-content;
+    grid-template-columns: repeat(2, 1fr);
+    margin-inline: auto;
   }
 
-  .pdf-continuous-pages[hidden] {
+  .pdf-reader .spread:first-child > .page:only-child {
+    grid-column: 2;
+  }
+
+  .pdf-reader .annotationLayer {
     display: none;
-  }
-
-  .pdf-continuous-page {
-    flex: none;
-    scroll-margin-top: clamp(1rem, 3vw, 2rem);
-  }
-
-  .pdf-continuous-page-frame {
-    position: absolute;
-    top: 0;
-    left: 0;
-    transform-origin: 0 0;
-  }
-
-  .pdf-reader[data-display-mode="continuous"] {
-    scroll-behavior: smooth;
-    touch-action: pan-y;
   }
 
   .pdf-highlights,
   .pdf-links,
-  .pdf-markups,
-  .textLayer {
+  .pdf-markups {
     position: absolute;
     inset: 0;
   }
@@ -349,43 +337,11 @@
     pointer-events: auto;
   }
 
-  .textLayer {
-    --min-font-size: 1;
-    --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
-    --min-font-size-inv: calc(1 / var(--min-font-size));
+  .pdf-reader .textLayer {
     z-index: 2;
-    overflow: clip;
-    color: transparent;
-    line-height: 1;
-    text-align: initial;
-    text-size-adjust: none;
-    transform-origin: 0 0;
   }
 
-  .textLayer :is(span, br) {
-    position: absolute;
-    color: transparent;
-    cursor: text;
-    white-space: pre;
-    transform-origin: 0% 0%;
-    user-select: text;
-  }
-
-  .textLayer > :not(.markedContent),
-  .textLayer .markedContent span:not(.markedContent) {
-    --font-height: 0;
-    --scale-x: 1;
-    --rotate: 0deg;
-    z-index: 1;
-    font-size: calc(var(--text-scale-factor) * var(--font-height));
-    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
-  }
-
-  .textLayer .markedContent {
-    display: contents;
-  }
-
-  .textLayer ::selection {
+  .pdf-reader .textLayer ::selection {
     background: rgb(11 107 81 / 0.28);
   }
 }

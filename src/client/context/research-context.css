@@ -220,18 +220,6 @@
     border-color: var(--color-app-accent);
   }
 
-  .pdf-continuous-pages[data-layout="spread"] {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
-    align-items: start;
-    justify-content: center;
-    gap: 1.25rem 0.75rem;
-  }
-
-  .pdf-continuous-pages[data-layout="spread"] .pdf-continuous-page:first-child {
-    grid-column: 2;
-  }
-
   #pdf-spread[aria-pressed="true"],
   #library-pdf-spread[aria-pressed="true"] {
     background: var(--color-app-accent-ghost);
@@ -557,7 +545,7 @@
     gap: 0.35rem;
   }
 
-  .context-pdf-panel[data-library-pdf="true"] .pdf-reader {
+  .context-pdf-panel[data-library-pdf="true"] .pdf-reader-frame {
     grid-column: 2;
     grid-row: 1;
   }

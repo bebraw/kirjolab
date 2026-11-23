@@ -910,7 +910,7 @@ export class ContextResourcePresenter extends LightDomController {
     if (viewerState) this.contextState = this.captureContext(this.contextState, viewerState);
   }
 
-  async loadActivePdf(force: boolean): Promise<void> {
+  async loadActivePdf(explicitLocation: boolean): Promise<void> {
     await this.pdfSession.load(
       {
         activeTab: this.currentActiveTab,
@@ -920,7 +920,7 @@ export class ContextResourcePresenter extends LightDomController {
         projectReferencePdfs: this.loadedReferencePdfs,
         workspacePdfs: this.currentSnapshot?.pdfs ?? [],
       },
-      force,
+      explicitLocation,
     );
   }
 
@@ -1117,7 +1117,7 @@ export class ContextResourcePresenter extends LightDomController {
     const primary = this.element("paper-markups", LibraryPdfMarkupLayer);
     const continuousPages = this.element("paper-continuous-pages", HTMLElement);
     const flowing = continuousPages ? [...continuousPages.querySelectorAll<LibraryPdfMarkupLayer>("library-pdf-markup-layer")] : [];
-    return primary ? [primary, ...flowing] : flowing;
+    return primary ? [primary, ...flowing.filter((layer) => layer !== primary)] : flowing;
   }
 
   private applyLibraryPdfDrawingStyle(style: Pick<LibraryPdfDrawing, "color" | "width">): void {

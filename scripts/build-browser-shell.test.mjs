@@ -1,15 +1,45 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { build } from "esbuild";
 
 import {
   assertLitBuildMode,
+  buildFingerprintedRuntime,
   browserShellBuildMode,
   browserShellConditions,
   contentFingerprint,
   fingerprintedAssetName,
 } from "./build-browser-shell.mjs";
+
+test("publishes concurrent viewer builds under fingerprints of their complete outputs", async (t) => {
+  const outputAssets = await mkdtemp(join(tmpdir(), "kirjolab-viewer-assets-"));
+  t.after(() => rm(outputAssets, { recursive: true, force: true }));
+  const sources = ["first", "second"];
+  const entries = await Promise.all(
+    sources.map(async (value) => {
+      const path = join(outputAssets, value + ".mjs");
+      await writeFile(path, `export const value = "${value}";`);
+      return path;
+    }),
+  );
+  const results = await Promise.allSettled(
+    [...entries, ...entries, ...entries, ...entries].map((entryPoint) =>
+      buildFingerprintedRuntime({ entryPoint, mode: "production", outputAssets, stem: "pdfjs-viewer" }),
+    ),
+  );
+  for (const [index, result] of results.entries()) {
+    if (result.status === "rejected") throw result.reason;
+    const { name } = result.value;
+    const bytes = await readFile(join(outputAssets, name));
+    assert.equal(name, fingerprintedAssetName("pdfjs-viewer", bytes));
+    assert.ok(bytes.toString().includes(sources[index % entries.length]));
+  }
+  assert.equal((await readdir(outputAssets)).length, entries.length + sources.length);
+});
 
 test("derives stable bounded browser asset fingerprints from content", () => {
   assert.equal(contentFingerprint("same"), contentFingerprint("same"));

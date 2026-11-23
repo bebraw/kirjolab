@@ -1,6 +1,6 @@
 # ADR-126: Buffer PDF Zoom Rendering
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-256](./ADR-256-use-pdfjs-viewer-components.md)
 
 **Date:** 2026-07-15
 

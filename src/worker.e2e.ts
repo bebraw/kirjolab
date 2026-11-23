@@ -503,7 +503,7 @@ async function turnPdfPageWithTrackpad(page: Page, direction: -1 | 1, expectedPa
 }
 
 async function swipePdfPage(page: Page, identifier: number, fromX: number, toX: number): Promise<void> {
-  await page.locator("#paper-text-layer").evaluate(
+  await page.locator(".pdfViewer .textLayer").evaluate(
     (layer, gesture) => {
       const startTouch = new Touch({
         identifier: gesture.identifier,
@@ -804,7 +804,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   expect(drawingLayout.pageOverflowsHorizontally).toBe(false);
   await page.locator("#library-select-tool").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
-  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#download-library-original-pdf")).toBeEnabled();
@@ -834,20 +834,18 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#toast")).toHaveText("1 PDF highlight imported to your library.");
   await expect(page.locator("#library-highlight-list")).toContainText("Imported from the PDF");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
-  const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
+  const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
+  const fittedPageWidth = await pageWidth();
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -40, deltaMode: 0 });
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -40, deltaMode: 0 });
-  await expect(page.locator("#paper-canvas")).toHaveAttribute("width", String(fittedCanvasWidth));
-  await expect(page.locator("#paper-page")).toHaveAttribute("style", /transform: scale/u);
-  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await expect.poll(pageWidth).toBeGreaterThan(fittedPageWidth);
   await expect
     .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBeGreaterThan(0);
-  await expect(page.locator("#paper-page")).not.toHaveAttribute("style", /transform: scale/u);
   const zoomedVerticalReach = await page.locator("#paper-reader").evaluate((reader) => {
     reader.scrollTop = reader.scrollHeight;
     const readerBounds = reader.getBoundingClientRect();
-    const pageBounds = reader.querySelector<HTMLElement>("#paper-page")?.getBoundingClientRect();
+    const pageBounds = reader.querySelector<HTMLElement>(".pdfViewer .page")?.getBoundingClientRect();
     return {
       maximumScrollTop: reader.scrollTop,
       pageBottomBeyondReader: (pageBounds?.bottom ?? Number.POSITIVE_INFINITY) - readerBounds.bottom,
@@ -856,8 +854,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   expect(zoomedVerticalReach.maximumScrollTop).toBeGreaterThan(0);
   expect(zoomedVerticalReach.pageBottomBeyondReader).toBeLessThanOrEqual(0);
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 80, deltaMode: 0 });
-  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
-  await page.locator("#paper-text-layer").evaluate((layer) => {
+  await expect.poll(pageWidth).toBe(fittedPageWidth);
+  await page.locator(".pdfViewer .textLayer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected rendered student PDF text");
     const range = document.createRange();
@@ -948,7 +946,7 @@ test("follows internal and external links from the active PDF page", async ({ pa
   const linkedPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /linked reading/iu });
   await linkedPdf.locator("button.library-reference-open").click();
 
-  await expect(page.locator("#paper-links .pdf-link")).toHaveCount(2);
+  await expect(page.locator(".pdfViewer .pdf-links .pdf-link")).toHaveCount(2);
   const external = page.getByRole("link", { name: "Open PDF link: https://example.com/source" });
   await expect(external).toHaveAttribute("target", "_blank");
   await expect(external).toHaveAttribute("rel", "noopener noreferrer nofollow");
@@ -3302,11 +3300,11 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#toggle-library-paper-continuous").click();
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#paper-continuous-pages")).toBeVisible();
-  await expect(page.locator("#paper-continuous-pages .pdf-continuous-page")).toHaveCount(2);
+  await expect(page.locator(".pdfViewer .page")).toHaveCount(2);
   await expect
-    .poll(async () => Number(await page.locator('.pdf-continuous-page[data-pdf-page="1"] canvas').getAttribute("width")))
+    .poll(async () => Number(await page.locator('.pdfViewer .page[data-page-number="1"] canvas[role=presentation]').getAttribute("width")))
     .toBeGreaterThan(0);
-  await page.locator('.pdf-continuous-page[data-pdf-page="2"]').scrollIntoViewIfNeeded();
+  await page.locator('.pdfViewer .page[data-page-number="2"]').scrollIntoViewIfNeeded();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.locator("#library-paper-page-indicator .pdf-page-jump-display").click();
   await page.locator("#library-paper-page-indicator .pdf-page-jump-input").fill("1");
@@ -3315,13 +3313,13 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#library-pdf-view-options").click();
   await page.locator("#toggle-library-paper-continuous").click();
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator("#paper-continuous-pages")).toBeHidden();
+  await expect(page.locator(".pdfViewer .page")).toHaveCount(1);
   await page.getByRole("button", { name: "Select", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.getByRole("button", { name: "Select", exact: true }).click();
-  await expect(page.locator("#paper-text-layer")).toHaveCSS("pointer-events", "auto");
-  const selectedPdfText = await page.locator("#paper-text-layer").evaluate((layer) => {
+  await expect(page.locator(".pdfViewer .textLayer")).toHaveCSS("pointer-events", "auto");
+  const selectedPdfText = await page.locator(".pdfViewer .textLayer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected selectable private PDF text");
     const range = document.createRange();
@@ -3335,14 +3333,15 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   expect(selectedPdfText).not.toBe("");
   await page.waitForTimeout(120);
   await expect(page.locator("#library-highlight-composer")).toBeVisible();
-  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
+  await expect(page.locator(".pdfViewer .pdf-highlights [data-draft='true']")).toHaveCount(1);
   await page.locator("#cancel-library-highlight").click();
   await expect(page.locator("#library-highlight-form")).toBeHidden();
   await page.locator("#close-library-pdf-inspector").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
-  const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
+  const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
+  const fittedPageWidth = await pageWidth();
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
-  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await expect.poll(pageWidth).toBeGreaterThan(fittedPageWidth);
   await expect(page.locator("#paper-reader")).toHaveCSS("touch-action", "pan-x pan-y");
   await page.locator("#paper-reader").evaluate((reader) => {
     reader.scrollLeft = (reader.scrollWidth - reader.clientWidth) / 2;
@@ -3361,7 +3360,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await swipePdfPage(page, 11, 130, 220);
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 80, deltaMode: 0 });
-  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
+  await expect.poll(pageWidth).toBe(fittedPageWidth);
   await page.waitForTimeout(450);
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 8, deltaY: 80, deltaMode: 0 });
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
@@ -3372,7 +3371,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.locator("#previous-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
-  await page.locator("#paper-text-layer").evaluate((layer) => {
+  await page.locator(".pdfViewer .textLayer").evaluate((layer) => {
     layer.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 41, pointerType: "mouse" }));
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");
@@ -3384,9 +3383,9 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   });
   await page.waitForTimeout(120);
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
-  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
-  await page.locator("#paper-text-layer").dispatchEvent("pointerup", { bubbles: true, pointerId: 41, pointerType: "mouse" });
-  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
+  await expect(page.locator(".pdfViewer .pdf-highlights [data-draft='true']")).toHaveCount(0);
+  await page.locator(".pdfViewer .textLayer").dispatchEvent("pointerup", { bubbles: true, pointerId: 41, pointerType: "mouse" });
+  await expect(page.locator(".pdfViewer .pdf-highlights [data-draft='true']")).toHaveCount(1);
   await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
   await expect(page.locator("#library-highlight-composer")).toBeVisible();
   await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
@@ -3398,7 +3397,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
   await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
-  await page.locator("#paper-text-layer").evaluate((layer) => {
+  await page.locator(".pdfViewer .textLayer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");
     const range = document.createRange();
@@ -3424,7 +3423,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#library-highlight-list")).toContainText("Revised reading insight");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Additive follow-up");
   await page.getByRole("button", { name: "Select", exact: true }).click();
-  await page.locator("#paper-highlights [data-private='true']").first().click();
+  await page.locator(".pdfViewer .pdf-highlights [data-private='true']").first().click();
   await expect(page.locator("#library-highlight-form")).toBeVisible();
   await expect(page.locator("#library-highlight-comment")).toHaveValue("Revised reading insight");
   await page.locator("#cancel-library-highlight").click();
@@ -3589,8 +3588,8 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.getByRole("button", { name: "Select", exact: true }).click();
   await page.locator("#library-pdf-view-options").click();
   await page.locator("#toggle-library-paper-continuous").click();
-  const continuousPageMarkups = page.locator('.pdf-continuous-page[data-pdf-page="1"] library-pdf-markup-layer');
-  const secondContinuousPage = page.locator('.pdf-continuous-page[data-pdf-page="2"]');
+  const continuousPageMarkups = page.locator('.pdfViewer .page[data-page-number="1"] library-pdf-markup-layer');
+  const secondContinuousPage = page.locator('.pdfViewer .page[data-page-number="2"]');
   const secondContinuousPageMarkups = secondContinuousPage.locator("library-pdf-markup-layer");
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
   await expect(continuousPageMarkups.locator(".pdf-note-pin:not([data-draft='true'])")).toHaveCount(1);
@@ -3715,7 +3714,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.getByRole("button", { name: "Note", exact: true }).click();
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#paper-continuous-pages")).toBeVisible();
-  await expect(page.locator("#paper-page")).toBeHidden();
+  await expect(page.locator(".pdfViewer .page")).toHaveCount(2);
   await secondContinuousPage.scrollIntoViewIfNeeded();
   await secondContinuousPageMarkups.evaluate((layer) => {
     const rect = layer.getBoundingClientRect();
@@ -3746,7 +3745,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated copy" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("climate_adaptation-annotated.pdf");
-  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
+  await expect(page.locator(".pdfViewer .pdf-highlights [data-draft='true']")).toHaveCount(0);
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.locator("#next-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
@@ -4619,10 +4618,10 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "context-paper.pdf" }).click();
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "current-paper.pdf" }).click();
   await expect(page.getByRole("tab", { name: `pdf:${currentPdf.id}`, exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.waitForTimeout(300);
   await expect(page.getByRole("tab", { name: `pdf:${currentPdf.id}`, exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.unroute(`**${api}/pdfs/${delayedPdf.id}`);
   await page.getByRole("tab", { name: "Preview" }).click();
   page.once("dialog", (dialog) => void dialog.accept());
@@ -4925,7 +4924,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   });
 
   const paintSelection = async (): Promise<void> => {
-    await page.locator("#paper-text-layer").evaluate((layer) => {
+    await page.locator(".pdfViewer .textLayer").evaluate((layer) => {
       const span = layer.querySelector("span");
       if (!span?.firstChild) throw new Error("Expected rendered PDF text");
       const range = document.createRange();
@@ -4938,7 +4937,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   };
 
   await paintSelection();
-  await expect(page.locator("#paper-highlights .pdf-highlight[data-draft='true']")).toBeVisible();
+  await expect(page.locator(".pdfViewer .pdf-highlights .pdf-highlight[data-draft='true']")).toBeVisible();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
   await paintSelection();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(2);
@@ -4950,7 +4949,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(2);
 
   await page.getByRole("button", { name: "Eraser" }).click();
-  await page.locator("#paper-highlights .pdf-highlight[data-fragment-id]").last().click();
+  await page.locator(".pdfViewer .pdf-highlights .pdf-highlight[data-fragment-id]").last().click();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
 
   await openResearchCollection(page, "Project evidence");
@@ -7012,7 +7011,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
   await expect(page.getByRole("tab", { name: `pdf:${evidencePdfId}` })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
-  await page.locator("#paper-text-layer").evaluate(selectFirstPdfText);
+  await page.locator(".pdfViewer .textLayer").evaluate(selectFirstPdfText);
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#annotation-selection-status")).toContainText("saved automatically");
   await page.locator("#annotation-comment").fill("Grounding for the revision");
@@ -7133,12 +7132,12 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 
   await openResearchCollection(page, "Project evidence");
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
-  await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
+  await expect(page.locator(".pdfViewer .pdf-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await page.getByRole("tab", { name: "Preview" }).click();
   await expect(page.locator("#context-preview-panel")).toBeVisible();
   await expect(page.locator("#context-pdf-panel")).toBeHidden();
   await page.getByRole("tab", { name: `pdf:${evidencePdfId}` }).click();
-  await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
+  await expect(page.locator(".pdfViewer .pdf-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
 
@@ -7482,6 +7481,23 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(pdfRuntime.ok()).toBe(true);
   expect(pdfRuntime.headers()["content-type"]).toContain("javascript");
   expect(pdfRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+
+  const pdfViewerScript = clientBody.match(/\/pdfjs-viewer-[a-f0-9]{16}\.js/u)?.[0];
+  const pdfViewerStyles = clientBody.match(/\/pdfjs-viewer-[a-f0-9]{16}\.css/u)?.[0];
+  const pdfViewerImagePrefix = clientBody.match(/\/pdfjs-image-[a-f0-9]{16}-/u)?.[0];
+  expect(pdfViewerScript).toBeTruthy();
+  expect(pdfViewerStyles).toBeTruthy();
+  expect(pdfViewerImagePrefix).toBeTruthy();
+  for (const [path, mime] of [
+    [pdfViewerScript!, "javascript"],
+    [pdfViewerStyles!, "text/css"],
+    [`${pdfViewerImagePrefix}annotation-note.svg`, "image/svg+xml"],
+  ] as const) {
+    const asset = await request.get(path);
+    expect(asset.ok(), path).toBe(true);
+    expect(asset.headers()["content-type"]).toContain(mime);
+    expect(asset.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+  }
 
   const markdownRuntime = await request.get(markdownRuntimePath!);
   expect(markdownRuntime.ok()).toBe(true);

@@ -22,13 +22,6 @@ export interface PdfHorizontalPageEdges {
   next: boolean;
 }
 
-export interface PdfZoomAnchor {
-  x: number;
-  y: number;
-  clientX: number;
-  clientY: number;
-}
-
 export interface PdfKeyboardPagingInput {
   key: string;
   altKey: boolean;
@@ -102,28 +95,6 @@ export function pdfHorizontalPageEdges(
   };
 }
 
-export function pdfZoomAnchor(
-  rect: { left: number; top: number; width: number; height: number },
-  point: { x: number; y: number },
-): PdfZoomAnchor {
-  return {
-    x: clampUnit((point.x - rect.left) / Math.max(1, rect.width)),
-    y: clampUnit((point.y - rect.top) / Math.max(1, rect.height)),
-    clientX: point.x,
-    clientY: point.y,
-  };
-}
-
-export function pdfZoomScrollCorrection(
-  anchor: PdfZoomAnchor,
-  rect: { left: number; top: number; width: number; height: number },
-): { left: number; top: number } {
-  return {
-    left: rect.left + anchor.x * rect.width - anchor.clientX,
-    top: rect.top + anchor.y * rect.height - anchor.clientY,
-  };
-}
-
 export function advancePdfWheelPaging(
   state: PdfWheelPagingState,
   input: { deltaX: number; deltaY: number; deltaMode: number; now: number },
@@ -148,8 +119,4 @@ export function advancePdfWheelPaging(
     consumed: true,
     direction: distance > 0 ? 1 : -1,
   };
-}
-
-function clampUnit(value: number): number {
-  return Math.max(0, Math.min(1, value));
 }

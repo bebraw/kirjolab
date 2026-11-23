@@ -84,7 +84,7 @@ export class PdfContextSession {
       : null;
   }
 
-  async load(sources: PdfContextSessionSources, force: boolean): Promise<void> {
+  async load(sources: PdfContextSessionSources, explicitLocation: boolean): Promise<void> {
     const viewer = this.#viewer;
     if (!viewer) return;
     const context = activePdfLoadContext({ ...sources, apiBase: this.#apiBase });
@@ -93,7 +93,7 @@ export class PdfContextSession {
     viewer.updateAnnotations(context.annotations);
     viewer.updatePrivateHighlights(context.privateHighlights);
     const reader = this.#ports.reader();
-    if (!force && this.#renderedContextKey === context.tab.key) {
+    if (!explicitLocation && this.#renderedContextKey === context.tab.key) {
       if (reader) reader.scrollTop = context.tab.scrollTop;
       return;
     }
@@ -112,7 +112,7 @@ export class PdfContextSession {
       this.#renderedContextKey = context.tab.key;
       this.#ports.navigationDocument(context.tab.key, viewer.currentPage);
       this.#currentWorkspacePdfId = context.workspacePdf?.id;
-      if (reader) reader.scrollTop = context.tab.scrollTop;
+      if (reader && !explicitLocation) reader.scrollTop = context.tab.scrollTop;
     } catch (error) {
       if (this.#ports.activeKey() === context.tab.key) viewer.showError(error);
     }

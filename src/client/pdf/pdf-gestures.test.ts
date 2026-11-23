@@ -6,8 +6,6 @@ import {
   pdfKeyboardPageDirection,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
-  pdfZoomAnchor,
-  pdfZoomScrollCorrection,
 } from "./pdf-gestures";
 
 describe("PDF keyboard paging", () => {
@@ -97,18 +95,6 @@ describe("PDF horizontal page edges", () => {
       previous: false,
       next: true,
     });
-  });
-});
-
-describe("PDF anchored zoom", () => {
-  it("normalizes the gesture point and corrects committed layout around it", () => {
-    const anchor = pdfZoomAnchor({ left: 100, top: 50, width: 400, height: 800 }, { x: 200, y: 250 });
-    expect(anchor).toEqual({ x: 0.25, y: 0.25, clientX: 200, clientY: 250 });
-    expect(pdfZoomScrollCorrection(anchor, { left: 80, top: 20, width: 800, height: 1600 })).toEqual({ left: 80, top: 170 });
-  });
-
-  it("clamps an anchor to the visible page", () => {
-    expect(pdfZoomAnchor({ left: 100, top: 100, width: 200, height: 200 }, { x: 50, y: 400 })).toMatchObject({ x: 0, y: 1 });
   });
 });
 

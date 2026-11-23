@@ -613,15 +613,13 @@ export function renderHomePage(
               <aside class="pdf-reference-details-panel" aria-label="About this paper" hidden></aside>
             </pdf-reference-details-panel>
             <span class="pdf-reader-status" id="paper-status" role="status" aria-live="polite" data-state="busy">Loading PDF…</span>
-            <div class="pdf-reader" id="paper-reader">
-              <div class="pdf-page" id="paper-page">
-                <canvas class="block" id="paper-canvas"></canvas>
-                <div class="pdf-links" id="paper-links" aria-label="PDF links"></div>
-                <div class="pdf-highlights" id="paper-highlights"></div>
-                <div class="textLayer" id="paper-text-layer"></div>
+            <div class="pdf-reader-frame">
+              <div class="pdf-reader" id="paper-reader" tabindex="0" role="region" aria-label="PDF reader">
+                <div class="pdfViewer" id="paper-continuous-pages" aria-label="PDF pages"></div>
+              </div>
+              <div id="paper-markups-dock" hidden>
                 <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="select" aria-label="Private PDF annotations"></library-pdf-markup-layer>
               </div>
-              <div class="pdf-continuous-pages" id="paper-continuous-pages" aria-label="PDF pages" hidden></div>
             </div>
             <project-annotation-form class="contents" id="project-annotation-form">
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">

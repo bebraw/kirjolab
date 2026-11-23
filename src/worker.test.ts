@@ -316,8 +316,13 @@ describe("worker", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
-  it("requires runtime assets for the lazy PDF.js module", async () => {
-    const response = await handleRequest(new Request("http://example.com/pdfjs-module-0123456789abcdef.js"));
+  it.each([
+    "pdfjs-module-0123456789abcdef.js",
+    "pdfjs-viewer-0123456789abcdef.js",
+    "pdfjs-viewer-0123456789abcdef.css",
+    "pdfjs-image-0123456789abcdef-annotation-note.svg",
+  ])("requires runtime assets for the lazy PDF.js asset %s", async (name) => {
+    const response = await handleRequest(new Request(`http://example.com/${name}`));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
