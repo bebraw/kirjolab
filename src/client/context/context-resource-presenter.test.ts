@@ -2218,11 +2218,11 @@ describe("context resource presenter", () => {
     expect(clearMarkup).toHaveBeenCalledOnce();
   });
 
-  it("keeps private-PDF tools synchronized across flowing page surfaces", () => {
+  it("sets the tool once on each mounted PDF.js page surface and on the primary markup owner", () => {
     const { elements, presenter } = setup();
     const flowingLayer = new LibraryPdfMarkupLayer();
     const container = Object.assign(new HTMLElement(), {
-      querySelectorAll: vi.fn(() => [flowingLayer]),
+      querySelectorAll: vi.fn(() => [elements["paper-markups"], flowingLayer]),
     });
     (elements as Record<string, unknown>)["paper-continuous-pages"] = container;
     const chooseSingle = vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
@@ -2233,8 +2233,8 @@ describe("context resource presenter", () => {
 
     presenter.chooseLibraryPdfTool("note");
 
-    expect(chooseSingle).toHaveBeenCalledWith("note");
-    expect(chooseFlowing).toHaveBeenCalledWith("note");
+    expect(chooseSingle).toHaveBeenCalledExactlyOnceWith("note");
+    expect(chooseFlowing).toHaveBeenCalledExactlyOnceWith("note");
   });
 
   it("applies drawing style changes to primary and flowing PDF markup surfaces", () => {

@@ -39,7 +39,7 @@ test("exports an anonymous review with editable imported comments and no reviewe
   const draft: unknown = await upload.json();
   if (!isPdfDraftResult(draft)) throw new Error("Expected uploaded PDF draft");
   await page.goto(`/library/pdfs/${draft.artifact.id}`);
-  await expect(page.locator("#paper-text-layer")).toContainText("Evidence for anonymous review.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("Evidence for anonymous review.");
   await page.getByRole("button", { name: "More PDF actions" }).click();
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export anonymous review", exact: true }).click();
@@ -137,7 +137,7 @@ test("shares an annotated PDF snapshot by link and revokes access", async ({ pag
   expect(note.ok()).toBe(true);
 
   await page.goto(`/library/pdfs/${draft.artifact.id}`);
-  await expect(page.locator("#paper-text-layer")).toContainText("First page: inspectable evidence.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("First page: inspectable evidence.");
   await page.getByRole("button", { name: "More PDF actions" }).click();
   await page.getByRole("button", { name: "Share annotated copy", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Share annotated copy" });

@@ -200,11 +200,16 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
   workflow-orchestration parity matters using `npm run ci:local:container`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
 - Rebuild the content-fingerprinted application, service worker, Markdown
-  runtime, and PDF.js runtime together with `npm run build:browser-shell` after
+  runtime, and PDF.js assets together with `npm run build:browser-shell` after
   the stylesheet exists. `npm run build` preserves the required order.
   Both PDF display and worker builds prepend the shared conditional
   `Promise.withResolvers` shim from `scripts/pdf-runtime-compatibility.mjs`
   because PDF.js 6.3 compatibility builds no longer include it.
+  PDF reading loads the matching legacy viewer component after the display
+  runtime initializes. The browser shell publishes its JavaScript, stylesheet,
+  and annotation SVGs under fingerprinted names in `.generated/assets/`.
+  The viewer stylesheet embeds its referenced images and loads only when a
+  reader opens. PDF text and metadata extraction load the display runtime alone.
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.

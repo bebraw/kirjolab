@@ -4,6 +4,7 @@
     "src/**/*.e2e.ts",
     "src/browser/pdf-artifact-analyzer.ts",
     "src/client/app.ts",
+    "src/client/pdf/pdfjs-viewer.css",
     "src/client/review-app.ts",
     "src/client/service-worker.ts",
     "src/lib/paper-import/index.ts",

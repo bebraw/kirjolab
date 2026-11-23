@@ -12,6 +12,8 @@ identity and downstream work.
 
 - Each stored highlight stroke exposes quotation correction and normalized
   geometry adjustment.
+- Stroke editing controls are disabled while a project evidence mutation is
+  pending. The stroke editor closes after a successful adjustment or erase.
 - Geometry operations nudge, widen/narrow, and lengthen/shorten every rectangle
   in one stroke.
 - Operations clamp to zero-to-one page coordinates with a visible minimum
@@ -33,9 +35,8 @@ identity and downstream work.
   previous/next page action. Vertical scroll remains native. Zoomed pages pan
   within the page, then a qualifying gesture toward the corresponding
   horizontal edge changes pages.
-- Trackpad and touch pinch zoom transform the current page immediately, then
-  debounce rendering and atomically replace the live canvas and text layer only
-  after the new frame is complete.
+- Trackpad and touch pinch zoom update the page scale immediately. The PDF.js
+  viewer retains painted content while it schedules the final redraw.
 - Trackpad zoom remains anchored at the pointer and touch pinch zoom remains
   anchored at the gesture midpoint through the committed render.
 - The private-library PDF surface remains constrained to the visible app

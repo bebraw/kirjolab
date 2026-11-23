@@ -7,6 +7,8 @@ const artifacts = [
   ["Browser application", ".generated/app.txt"],
   ["Lazy Markdown runtime", "markdown-module"],
   ["Lazy PDF.js runtime", "pdfjs-module"],
+  ["Lazy PDF.js viewer", "pdfjs-viewer"],
+  ["Lazy PDF.js viewer styles", "pdfjs-viewer", "css"],
   ["Lazy Cytoscape runtime", "cytoscape-module"],
   ["Styles", ".generated/styles.css"],
 ];
@@ -28,8 +30,8 @@ export function bufferCost(contents) {
   return { rawBytes: contents.byteLength, gzipBytes: gzipSync(contents, { level: 9 }).byteLength };
 }
 
-export function runtimeAsset(names, stem) {
-  const matches = names.filter((name) => new RegExp(`^${stem}-[a-f0-9]+\\.js$`, "u").test(name));
+export function runtimeAsset(names, stem, extension = "js") {
+  const matches = names.filter((name) => new RegExp(`^${stem}-[a-f0-9]+\\.${extension}$`, "u").test(name));
   if (matches.length !== 1) throw new Error(`Expected one built ${stem} asset; run npm run build first`);
   return `.generated/assets/${matches[0]}`;
 }
@@ -58,8 +60,8 @@ export async function dependencyCostReport(root = projectRoot) {
     readdir(new URL(".generated/assets/", rootPath)),
   ]);
   const measured = [];
-  for (const [name, configuredPath] of artifacts) {
-    const path = configuredPath.includes(".generated/") ? configuredPath : runtimeAsset(assetNames, configuredPath);
+  for (const [name, configuredPath, extension] of artifacts) {
+    const path = configuredPath.includes(".generated/") ? configuredPath : runtimeAsset(assetNames, configuredPath, extension);
     measured.push({ name, ...bufferCost(await readFile(new URL(path, rootPath))) });
   }
   return { dependencies: productionDependencyMetrics(packageJson, packageLock), artifacts: measured };

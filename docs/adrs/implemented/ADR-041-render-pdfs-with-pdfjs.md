@@ -1,6 +1,6 @@
 # ADR-041: Render PDFs With the PDF.js Display Layer
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-256](./ADR-256-use-pdfjs-viewer-components.md)
 
 **Date:** 2026-07-10
 

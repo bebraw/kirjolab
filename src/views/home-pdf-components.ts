@@ -36,7 +36,7 @@ export function renderLibraryPdfRail(): string {
                     <p class="library-pdf-menu-heading">Display</p>
                     <div class="library-pdf-menu-stepper" role="group" aria-label="PDF zoom">
                       <button id="library-pdf-zoom-out" type="button" aria-label="Zoom out" title="Zoom out" data-action-menu-keep-open>${renderIcon("zoomOut")}</button>
-                      <button id="library-pdf-fit-mode" type="button" aria-label="Change PDF fit mode" title="Fit width">${renderIcon("fit")}<span data-pdf-fit-label>Fit width</span></button>
+                      <button id="library-pdf-fit-mode" type="button" aria-label="Change PDF fit mode" title="Fit page">${renderIcon("fit")}<span data-pdf-fit-label>Fit page</span></button>
                       <button id="library-pdf-zoom-in" type="button" aria-label="Zoom in" title="Zoom in" data-action-menu-keep-open>${renderIcon("zoomIn")}</button>
                     </div>
                     <button class="library-pdf-menu-action" id="library-pdf-rotate" type="button">${renderIcon("rotate")}<span>Rotate clockwise</span></button>

@@ -1,9 +1,10 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { AnnotationResource, PdfSelectionRect } from "../../domain/workspace/workspace";
-import type { LibraryHighlight } from "../../domain/reference-library";
+import type { LibraryHighlight, PdfTextPage } from "../../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
-import { PdfContinuousView } from "./pdf-continuous-view";
+import { renderPdfPageJpeg } from "./pdf-page-image";
+import { PdfComponentView } from "./pdf-component-view";
 import type { PdfSearchResult } from "./pdf-search-panel";
 import type { PdfOutlineItem } from "./pdf-navigation-panel";
 import { isArtifactAnalysis, isPdfTextAnalysisResult } from "../../domain/reference-library";
@@ -14,14 +15,11 @@ import {
   pdfKeyboardPageDirection,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
-  pdfZoomAnchor,
-  pdfZoomScrollCorrection,
   type PdfTouchPanStart,
   type PdfWheelPagingState,
-  type PdfZoomAnchor,
 } from "./pdf-gestures";
-import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
-import { createPdfViewerActor, pdfViewerDocumentRequestActive, pdfViewerRenderRequestActive } from "./pdf-viewer-machine";
+import { loadPdfJsRuntime } from "./pdfjs-runtime";
+import { createPdfViewerActor, pdfViewerDocumentRequestActive } from "./pdf-viewer-machine";
 import { pdfFailureMessage } from "./pdf-status";
 
 export interface PdfSelectionCapture {
@@ -33,13 +31,9 @@ export interface PdfSelectionCapture {
 }
 
 interface PdfViewerElements {
-  reader: HTMLElement;
-  canvas: HTMLCanvasElement;
-  page: HTMLElement;
-  links: HTMLElement;
-  textLayer: HTMLElement;
-  highlights: HTMLElement;
-  continuousPages: HTMLElement;
+  reader: HTMLDivElement;
+  container: HTMLDivElement;
+  primaryMarkup: HTMLElement;
   continuousModeButtons: readonly HTMLButtonElement[];
   fitModeButtons: readonly HTMLButtonElement[];
   rotateButtons: readonly HTMLButtonElement[];
@@ -76,31 +70,19 @@ export type PdfDisplayMode = "continuous" | "single" | "spread";
 export type PdfFitMode = "actual" | "page" | "width";
 type PdfViewerStatusState = "busy" | "error" | "ready";
 
-interface PdfViewerZoomAnchor {
-  readonly element: HTMLElement;
-  readonly position: PdfZoomAnchor;
-}
-
-interface PdfFlowZoomCommit {
-  readonly generation: number;
-  readonly anchor: PdfViewerZoomAnchor | null;
-}
-
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   readonly #onPageChange: (page: number) => void;
   readonly #onPrivateHighlight: (highlightId: string) => void;
-  readonly #continuousView: PdfContinuousView;
+  readonly #view: PdfComponentView;
   readonly #lifecycle = createPdfViewerActor();
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
-  #runtime: PdfJsRuntime | null = null;
   #annotations: AnnotationResource[] = [];
   #privateHighlights: readonly LibraryHighlight[] = [];
   #pageNumber = 1;
-  #pageText = "";
   #focusedAnnotationId: string | undefined;
   #draftSelection: PdfSelectionCapture | null = null;
   #mode: "evidence" | "private-highlight" | "read-only" = "evidence";
@@ -108,37 +90,27 @@ export class PdfEvidenceViewer {
   #textSelectionMode: PdfTextSelectionMode = "highlight";
   #selectedPrivateHighlightId: string | null = null;
   #zoom = 1;
-  #renderedZoom = 1;
-  #fittedWidth: number | null = null;
-  #flowRenderGeneration = 0;
-  #pinchGeneration = 0;
-  #pinchStart: { distance: number; generation: number; surface: HTMLElement; zoom: number } | null = null;
+  #pinchStart: { distance: number; zoom: number; midpoint: { x: number; y: number } } | null = null;
+  #tool: "paint" | "erase" = "paint";
   #touchPanStart: PdfTouchPanStart | null = null;
   #swipeStart: { x: number; y: number; startedAt: number; edges: ReturnType<typeof pdfHorizontalPageEdges> } | null = null;
   #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
-  #wheelZoomRenderTimer: number | undefined;
   #selectionCaptureTimer: number | undefined;
   #selectionPointerActive = false;
   #selectionSettleDelay = 80;
-  #zoomAnchor: PdfViewerZoomAnchor | null = null;
-  #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
   #displayMode: PdfDisplayMode = readPdfDisplayMode();
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
   #documentKey = "";
   #artifactId = "";
-  #fitMode: PdfFitMode = "width";
+  #fitMode: PdfFitMode = "page";
   #rotation = 0;
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
       {
-        reader: requiredViewerElement(root, "paper-reader", HTMLElement),
-        canvas: requiredViewerElement(root, "paper-canvas", HTMLCanvasElement),
-        page: requiredViewerElement(root, "paper-page", HTMLElement),
-        links: requiredViewerElement(root, "paper-links", HTMLElement),
-        textLayer: requiredViewerElement(root, "paper-text-layer", HTMLElement),
-        highlights: requiredViewerElement(root, "paper-highlights", HTMLElement),
-        continuousPages: requiredViewerElement(root, "paper-continuous-pages", HTMLElement),
+        reader: requiredViewerElement(root, "paper-reader", HTMLDivElement),
+        container: requiredViewerElement(root, "paper-continuous-pages", HTMLDivElement),
+        primaryMarkup: requiredViewerElement(root, "paper-markups", HTMLElement),
         continuousModeButtons: [
           requiredViewerElement(root, "toggle-paper-continuous", HTMLButtonElement),
           requiredViewerElement(root, "toggle-library-paper-continuous", HTMLButtonElement),
@@ -183,15 +155,14 @@ export class PdfEvidenceViewer {
     this.#onHighlight = onHighlight;
     this.#onPageChange = onPageChange;
     this.#onPrivateHighlight = onPrivateHighlight;
-    this.#continuousView = new PdfContinuousView({
-      container: elements.continuousPages,
-      createPageOverlay,
+    this.#view = new PdfComponentView({
       reader: elements.reader,
-      onPageChange: (page) => this.#presentContinuousPage(page),
-      renderOverlays: (view, viewport, annotations) => {
-        this.#renderPdfLinks(viewport, annotations, view.frame.links);
-        this.#renderHighlightsForPage(view.page, view.frame.highlights);
-      },
+      container: elements.container,
+      primaryMarkup: elements.primaryMarkup,
+      createPageOverlay,
+      onPageChange: (page) => this.#presentPage(page),
+      onError: (error) => this.showError(error),
+      renderHighlights: (page, container) => this.#renderHighlightsForPage(page, container),
     });
     for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
     for (const button of elements.nextPages) button.addEventListener("click", () => void this.#move(1));
@@ -206,12 +177,9 @@ export class PdfEvidenceViewer {
     }
     for (const button of elements.zoomInButtons) button.addEventListener("click", () => void this.adjustZoom(0.25));
     for (const button of elements.zoomOutButtons) button.addEventListener("click", () => void this.adjustZoom(-0.25));
-    elements.textLayer.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
-    elements.textLayer.addEventListener("pointerup", () => this.#finishTextSelection());
-    elements.textLayer.addEventListener("pointercancel", () => this.#cancelTextSelection());
-    elements.continuousPages.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
-    elements.continuousPages.addEventListener("pointerup", () => this.#finishTextSelection());
-    elements.continuousPages.addEventListener("pointercancel", () => this.#cancelTextSelection());
+    elements.container.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
+    elements.container.addEventListener("pointerup", () => this.#finishTextSelection());
+    elements.container.addEventListener("pointercancel", () => this.#cancelTextSelection());
     document.addEventListener("selectionchange", () => {
       if (this.#mode === "private-highlight") this.#queueSelectionCapture();
     });
@@ -232,182 +200,117 @@ export class PdfEvidenceViewer {
   }
 
   async setDisplayMode(mode: PdfDisplayMode): Promise<void> {
-    const alreadyPresented =
-      mode === "continuous" || mode === "spread"
-        ? this.#elements.page.hidden && !this.#elements.continuousPages.hidden
-        : !this.#elements.page.hidden && this.#elements.continuousPages.hidden;
-    if (mode === this.#displayMode && alreadyPresented) return;
-    this.#cancelPendingWheelZoom();
-    this.#clearZoomPreview(this.#elements.continuousPages);
-    const flowRenderGeneration = ++this.#flowRenderGeneration;
-    this.#pinchGeneration += 1;
+    if (mode === this.#displayMode) return;
+    this.#cancelTouchGesture();
     this.#displayMode = mode;
     writePdfDisplayMode(mode);
     this.#syncDisplayModeControls();
-    const documentModel = this.#document;
-    const runtime = this.#runtime;
-    if (!documentModel || !runtime) return;
     this.clearDraftSelection();
-    if (mode === "continuous" || mode === "spread") {
-      this.#elements.page.hidden = true;
-      this.#elements.continuousPages.hidden = false;
-      this.#elements.reader.dataset.displayMode = mode;
-      this.#elements.continuousPages.dataset.layout = mode;
-      this.#setStatus(mode === "spread" ? "Preparing two-page view…" : "Preparing continuous view…", "busy");
-      const renderedZoom = this.#zoom;
-      await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), this.#rotation);
-      if (
-        flowRenderGeneration !== this.#flowRenderGeneration ||
-        this.#document !== documentModel ||
-        this.#runtime !== runtime ||
-        this.#displayMode !== mode
-      )
-        return;
-      this.#renderedZoom = renderedZoom;
-      this.#presentContinuousPage(this.#pageNumber);
-      return;
-    }
-    this.#pageNumber = this.#continuousView.currentPage;
-    this.#elements.continuousPages.hidden = true;
-    this.#elements.page.hidden = false;
-    delete this.#elements.reader.dataset.displayMode;
-    delete this.#elements.continuousPages.dataset.layout;
-    this.#elements.reader.scrollTop = 0;
-    await this.#renderPage();
+    this.#view.setDisplayMode(mode);
   }
 
   async adjustZoom(delta: number): Promise<void> {
-    this.#cancelPendingWheelZoom();
-    this.#zoom = adjustPdfZoom(this.#zoom, delta);
-    this.#elements.reader.dataset.zoomed = String(Math.abs(this.#zoom - 1) > 0.01);
-    if (this.#displayMode === "single") await this.#renderPage();
-    else await this.#rerenderFlow();
+    this.#applyZoom(adjustPdfZoom(this.#zoom, delta));
+  }
+
+  #applyZoom(zoom: number, origin?: [number, number], pan?: [number, number]): void {
+    const factor = zoom / this.#zoom;
+    this.#zoom = zoom;
+    this.#elements.reader.dataset.zoomed = String(Math.abs(zoom - 1) > 0.01);
+    this.#view.zoomBy(factor, origin, pan);
   }
 
   async cycleFitMode(): Promise<void> {
-    this.#cancelPendingWheelZoom();
     this.#fitMode = nextPdfFitMode(this.#fitMode);
     this.#zoom = 1;
-    this.#fittedWidth = null;
+    this.#elements.reader.dataset.zoomed = "false";
     this.#syncReadingControls();
-    if (this.#displayMode !== "single") await this.setDisplayMode("single");
-    else await this.#renderPage();
+    this.#view.setFitMode(this.#fitMode);
   }
 
   async rotateClockwise(): Promise<void> {
-    this.#cancelPendingWheelZoom();
     this.#rotation = nextPdfRotation(this.#rotation);
-    this.#fittedWidth = null;
-    if (this.#displayMode === "single") await this.#renderPage();
-    else await this.#rerenderFlow();
-  }
-
-  async #rerenderFlow(zoomCommit?: PdfFlowZoomCommit): Promise<void> {
-    const documentModel = this.#document;
-    const runtime = this.#runtime;
-    const mode = this.#displayMode;
-    if (!documentModel || !runtime || mode === "single") return;
-    if (!zoomCommit) this.#clearZoomPreview(this.#elements.continuousPages);
-    const flowRenderGeneration = ++this.#flowRenderGeneration;
-    const renderedZoom = this.#zoom;
-    const rotation = this.#rotation;
-    const layoutIsCurrent = () =>
-      flowRenderGeneration === this.#flowRenderGeneration &&
-      this.#document === documentModel &&
-      this.#runtime === runtime &&
-      this.#displayMode === mode &&
-      this.#rotation === rotation;
-    const afterLayout = zoomCommit
-      ? () => {
-          if (!layoutIsCurrent()) return;
-          this.#renderedZoom = renderedZoom;
-          if (zoomCommit.generation === this.#pinchGeneration) {
-            this.#clearZoomPreview(this.#elements.continuousPages);
-            this.#restoreZoomAnchor(zoomCommit.anchor);
-          } else if (this.#pinchStart?.surface === this.#elements.continuousPages || this.#wheelZoomRenderTimer !== undefined) {
-            this.#elements.continuousPages.style.transform = `scale(${this.#flowPreviewScale(this.#zoom)})`;
-          }
-        }
-      : undefined;
-    await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), rotation, false, afterLayout);
-    if (!layoutIsCurrent()) return;
-    this.#renderedZoom = renderedZoom;
-    this.#presentContinuousReady();
+    this.#view.setRotation(this.#rotation);
   }
 
   async open(options: OpenPdfOptions): Promise<boolean> {
-    this.#cancelPendingWheelZoom();
-    this.#clearZoomPreview(this.#elements.continuousPages);
-    this.#flowRenderGeneration += 1;
-    this.#pinchGeneration += 1;
+    this.#cancelTouchGesture();
+    this.#document = null;
+    this.#clearNativeSelection();
+    this.#view.close();
     this.#lifecycle.send({ type: "OPEN" });
     const documentRequest = this.#lifecycle.getSnapshot().context.documentRequest;
     const previousTask = this.#loadingTask;
     this.#loadingTask = null;
     await previousTask?.destroy();
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-    this.#document = null;
     this.#documentKey = options.documentKey ?? options.url;
     this.#artifactId = options.artifactId ?? "";
     this.#searchTextCache = null;
-    this.#continuousView.close();
-    this.#elements.continuousPages.hidden = true;
-    this.#elements.page.hidden = false;
-    delete this.#elements.reader.dataset.displayMode;
     this.#syncDisplayModeControls();
     this.#syncReadingControls();
     this.#annotations = options.annotations;
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
-    window.clearTimeout(this.#selectionCaptureTimer);
-    this.#clearNativeSelection();
+    this.#cancelTextSelection();
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
     this.#zoom = 1;
-    this.#renderedZoom = 1;
-    this.#fittedWidth = null;
-    this.#zoomAnchor = null;
-    this.#renderedViewport = null;
     this.#wheelPagingState = initialPdfWheelPagingState();
     this.#elements.reader.dataset.zoomed = "false";
     this.#setStatus("Loading PDF…", "busy");
-    let runtime: PdfJsRuntime;
-    try {
-      runtime = await loadPdfJsRuntime();
-    } catch (error) {
-      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-      const message = error instanceof Error ? error.message : "Could not load the PDF runtime";
-      this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
-      throw error;
-    }
-    this.#lifecycle.send({ type: "RUNTIME_READY", documentRequest });
-    if (!this.#lifecycle.getSnapshot().matches("loadingDocument")) return false;
-    this.#runtime = runtime;
-    runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
-    const loadingTask = runtime.getDocument({ url: options.url });
-    this.#loadingTask = loadingTask;
+    return this.#loadDocument(options.url, options.page, documentRequest);
+  }
+
+  async #loadDocument(url: string, page: number | undefined, documentRequest: number): Promise<boolean> {
+    let loadingTask: PDFDocumentLoadingTask;
     let documentModel: PDFDocumentProxy;
+    let failureMessage = "Could not load the PDF runtime";
     try {
+      const runtime = await loadPdfJsRuntime();
+      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+      this.#lifecycle.send({ type: "RUNTIME_READY", documentRequest });
+      if (!this.#lifecycle.getSnapshot().matches("loadingDocument")) return false;
+      failureMessage = "Could not load the PDF";
+      runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+      loadingTask = runtime.getDocument({ url });
+      this.#loadingTask = loadingTask;
       documentModel = await loadingTask.promise;
     } catch (error) {
       if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
-      const message = error instanceof Error ? error.message : "Could not load the PDF";
+      const message = error instanceof Error ? error.message : failureMessage;
       this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
       throw error;
     }
-    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) {
-      await loadingTask.destroy();
-      return false;
-    }
+    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = documentModel;
-    this.#pageNumber = clamp(options.page ?? 1, 1, documentModel.numPages);
+    this.#pageNumber = clamp(page ?? 1, 1, documentModel.numPages);
     this.#lifecycle.send({ type: "DOCUMENT_READY", documentRequest, page: this.#pageNumber, pages: documentModel.numPages });
     if (!this.#lifecycle.getSnapshot().matches("ready")) {
       await loadingTask.destroy();
       return false;
     }
-    await this.#renderPage();
-    if (this.#displayMode !== "single") await this.setDisplayMode(this.#displayMode);
+    return this.#renderDocument(documentModel, documentRequest);
+  }
+
+  async #renderDocument(documentModel: PDFDocumentProxy, documentRequest: number): Promise<boolean> {
+    this.#lifecycle.send({ type: "RENDER", page: this.#pageNumber });
+    const renderRequest = this.#lifecycle.getSnapshot().context.renderRequest;
+    try {
+      await this.#view.open(documentModel, {
+        page: this.#pageNumber,
+        mode: this.#displayMode,
+        fit: this.#fitMode,
+        rotation: this.#rotation,
+      });
+    } catch (error) {
+      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+      this.#lifecycle.send({ type: "RENDER_FAILED", renderRequest, message: pdfFailureMessage("viewer") });
+      throw error;
+    }
+    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+    this.#lifecycle.send({ type: "RENDERED", renderRequest });
+    this.#presentPage(this.#view.currentPage);
     const snapshot = this.#lifecycle.getSnapshot();
     return documentRequest === snapshot.context.documentRequest && snapshot.matches("ready");
   }
@@ -419,28 +322,17 @@ export class PdfEvidenceViewer {
       const pages: { page: number; text: string }[] = [];
       for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
         const page = await documentModel.getPage(pageNumber);
-        try {
-          const content = await readPdfTextContent(page);
-          pages.push({ page: pageNumber, text: content.items.map((item) => ("str" in item ? item.str : "")).join(" ") });
-        } finally {
-          page.cleanup();
-        }
+        const content = await readPdfTextContent(page);
+        if (documentModel !== this.#document) return [];
+        pages.push({ page: pageNumber, text: content.items.map((item) => ("str" in item ? item.str : "")).join(" ") });
       }
       this.#searchTextCache = pages;
     }
     let pages = this.#searchTextCache;
     if (this.#artifactId && pages.every(({ text }) => text.trim().length < 24)) {
-      const response = await fetch(`/api/library/pdfs/${encodeURIComponent(this.#artifactId)}/analyses/pdf-text`, {
-        credentials: "same-origin",
-      });
-      if (response.ok) {
-        const value: unknown = await response.json();
-        if (isArtifactAnalysis(value) && value.kind === "pdf-text" && value.status === "ready" && isPdfTextAnalysisResult(value.result)) {
-          pages = value.result.pages.map(({ page, text }) => ({ page, text }));
-        }
-      }
+      pages = (await fetchAnalyzedPdfText(this.#artifactId)) ?? pages;
     }
-    return searchPdfPageTexts(pages, query);
+    return documentModel === this.#document ? searchPdfPageTexts(pages, query) : [];
   }
 
   async goToPage(page: number): Promise<void> {
@@ -455,29 +347,17 @@ export class PdfEvidenceViewer {
     const documentModel = this.#document;
     if (!documentModel) return { outline: [], pages: 0 };
     const outline = await documentModel.getOutline();
-    return { outline: await this.#resolveOutline(outline ?? []), pages: documentModel.numPages };
+    return { outline: await this.#resolveOutline(documentModel, outline ?? []), pages: documentModel.numPages };
   }
 
   async thumbnail(pageNumber: number): Promise<string> {
     const documentModel = this.#document;
     if (!documentModel) return "";
     const page = await documentModel.getPage(clamp(pageNumber, 1, documentModel.numPages));
-    try {
-      const unscaled = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: 128 / unscaled.width });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvas, viewport }).promise;
-      return canvas.toDataURL("image/jpeg", 0.72);
-    } finally {
-      page.cleanup();
-    }
+    return renderPdfPageJpeg(page, { width: 128, quality: 0.72 });
   }
 
-  async #resolveOutline(items: readonly unknown[]): Promise<PdfOutlineItem[]> {
-    const documentModel = this.#document;
-    if (!documentModel) return [];
+  async #resolveOutline(documentModel: PDFDocumentProxy, items: readonly unknown[]): Promise<PdfOutlineItem[]> {
     const resolved: PdfOutlineItem[] = [];
     for (const value of items) {
       if (!isPdfOutlineSource(value)) continue;
@@ -492,21 +372,19 @@ export class PdfEvidenceViewer {
           page = null;
         }
       }
-      resolved.push({ title: value.title, page, children: await this.#resolveOutline(value.items ?? []) });
+      resolved.push({ title: value.title, page, children: await this.#resolveOutline(documentModel, value.items ?? []) });
     }
     return resolved;
   }
 
   updateAnnotations(annotations: AnnotationResource[]): void {
     this.#annotations = annotations;
-    this.#renderHighlights();
-    this.#continuousView.refreshOverlays();
+    this.#view.refreshOverlays();
   }
 
   updatePrivateHighlights(highlights: readonly LibraryHighlight[]): void {
     this.#privateHighlights = highlights;
-    this.#renderHighlights();
-    this.#continuousView.refreshOverlays();
+    this.#view.refreshOverlays();
   }
 
   showError(_error: unknown): void {
@@ -515,35 +393,29 @@ export class PdfEvidenceViewer {
 
   setTextSelectionMode(mode: PdfTextSelectionMode): void {
     this.#textSelectionMode = mode;
-    this.#elements.textLayer.style.pointerEvents = mode === "disabled" ? "none" : "auto";
-    this.#continuousView.setTextSelectionEnabled(mode !== "disabled");
+    this.#view.setTextSelectionEnabled(mode !== "disabled");
   }
 
   clearDraftSelection(): void {
     window.clearTimeout(this.#selectionCaptureTimer);
     this.#clearNativeSelection();
     this.#draftSelection = null;
-    this.#zoomAnchor = null;
-    this.#renderHighlights();
-    this.#continuousView.refreshOverlays();
+    this.#view.refreshOverlays();
   }
 
   setTool(tool: "paint" | "erase"): void {
-    this.#elements.highlights.dataset.tool = tool;
+    this.#tool = tool;
+    this.#view.refreshOverlays();
   }
 
   setPrivateHighlightSelection(enabled: boolean, selectedId: string | null = null): void {
     this.#privateHighlightSelection = enabled;
     this.#selectedPrivateHighlightId = selectedId;
-    this.#elements.highlights.dataset.privateSelect = String(enabled);
-    this.#renderHighlights();
+    this.#view.refreshOverlays();
   }
 
   async resize(): Promise<void> {
-    this.#cancelPendingWheelZoom();
-    this.#fittedWidth = null;
-    if (this.#displayMode !== "single") await this.#rerenderFlow();
-    else await this.#renderPage();
+    this.#view.resize();
   }
 
   async #move(offset: number): Promise<void> {
@@ -605,118 +477,19 @@ export class PdfEvidenceViewer {
   }
 
   #zoomFromWheel(event: WheelEvent): void {
-    this.#lifecycle.send({ type: "CANCEL_RENDER" });
-    const surface = this.#zoomPreviewSurface();
-    const generation = ++this.#pinchGeneration;
-    this.#previewZoom(clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4), event.clientX, event.clientY, surface);
-    window.clearTimeout(this.#wheelZoomRenderTimer);
-    this.#wheelZoomRenderTimer = window.setTimeout(() => {
-      this.#wheelZoomRenderTimer = undefined;
-      void this.#commitZoom(surface, generation);
-    }, 140);
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.#elements.reader.clientHeight : 1);
+    this.#applyZoom(clamp(this.#zoom * Math.exp(-delta * 0.01), 0.5, 4), [event.clientX, event.clientY]);
   }
 
-  #cancelPendingWheelZoom(): void {
-    if (this.#wheelZoomRenderTimer === undefined) return;
-    window.clearTimeout(this.#wheelZoomRenderTimer);
-    this.#wheelZoomRenderTimer = undefined;
-    this.#clearZoomPreview(this.#zoomPreviewSurface());
-    this.#zoomAnchor = null;
-  }
-
-  async #renderPage(): Promise<void> {
-    const documentModel = this.#document;
-    const runtime = this.#runtime;
-    if (!documentModel || !runtime) return;
-    this.#lifecycle.send({ type: "RENDER", page: this.#pageNumber });
-    const renderRequest = this.#lifecycle.getSnapshot().context.renderRequest;
-    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-    this.#setStatus(`Rendering page ${this.#pageNumber}…`, "busy");
-    let page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>;
-    try {
-      page = await documentModel.getPage(this.#pageNumber);
-    } catch (error) {
-      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-      this.#failRender(renderRequest, error);
-      throw error;
+  #presentPage(page: number): void {
+    if (!this.#document || !this.#lifecycle.getSnapshot().matches("ready")) return;
+    if (this.#pageNumber !== page) {
+      const hadSelection = this.#draftSelection !== null || this.#focusedAnnotationId !== undefined;
+      this.#draftSelection = null;
+      this.#focusedAnnotationId = undefined;
+      if (hadSelection) this.#view.refreshOverlays();
     }
-    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-
-    const unscaled = page.getViewport({ scale: 1, rotation: this.#rotation });
-    const availableWidth = this.#fittedWidth ?? this.#availablePageWidth();
-    this.#fittedWidth = availableWidth;
-    const availableHeight = Math.max(320, this.#elements.reader.clientHeight - 40);
-    const fittedScale = pdfFittedScale(this.#fitMode, availableWidth, availableHeight, unscaled.width, unscaled.height);
-    const renderedZoom = this.#zoom;
-    const viewport = page.getViewport({ scale: fittedScale * renderedZoom, rotation: this.#rotation });
-    const outputScale = window.devicePixelRatio || 1;
-    const renderedCanvas = document.createElement("canvas");
-    renderedCanvas.width = Math.floor(viewport.width * outputScale);
-    renderedCanvas.height = Math.floor(viewport.height * outputScale);
-    const renderedTextLayer = document.createElement("div");
-    renderedTextLayer.className = "textLayer";
-    renderedTextLayer.style.setProperty("--total-scale-factor", String(viewport.scale));
-
-    const annotationsPromise = page.getAnnotations({ intent: "display" });
-    let textContent: Awaited<ReturnType<typeof readPdfTextContent>>;
-    try {
-      textContent = await readPdfTextContent(page);
-    } catch (error) {
-      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-      this.#failRender(renderRequest, error);
-      throw error;
-    }
-    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-    const pageText = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .filter(Boolean)
-      .join(" ");
-    const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: renderedTextLayer, viewport });
-    let annotations: Awaited<typeof annotationsPromise>;
-    try {
-      const rendered = await Promise.all([
-        page.render({
-          canvas: renderedCanvas,
-          viewport,
-          transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
-        }).promise,
-        textLayer.render(),
-        annotationsPromise,
-      ]);
-      annotations = rendered[2];
-    } catch (error) {
-      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-      this.#failRender(renderRequest, error);
-      throw error;
-    }
-    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-    const canvasContext = this.#elements.canvas.getContext("2d");
-    if (!canvasContext) {
-      const error = new Error("PDF canvas is unavailable");
-      this.#failRender(renderRequest, error);
-      throw error;
-    }
-    this.#elements.canvas.width = renderedCanvas.width;
-    this.#elements.canvas.height = renderedCanvas.height;
-    canvasContext.drawImage(renderedCanvas, 0, 0);
-    this.#elements.canvas.style.width = `${viewport.width}px`;
-    this.#elements.canvas.style.height = `${viewport.height}px`;
-    const textLayerPointerEvents = this.#elements.textLayer.style.pointerEvents;
-    this.#elements.textLayer.style.cssText = renderedTextLayer.style.cssText;
-    this.#elements.textLayer.style.pointerEvents = textLayerPointerEvents;
-    this.#elements.textLayer.replaceChildren(...renderedTextLayer.childNodes);
-    this.#elements.page.style.width = `${viewport.width}px`;
-    this.#elements.page.style.height = `${viewport.height}px`;
-    this.#elements.page.style.setProperty("--total-scale-factor", String(viewport.scale));
-    this.#elements.page.style.removeProperty("transform");
-    this.#elements.page.style.removeProperty("transform-origin");
-    this.#renderedZoom = renderedZoom;
-    this.#renderedViewport = viewport;
-    this.#pageText = pageText;
-    this.#renderPdfLinks(viewport, annotations);
-    this.#renderHighlights();
-    this.#restoreZoomAnchor();
-    this.#presentPageNavigation(documentModel.numPages);
+    this.#pageNumber = page;
     this.#setStatus(
       this.#mode === "private-highlight"
         ? "Private library PDF · select text to highlight"
@@ -725,33 +498,11 @@ export class PdfEvidenceViewer {
           : "Select text to capture evidence",
       "ready",
     );
-    this.#lifecycle.send({ type: "RENDERED", renderRequest });
-    this.#onPageChange(this.#pageNumber);
-  }
-
-  #presentContinuousPage(page: number): void {
-    const documentModel = this.#document;
-    if (!documentModel) return;
-    this.#pageNumber = clamp(page, 1, documentModel.numPages);
-    this.#presentContinuousReady();
-    this.#onPageChange(this.#pageNumber);
-  }
-
-  #presentContinuousReady(): void {
-    const documentModel = this.#document;
-    if (!documentModel) return;
-    this.#presentPageNavigation(documentModel.numPages);
-    this.#setStatus(
-      this.#mode === "private-highlight"
-        ? "Continuous view · select text to highlight"
-        : this.#mode === "read-only"
-          ? "Continuous view · shared project PDF"
-          : "Continuous view · select text to capture evidence",
-      "ready",
-    );
+    this.#onPageChange(page);
   }
 
   #syncDisplayModeControls(): void {
+    this.#elements.reader.dataset.displayMode = this.#displayMode;
     const continuous = this.#displayMode === "continuous";
     for (const button of this.#elements.continuousModeButtons) {
       button.setAttribute("aria-pressed", String(continuous));
@@ -769,10 +520,6 @@ export class PdfEvidenceViewer {
       const text = button.querySelector("[data-pdf-fit-label]");
       if (text) text.textContent = label;
     }
-  }
-
-  #flowPageWidth(mode: PdfDisplayMode): number {
-    return pdfFlowPageWidth(this.#availablePageWidth(), this.#zoom, mode);
   }
 
   #bindPageJump(indicator: HTMLElement): void {
@@ -846,19 +593,6 @@ export class PdfEvidenceViewer {
     }
   }
 
-  #availablePageWidth(): number {
-    const readerStyle = window.getComputedStyle(this.#elements.reader);
-    const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
-    const readerWidth = this.#elements.reader.clientWidth || 760;
-    return Math.max(320, Math.min(900, readerWidth - horizontalPadding));
-  }
-
-  #failRender(renderRequest: number, error: unknown): void {
-    const message = error instanceof Error ? error.message : "Could not render the PDF page";
-    this.#lifecycle.send({ type: "RENDER_FAILED", renderRequest, message });
-    if (this.#lifecycle.getSnapshot().matches("failed")) this.#setStatus(pdfFailureMessage("viewer"), "error");
-  }
-
   #queueSelectionCapture(): void {
     window.clearTimeout(this.#selectionCaptureTimer);
     if (this.#mode === "read-only" || this.#textSelectionMode !== "highlight") return;
@@ -888,7 +622,7 @@ export class PdfEvidenceViewer {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
-    const source = this.#selectionSource(range.commonAncestorContainer);
+    const source = this.#view.selectionSource(range.commonAncestorContainer);
     if (!source) return;
     const maximumRects = this.#mode === "private-highlight" ? 512 : 64;
     const rects = normalizeSelectionRects(range.getClientRects(), source.element.getBoundingClientRect(), maximumRects);
@@ -897,8 +631,7 @@ export class PdfEvidenceViewer {
     const capture = { page: source.page, ...context, rects };
     if (sameSelectionCapture(capture, this.#draftSelection)) return;
     this.#draftSelection = capture;
-    this.#renderHighlights();
-    this.#continuousView.refreshOverlays();
+    this.#view.refreshOverlays();
     this.#onSelection(this.#draftSelection);
     this.#setStatus(
       this.#mode === "private-highlight"
@@ -909,28 +642,14 @@ export class PdfEvidenceViewer {
     if (this.#mode === "evidence") selection.removeAllRanges();
   }
 
-  #selectionSource(node: Node): { element: HTMLElement; page: number; text: string } | null {
-    if (this.#displayMode !== "single") {
-      const view = this.#continuousView.pageViewForNode(node);
-      return view ? { element: view.pageElement, page: view.page, text: view.text } : null;
-    }
-    return this.#elements.textLayer.contains(node) ? { element: this.#elements.page, page: this.#pageNumber, text: this.#pageText } : null;
-  }
-
   #clearNativeSelection(): void {
     const selection = window.getSelection();
-    if (
-      selection?.anchorNode &&
-      (this.#elements.textLayer.contains(selection.anchorNode) || this.#elements.continuousPages.contains(selection.anchorNode))
-    )
-      selection.removeAllRanges();
-  }
-
-  #renderHighlights(): void {
-    this.#renderHighlightsForPage(this.#pageNumber, this.#elements.highlights);
+    if (selection?.anchorNode && this.#elements.container.contains(selection.anchorNode)) selection.removeAllRanges();
   }
 
   #renderHighlightsForPage(page: number, container: HTMLElement): void {
+    container.dataset.tool = this.#tool;
+    container.dataset.privateSelect = String(this.#privateHighlightSelection);
     container.replaceChildren();
     for (const annotation of this.#annotations.filter((item) => item.page === page)) {
       const fragments =
@@ -984,18 +703,7 @@ export class PdfEvidenceViewer {
     }
     if (event.touches.length === 2) {
       event.preventDefault();
-      window.clearTimeout(this.#wheelZoomRenderTimer);
-      this.#wheelZoomRenderTimer = undefined;
-      this.#lifecycle.send({ type: "CANCEL_RENDER" });
-      const surface = this.#zoomPreviewSurface();
-      this.#pinchStart = {
-        distance: touchDistance(event.touches),
-        generation: ++this.#pinchGeneration,
-        surface,
-        zoom: this.#zoom,
-      };
-      const midpoint = touchMidpoint(event.touches);
-      this.#setZoomAnchor(midpoint.x, midpoint.y, surface);
+      this.#pinchStart = { distance: touchDistance(event.touches), zoom: this.#zoom, midpoint: touchMidpoint(event.touches) };
       this.#touchPanStart = null;
       this.#swipeStart = null;
       return;
@@ -1030,9 +738,11 @@ export class PdfEvidenceViewer {
     }
     if (event.touches.length === 2 && this.#pinchStart) {
       event.preventDefault();
-      const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.75, 4);
+      const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.5, 4);
       const midpoint = touchMidpoint(event.touches);
-      this.#previewZoom(zoom, midpoint.x, midpoint.y, this.#pinchStart.surface);
+      const previous = this.#pinchStart.midpoint;
+      this.#applyZoom(zoom, [previous.x, previous.y], [midpoint.x - previous.x, midpoint.y - previous.y]);
+      this.#pinchStart.midpoint = midpoint;
       return;
     }
     const touch = event.touches[0];
@@ -1048,7 +758,6 @@ export class PdfEvidenceViewer {
     const pinchStart = this.#pinchStart;
     if (pinchStart && event.touches.length < 2) {
       this.#pinchStart = null;
-      await this.#commitZoom(pinchStart.surface, pinchStart.generation);
       return;
     }
     const start = this.#swipeStart;
@@ -1065,18 +774,13 @@ export class PdfEvidenceViewer {
   }
 
   #cancelTouchGesture(): void {
-    this.#pinchGeneration += 1;
-    const pinchStart = this.#pinchStart;
-    const surface = pinchStart?.surface ?? this.#zoomPreviewSurface();
-    if (pinchStart) {
-      this.#zoom = pinchStart.zoom;
-      this.#elements.reader.dataset.zoomed = String(Math.abs(this.#zoom - 1) > 0.01);
+    if (this.#pinchStart) {
+      const { zoom, midpoint } = this.#pinchStart;
+      this.#applyZoom(zoom, [midpoint.x, midpoint.y]);
     }
     this.#pinchStart = null;
     this.#touchPanStart = null;
     this.#swipeStart = null;
-    this.#zoomAnchor = null;
-    this.#clearZoomPreview(surface);
   }
 
   #readerHasActiveDrawing(event: TouchEvent): boolean {
@@ -1086,158 +790,9 @@ export class PdfEvidenceViewer {
     );
   }
 
-  #zoomPreviewSurface(): HTMLElement {
-    return this.#displayMode === "single" ? this.#elements.page : this.#elements.continuousPages;
-  }
-
-  async #commitZoom(surface: HTMLElement, generation: number): Promise<void> {
-    if (generation !== this.#pinchGeneration) return;
-    if (this.#displayMode === "single") {
-      await this.#renderPage();
-      return;
-    }
-    if (!this.#document) this.#clearZoomPreview(surface);
-    await this.#rerenderFlow({ generation, anchor: this.#takeZoomAnchor() });
-  }
-
-  #setZoomAnchor(clientX: number, clientY: number, surface: HTMLElement = this.#elements.page): void {
-    const point = { x: clientX, y: clientY };
-    const origin = pdfZoomAnchor(surface.getBoundingClientRect(), point);
-    const element = surface === this.#elements.continuousPages ? (this.#continuousView.pageAtPoint(clientX, clientY) ?? surface) : surface;
-    this.#zoomAnchor = { element, position: element === surface ? origin : pdfZoomAnchor(element.getBoundingClientRect(), point) };
-    surface.style.transformOrigin = `${origin.x * 100}% ${origin.y * 100}%`;
-  }
-
-  #previewZoom(zoom: number, clientX: number, clientY: number, surface: HTMLElement = this.#elements.page): void {
-    this.#setZoomAnchor(clientX, clientY, surface);
-    this.#zoom = zoom;
-    this.#elements.reader.dataset.zoomed = String(zoom > 1.01);
-    const scale = surface === this.#elements.continuousPages ? this.#flowPreviewScale(zoom) : zoom / this.#renderedZoom;
-    surface.style.transform = `scale(${scale})`;
-  }
-
-  #flowPreviewScale(zoom: number): number {
-    if (this.#displayMode === "single") return zoom / this.#renderedZoom;
-    return (
-      pdfFlowPageWidth(this.#availablePageWidth(), zoom, this.#displayMode) /
-      pdfFlowPageWidth(this.#availablePageWidth(), this.#renderedZoom, this.#displayMode)
-    );
-  }
-
-  #clearZoomPreview(surface: HTMLElement): void {
-    surface.style.removeProperty("transform");
-    surface.style.removeProperty("transform-origin");
-  }
-
-  #takeZoomAnchor(): PdfViewerZoomAnchor | null {
-    const anchor = this.#zoomAnchor;
-    this.#zoomAnchor = null;
-    return anchor;
-  }
-
-  #restoreZoomAnchor(anchor = this.#takeZoomAnchor()): void {
-    if (!anchor) return;
-    const reader = this.#elements.reader;
-    const correction = pdfZoomScrollCorrection(anchor.position, anchor.element.getBoundingClientRect());
-    reader.scrollTo({ left: reader.scrollLeft + correction.left, top: reader.scrollTop + correction.top, behavior: "instant" });
-  }
-
-  #renderPdfLinks(
-    viewport: { convertToViewportPoint(x: number, y: number): number[] },
-    annotations: readonly unknown[],
-    container: HTMLElement = this.#elements.links,
-  ): void {
-    container.replaceChildren();
-    for (const value of annotations) {
-      const annotation = pdfLinkAnnotation(value);
-      if (!annotation) continue;
-      const [x1 = 0, y1 = 0] = viewport.convertToViewportPoint(annotation.rect[0] ?? 0, annotation.rect[1] ?? 0);
-      const [x2 = 0, y2 = 0] = viewport.convertToViewportPoint(annotation.rect[2] ?? 0, annotation.rect[3] ?? 0);
-      const link = document.createElement("a");
-      link.className = "pdf-link";
-      link.style.left = `${Math.min(x1, x2)}px`;
-      link.style.top = `${Math.min(y1, y2)}px`;
-      link.style.width = `${Math.abs(x2 - x1)}px`;
-      link.style.height = `${Math.abs(y2 - y1)}px`;
-      if (annotation.url) {
-        link.href = annotation.url;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer nofollow";
-        link.setAttribute("aria-label", `Open PDF link: ${annotation.url}`);
-      } else {
-        link.href = "#";
-        link.setAttribute("aria-label", "Follow link within PDF");
-        link.addEventListener("click", (event) => {
-          event.preventDefault();
-          void this.#followPdfDestination(annotation);
-        });
-      }
-      container.append(link);
-    }
-  }
-
-  async #followPdfDestination(annotation: PdfLinkAnnotation): Promise<void> {
-    const documentModel = this.#document;
-    if (!documentModel) return;
-    if (annotation.action) {
-      if (annotation.action === "NextPage") return this.#move(1);
-      if (annotation.action === "PrevPage") return this.#move(-1);
-      if (annotation.action === "FirstPage") return this.#goToPage(1);
-      if (annotation.action === "LastPage") return this.#goToPage(documentModel.numPages);
-      return;
-    }
-    const destination = typeof annotation.dest === "string" ? await documentModel.getDestination(annotation.dest) : annotation.dest;
-    if (!Array.isArray(destination)) return;
-    const reference = destination[0];
-    const page = Number.isInteger(reference)
-      ? Number(reference) + 1
-      : isPdfPageReference(reference)
-        ? (await documentModel.getPageIndex(reference)) + 1
-        : null;
-    if (!page) return;
-    await this.#goToPage(page);
-    if (this.#displayMode !== "single") return;
-    this.#scrollToPdfDestination(destination);
-  }
-
   async #goToPage(page: number): Promise<void> {
     if (!this.#document) return;
-    const next = clamp(page, 1, this.#document.numPages);
-    if (next === this.#pageNumber) {
-      if (this.#displayMode !== "single") this.#continuousView.scrollToPage(next);
-      return;
-    }
-    this.#pageNumber = next;
-    this.#focusedAnnotationId = undefined;
-    this.#draftSelection = null;
-    this.#zoomAnchor = null;
-    if (this.#displayMode !== "single") {
-      this.#continuousView.scrollToPage(next);
-      this.#presentContinuousPage(next);
-    } else {
-      this.#cancelPendingWheelZoom();
-      await this.#renderPage();
-    }
-  }
-
-  #scrollToPdfDestination(destination: readonly unknown[]): void {
-    const viewport = this.#renderedViewport;
-    const mode = isUnknownRecord(destination[1]) && typeof destination[1].name === "string" ? destination[1].name : "";
-    const left = mode === "XYZ" || mode === "FitR" ? finiteNumber(destination[2]) : null;
-    const top =
-      mode === "XYZ"
-        ? finiteNumber(destination[3])
-        : mode === "FitH" || mode === "FitBH"
-          ? finiteNumber(destination[2])
-          : mode === "FitR"
-            ? finiteNumber(destination[5])
-            : null;
-    if (!viewport || (left === null && top === null)) return;
-    const [x = 0, y = 0] = viewport.convertToViewportPoint(left ?? 0, top ?? 0);
-    const readerRect = this.#elements.reader.getBoundingClientRect();
-    const pageRect = this.#elements.page.getBoundingClientRect();
-    if (left !== null) this.#elements.reader.scrollLeft += pageRect.left + x - readerRect.left;
-    if (top !== null) this.#elements.reader.scrollTop += pageRect.top + y - readerRect.top;
+    this.#view.goToPage(clamp(page, 1, this.#document.numPages));
   }
 }
 
@@ -1273,43 +828,6 @@ function touchMidpoint(touches: TouchList): { x: number; y: number } {
   const first = touches[0];
   const second = touches[1];
   return first && second ? { x: (first.clientX + second.clientX) / 2, y: (first.clientY + second.clientY) / 2 } : { x: 0, y: 0 };
-}
-
-interface PdfLinkAnnotation {
-  readonly rect: number[];
-  readonly url?: string;
-  readonly dest?: unknown;
-  readonly action?: string;
-}
-
-function pdfLinkAnnotation(value: unknown): PdfLinkAnnotation | null {
-  if (!isUnknownRecord(value) || value.annotationType !== 2 || !isNumberArray(value.rect, 4)) return null;
-  const url = typeof value.url === "string" ? value.url : undefined;
-  const action = typeof value.action === "string" ? value.action : undefined;
-  const destination = value.dest;
-  if (!url && destination === undefined && !action) return null;
-  return {
-    rect: value.rect,
-    ...(url ? { url } : {}),
-    ...(destination !== undefined ? { dest: destination } : {}),
-    ...(action ? { action } : {}),
-  };
-}
-
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isNumberArray(value: unknown, minimumLength: number): value is number[] {
-  return Array.isArray(value) && value.length >= minimumLength && value.every((item) => typeof item === "number" && Number.isFinite(item));
-}
-
-function isPdfPageReference(value: unknown): value is { num: number; gen: number } {
-  return isUnknownRecord(value) && Number.isInteger(value.num) && Number.isInteger(value.gen);
-}
-
-function finiteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function touchStartsInteractivePdfControl(target: EventTarget | null): boolean {
@@ -1364,23 +882,6 @@ export function nextPdfRotation(rotation: number): number {
   return (rotation + 90) % 360;
 }
 
-export function pdfFittedScale(
-  mode: PdfFitMode,
-  availableWidth: number,
-  availableHeight: number,
-  pageWidth: number,
-  pageHeight: number,
-): number {
-  if (mode === "actual") return 1;
-  if (mode === "page") return Math.min(availableWidth / pageWidth, availableHeight / pageHeight);
-  return availableWidth / pageWidth;
-}
-
-export function pdfFlowPageWidth(availableWidth: number, zoom: number, mode: PdfDisplayMode): number {
-  const width = availableWidth * zoom;
-  return mode === "spread" ? Math.max(240, (width - 24) / 2) : width;
-}
-
 function pdfButtons(root: Document, suffix: string): HTMLButtonElement[] {
   return [requiredViewerElement(root, suffix, HTMLButtonElement), requiredViewerElement(root, `library-${suffix}`, HTMLButtonElement)];
 }
@@ -1389,6 +890,15 @@ function isPdfOutlineSource(
   value: unknown,
 ): value is { readonly title: string; readonly dest: unknown; readonly items?: readonly unknown[] } {
   return typeof value === "object" && value !== null && "title" in value && typeof value.title === "string" && "dest" in value;
+}
+
+async function fetchAnalyzedPdfText(artifactId: string): Promise<readonly PdfTextPage[] | null> {
+  const response = await fetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-text`, { credentials: "same-origin" });
+  if (!response.ok) return null;
+  const value: unknown = await response.json();
+  if (!isArtifactAnalysis(value) || value.kind !== "pdf-text" || value.status !== "ready" || !isPdfTextAnalysisResult(value.result))
+    return null;
+  return value.result.pages;
 }
 
 export function searchPdfPageTexts(

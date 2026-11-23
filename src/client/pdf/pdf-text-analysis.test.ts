@@ -35,6 +35,7 @@ describe("PDF text extraction", () => {
       truncated: false,
     });
     expect(canvas).toMatchObject({ width: 1600, height: 2400 });
+    expect(canvas.toDataURL).toHaveBeenCalledWith("image/jpeg", 0.86);
     expect(render).toHaveBeenCalledOnce();
     expect(cleanup).toHaveBeenCalledTimes(2);
     expect(destroy).toHaveBeenCalledOnce();
@@ -58,6 +59,18 @@ describe("PDF text extraction", () => {
     expect(result.pages.filter((candidate) => candidate.image)).toHaveLength(40);
     expect(result).toMatchObject({ pagesTotal: 205, truncated: true });
     expect(render).toHaveBeenCalledTimes(40);
+  });
+
+  it("releases the page and loading task after an OCR render failure", async () => {
+    const cleanup = vi.fn();
+    const destroy = vi.fn();
+    const page = pdfPage("", cleanup, () => ({ promise: Promise.reject(new Error("render failed")) }));
+    const runtime = { getDocument: () => ({ promise: Promise.resolve({ numPages: 1, getPage: async () => page }), destroy }) };
+    vi.stubGlobal("document", { createElement: () => ({ width: 0, height: 0 }) });
+
+    await expect(extractPdfText(runtime as never, "/scan.pdf")).rejects.toThrow("render failed");
+    expect(cleanup).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
   });
 });
 

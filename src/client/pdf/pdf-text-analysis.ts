@@ -1,5 +1,6 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import type { PdfJsRuntime } from "./pdfjs-runtime";
+import { renderPdfPageJpeg } from "./pdf-page-image";
 import type { PdfTextExtraction, PdfTextExtractionPage } from "../../domain/reference-library";
 
 const maximumPages = 200;
@@ -25,13 +26,8 @@ export async function extractPdfText(runtime: PdfJsRuntime, url: string): Promis
           pages.push({ page: pageNumber, text });
           continue;
         }
-        const unscaled = page.getViewport({ scale: 1 });
-        const viewport = page.getViewport({ scale: Math.min(2, 1600 / unscaled.width) });
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        await page.render({ canvas, viewport }).promise;
-        pages.push({ image: canvas.toDataURL("image/jpeg", 0.86), page: pageNumber, text });
+        const image = await renderPdfPageJpeg(page, { width: 1600, maxScale: 2, quality: 0.86 });
+        pages.push({ image, page: pageNumber, text });
         ocrPages += 1;
       } finally {
         page.cleanup();

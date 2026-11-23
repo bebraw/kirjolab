@@ -349,10 +349,13 @@ memory and makes citation aliases compete with stable source identity.
   annotation kind and exact page, reports the visible result count, preserves
   direct page actions, and exports a page-ordered Markdown summary without
   changing or sharing the underlying annotations.
-  Explicit reading controls provide fit-width, fit-page, and actual-size modes,
-  bounded zoom from 50% to 400% in single and flowing layouts, clockwise
-  rotation, and a two-page spread with the cover alone on the right. Spread and
-  continuous layouts retain bounded rendering, links, text selection, page
+  The reader starts in Fit page so the whole page is visible even on wide
+  displays. The fit control cycles through fit page, actual size, and fit width
+  within the selected display mode. Manual zoom ranges from 50% to 400% of
+  the selected fit. Reading controls also provide clockwise rotation and a
+  two-page spread with the cover alone on the right. Spread and continuous
+  layouts retain bounded rendering,
+  links, text selection, page
   tracking, and page-local private markup without coupling annotation tools to
   display preferences.
 - Saving a text selection whose normalized rectangles overlap a saved
@@ -593,11 +596,9 @@ memory and makes citation aliases compete with stable source identity.
   layouts, the reader keeps the point on the PDF page at the same vertical
   position as the new page sizes take effect. Visible pages keep their last
   painted pixels and marks at the new scale until the replacement canvas and
-  text layer are ready. The reader preserves its
-  scrollbar-free fitted width across buffered zoom renders and
-  remeasures it only after document or layout changes, so returning to fitted
-  zoom cannot leave the page narrower. Live ink updates one draft path between
-  saves.
+  text layer are ready. Returning to fit width after a gesture restores the
+  page size for the reader's current width. Live ink updates one draft path
+  between saves.
 - The active PDF page exposes standard PDF link annotations. Internal
   destinations stay in the reader and restore the destination page and
   position; external URLs open in a protected new tab.
@@ -883,9 +884,10 @@ memory and makes citation aliases compete with stable source identity.
   places a new note draft against that flowing page.
   Viewer tests prove that disabling text selection neither changes nor rewrites
   the active continuous or spread preference, and that both flowing layouts
-  retain Draw-surface one-finger pan and two-finger zoom. Flow-view tests prove
-  a pointer activates its owning right-hand spread page and that releasing
-  distant PDF content retains one stateful markup overlay. Markup-layer and
+  retain Draw-surface one-finger pan and two-finger zoom. A pointer activates
+  its owning spread page. When PDF.js releases distant page content, pending
+  annotation outcomes remain routable and newly rendered pages recover their
+  canonical and pending markup. Markup-layer and
   presenter tests defer drawing creation and canonical refresh to prove a
   finished stroke remains painted exactly once through pending, retryable,
   confirmed, display-change, canonical-adoption, refresh-failure, and

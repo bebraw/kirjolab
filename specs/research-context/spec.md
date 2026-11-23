@@ -127,9 +127,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   content width without exposing a redundant horizontal scrollbar; zoomed
   pages retain native panning, and pen input updates the active path without
   rebuilding saved markup.
-- PDF zoom transforms the committed page during active touch or trackpad input.
-  Rendering is debounced and buffered offscreen; canvas, text layer, geometry,
-  and zoom state commit together only after the complete frame is ready.
+- PDF zoom uses the viewer component's origin-aware scaling and delayed
+  redraw. The previous painted frame remains visible during the gesture,
+  and page-local evidence overlays stay aligned when the new scale settles.
 - The active page exposes standard PDF links: internal destinations navigate
   inside the reader and external URLs open in a protected new tab.
 - The same compact row exposes annotated export only after a private annotation
@@ -150,6 +150,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   through the viewer API but does not mutate the viewer's internal DOM.
 - Active target, tab order, open/closed state, permanent-tab scroll,
   PDF page, PDF scroll, and focused annotation are local browser state.
+  Opening a page or annotation link takes precedence over the tab's old
+  scroll offset. Returning to an existing tab restores its captured offset.
   They must not be written to Yjs, the workspace snapshot, Durable Object
   SQLite, or collaboration control messages.
 - Stable, reconstructible workspace selections are reflected in bounded query
@@ -601,8 +603,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   document surface below its declared readable minimum.
 - Candidate tabs must be authorized by candidate id and must not persist their
   local open, active, or scroll state into candidate provenance.
-- PDF rendering remains single-active-page and uses the pinned matching PDF.js
-  display and worker assets.
+- The PDF.js viewer shows one page in single-page mode and schedules bounded
+  rendering in continuous and spread modes. Its display runtime, viewer, CSS,
+  and worker come from the same pinned release.
 - PDF selections and highlights remain external to immutable PDF bytes.
 - A rapid sequence of PDF opens must discard stale loading tasks before they
   can replace the active artifact, status, or reading position.

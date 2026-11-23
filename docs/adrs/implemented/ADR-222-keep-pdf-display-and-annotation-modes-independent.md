@@ -1,6 +1,6 @@
 # ADR-222: Keep PDF Display and Annotation Modes Independent
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-256](./ADR-256-use-pdfjs-viewer-components.md)
 
 **Date:** 2026-08-10
 

@@ -23,6 +23,7 @@ test("counts direct and unique production package versions from the lockfile", (
 
 test("selects exactly one fingerprinted runtime asset", () => {
   assert.equal(runtimeAsset(["markdown-module-abc123.js"], "markdown-module"), ".generated/assets/markdown-module-abc123.js");
+  assert.equal(runtimeAsset(["pdfjs-viewer-a.js", "pdfjs-viewer-b.css"], "pdfjs-viewer", "css"), ".generated/assets/pdfjs-viewer-b.css");
   assert.throws(() => runtimeAsset([], "markdown-module"), /run npm run build/u);
   assert.throws(() => runtimeAsset(["markdown-module-a.js", "markdown-module-b.js"], "markdown-module"), /Expected one built/u);
 });

@@ -1668,9 +1668,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep citation style and locale as versioned project publication settings consumed by preview and export; never rewrite canonical Markdown or shared bibliographic records when they change.
 - Resolve project submission layouts from bounded versioned presets; never execute uploaded TeX, scripts, remote assets, or arbitrary template paths in the export pipeline.
 - Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.
-- Render the active PDF page in single-page mode and only a bounded visible and
-  nearby page set in continuous or spread mode through the PDF.js display
-  layer; keep its worker version matched with the pinned display dependency.
+- Use the pinned PDF.js viewer component for single-page, continuous, and
+  spread layouts, fit, zoom, rotation, and bounded page rendering. Load its
+  module and CSS when the reader opens. Keep the display runtime, viewer,
+  styles, and worker version matched. Keep routes, controls, and evidence
+  overlays in Kirjolab as described in [ADR-256](docs/adrs/implemented/ADR-256-use-pdfjs-viewer-components.md).
 - Preserve the PDF reader's older-browser baseline in both generated PDF.js
   assets with a shared conditional `Promise.withResolvers` shim; preserve
   native implementations and load the shim with the lazy PDF runtime.

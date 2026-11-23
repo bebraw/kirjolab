@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { isPdfDraftResult, type PdfDraftResult } from "../../domain/reference-library";
-import { createEvidencePdf, createTwoPageEvidencePdf } from "../../test-support/pdf-fixture";
+import { createEvidencePdf, createReferenceEvidencePdf, createTwoPageEvidencePdf } from "../../test-support/pdf-fixture";
 
 async function uploadPaper(context: BrowserContext, origin: string, data = createEvidencePdf()): Promise<PdfDraftResult> {
   await context.setExtraHTTPHeaders({ "x-kirjolab-local-user": `pdf-layout-${crypto.randomUUID()}@example.com` });
@@ -16,7 +16,7 @@ async function uploadPaper(context: BrowserContext, origin: string, data = creat
 
 async function openPaper(page: Page, draft: PdfDraftResult): Promise<void> {
   await page.goto(`/library/pdfs/${draft.artifact.id}`);
-  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("Knowledge grows through inspectable evidence.");
 }
 
 test.describe("PDF pinch zoom", () => {
@@ -30,10 +30,10 @@ test.describe("PDF pinch zoom", () => {
     await page.locator("#library-pdf-view-options").click();
     await page.locator("#toggle-library-paper-continuous").click();
 
-    const canvas = page.locator('.pdf-continuous-page[data-pdf-page="1"] canvas');
-    const canvasWidth = async () => Number(await canvas.getAttribute("width"));
-    await expect.poll(canvasWidth).toBeGreaterThan(0);
-    const fittedWidth = await canvasWidth();
+    const pdfPage = page.locator('.pdfViewer .page[data-page-number="1"]');
+    const pageWidth = () => pdfPage.evaluate((element) => element.getBoundingClientRect().width);
+    await expect.poll(pageWidth).toBeGreaterThan(0);
+    const fittedWidth = await pageWidth();
     const reader = page.locator("#paper-reader");
     const bounds = await reader.boundingBox();
     if (!bounds) throw new Error("Expected a visible PDF reader");
@@ -42,13 +42,13 @@ test.describe("PDF pinch zoom", () => {
     const input = await context.newCDPSession(page);
 
     await input.send("Input.synthesizePinchGesture", { x, y, scaleFactor: 1.5, gestureSourceType: "touch" });
-    await expect.poll(canvasWidth).toBeGreaterThan(fittedWidth);
+    await expect.poll(pageWidth).toBeGreaterThan(fittedWidth);
 
-    const zoomedWidth = await canvasWidth();
+    const zoomedWidth = await pageWidth();
     await input.send("Input.synthesizePinchGesture", { x, y, scaleFactor: 0.8, gestureSourceType: "mouse" });
     await expect
       .poll(async () => {
-        const width = await canvasWidth();
+        const width = await pageWidth();
         return width > fittedWidth && width < zoomedWidth;
       })
       .toBe(true);
@@ -60,15 +60,15 @@ test.describe("PDF pinch zoom", () => {
     if (!baseURL) throw new Error("Expected browser test origin");
     const draft = await uploadPaper(context, baseURL, createTwoPageEvidencePdf());
     await page.goto(`/library/pdfs/${draft.artifact.id}`);
-    await expect(page.locator("#paper-text-layer")).toContainText("First page keeps its reading position.");
+    await expect(page.locator(".pdfViewer .textLayer")).toContainText("First page keeps its reading position.");
     await page.locator("#library-pdf-view-options").click();
     await page.locator("#toggle-library-paper-continuous").click();
     await page.getByRole("button", { name: "Next PDF page" }).click();
     await expect(page.locator("#library-paper-page-indicator")).toHaveText("2 / 2");
 
-    const pdfPage = page.locator('.pdf-continuous-page[data-pdf-page="2"]');
-    const canvas = pdfPage.locator("canvas");
-    const width = async () => Number(await canvas.getAttribute("width"));
+    const pdfPage = page.locator('.pdfViewer .page[data-page-number="2"]');
+    const canvas = pdfPage.locator("canvas[role=presentation]");
+    const width = () => pdfPage.evaluate((element) => element.getBoundingClientRect().width);
     await expect
       .poll(() =>
         canvas.evaluate((element) => {
@@ -83,11 +83,12 @@ test.describe("PDF pinch zoom", () => {
     const y = Math.round(before.y + 280);
     const pageFraction = (y - before.y) / before.height;
     const input = await context.newCDPSession(page);
-    const [{ maximumDrift, blankFrame }] = await Promise.all([
+    const [{ maximumDrift, blankFrame, framesAfterRender }] = await Promise.all([
       pdfPage.evaluate(
         (element, { fitted, pageFraction, y }) =>
-          new Promise<{ maximumDrift: number; blankFrame: boolean }>((resolve) => {
+          new Promise<{ maximumDrift: number; blankFrame: boolean; framesAfterRender: number }>((resolve) => {
             const startedAt = performance.now();
+            const initialCanvas = element.querySelector('canvas[role="presentation"]');
             let maximumDrift = 0;
             let blankFrame = false;
             let framesAfterRender = 0;
@@ -97,8 +98,9 @@ test.describe("PDF pinch zoom", () => {
               const canvas = element.querySelector("canvas");
               const canvasWidth = canvas?.width ?? 0;
               if (!canvasWidth || canvas?.getContext("2d")?.getImageData(0, 0, 1, 1).data[3] !== 255) blankFrame = true;
-              if (canvasWidth > fitted) framesAfterRender += 1;
-              if (framesAfterRender >= 5 || now - startedAt > 5_000) resolve({ maximumDrift, blankFrame });
+              const repainted = canvas !== initialCanvas || element.querySelector("canvas[aria-hidden=true]");
+              if (rect.width > fitted && repainted) framesAfterRender += 1;
+              if (framesAfterRender >= 5 || now - startedAt > 5_000) resolve({ maximumDrift, blankFrame, framesAfterRender });
               else requestAnimationFrame(measure);
             }
             requestAnimationFrame(measure);
@@ -109,10 +111,129 @@ test.describe("PDF pinch zoom", () => {
     ]);
 
     await expect.poll(width).toBeGreaterThan(fitted);
+    expect(framesAfterRender).toBeGreaterThanOrEqual(5);
     expect(blankFrame).toBe(false);
     expect(maximumDrift).toBeLessThan(2);
     await expect(page.locator("#library-paper-page-indicator")).toHaveText("2 / 2");
   });
+});
+
+test("opens the whole page and zooms out immediately on a wide display", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  await page.setViewportSize({ width: 2560, height: 1300 });
+  await openPaper(page, await uploadPaper(context, baseURL));
+  const reader = page.locator("#paper-reader");
+  const pdfPage = reader.locator(".page");
+  const pageHeight = () => pdfPage.evaluate((element) => element.getBoundingClientRect().height);
+  const fittedHeight = await pageHeight();
+  expect(fittedHeight).toBeLessThanOrEqual(await reader.evaluate((element) => element.clientHeight));
+  const bounds = await pdfPage.boundingBox();
+  if (!bounds) throw new Error("Expected a visible PDF page");
+  await reader.dispatchEvent("wheel", {
+    ctrlKey: true,
+    deltaY: 40,
+    clientX: bounds.x + bounds.width / 2,
+    clientY: bounds.y + bounds.height / 2,
+  });
+  await expect.poll(pageHeight).toBeLessThan(fittedHeight * 0.75);
+  await expect(page.locator("#library-pdf-fit-mode")).toHaveText("Fit page");
+});
+
+test("changes fit mode without leaving the two-page layout", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  const draft = await uploadPaper(context, baseURL, createTwoPageEvidencePdf());
+  await page.goto(`/library/pdfs/${draft.artifact.id}`);
+  await expect(page.locator(".pdfViewer .textLayer")).toContainText("First page keeps its reading position.");
+  const menu = page.getByRole("button", { name: "View options", exact: true });
+  await menu.click();
+  await page.locator("#library-pdf-spread").click();
+  await expect(page.locator("#paper-reader")).toHaveAttribute("data-display-mode", "spread");
+  if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+  await page.locator("#library-pdf-fit-mode").click();
+  await expect(page.locator("#library-pdf-fit-mode")).toHaveText("Actual size");
+  await expect(page.locator("#paper-reader")).toHaveAttribute("data-display-mode", "spread");
+  await expect(page.locator("#library-pdf-spread")).toHaveAttribute("aria-pressed", "true");
+});
+
+test("activates the touched spread page without moving the paper under the pointer", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  const draft = await uploadPaper(context, baseURL, createReferenceEvidencePdf([["Cover"], ["Left page"], ["Right page"]]));
+  await page.goto(`/library/pdfs/${draft.artifact.id}`);
+  const menu = page.getByRole("button", { name: "View options", exact: true });
+  await menu.click();
+  await page.locator("#library-pdf-spread").click();
+  await page.getByRole("button", { name: "Next PDF page" }).click();
+  const reader = page.locator("#paper-reader");
+  const right = reader.locator('.page[data-page-number="3"] .textLayer');
+  await expect(right).toContainText("Right page");
+  const top = await reader.evaluate((el) => el.scrollTop);
+  await right.dispatchEvent("pointerdown", { bubbles: true, pointerType: "pen" });
+  await expect(page.locator("#library-paper-page-indicator")).toHaveText("3 / 3");
+  expect(await reader.evaluate((el) => el.scrollTop)).toBe(top);
+  if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+  await page.locator("#library-pdf-spread").click();
+  await expect(reader.locator(".page")).toHaveCount(1);
+  await expect(reader.locator(".textLayer")).toContainText("Right page");
+});
+
+test("applies a tool chosen in single-page view to previously rendered spread pages", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  const draft = await uploadPaper(context, baseURL, createReferenceEvidencePdf([["Cover"], ["Left page"], ["Right page"]]));
+  await page.goto(`/library/pdfs/${draft.artifact.id}`);
+  const menu = page.getByRole("button", { name: "View options", exact: true });
+  async function toggleSpread(): Promise<void> {
+    if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+    await page.locator("#library-pdf-spread").click();
+  }
+  await toggleSpread();
+  await page.getByRole("button", { name: "Next PDF page" }).click();
+  const left = page.locator('.page[data-page-number="2"] .pdf-markups');
+  const right = page.locator('.page[data-page-number="3"] .pdf-markups');
+  await expect(left).toHaveAttribute("data-tool", "select");
+  await expect(right).toBeVisible();
+  await right.dispatchEvent("pointerdown", { bubbles: true, pointerType: "pen" });
+  await toggleSpread();
+  await page.getByRole("button", { name: "Draw", exact: true }).click();
+  await toggleSpread();
+  await expect(left).toHaveAttribute("data-tool", "draw");
+  await expect(right).toHaveAttribute("data-tool", "draw");
+});
+
+test("keeps a saved quotation aligned with its text across layouts and zoom", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  const draft = await uploadPaper(context, baseURL);
+  await openPaper(page, draft);
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  const text = page.locator(".pdfViewer .textLayer span").filter({ hasText: "Knowledge grows through inspectable evidence." }).first();
+  await text.evaluate((span) => {
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    span.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await page.locator("#library-highlight-form").getByRole("button", { name: "Save", exact: true }).click();
+  const highlight = page.locator(".pdfViewer .pdf-highlight[data-private='true']").first();
+  await expect(highlight).toBeVisible();
+  await page.getByRole("button", { name: "Close annotation inspector" }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(highlight).toBeVisible();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
+  const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
+  const before = await pageWidth();
+  await page.locator("#library-pdf-zoom-in").click();
+  await expect.poll(pageWidth).toBeGreaterThan(before);
+  await expect
+    .poll(async () => {
+      const mark = await highlight.boundingBox();
+      const quote = await text.boundingBox();
+      if (!mark || !quote) return false;
+      const centerY = quote.y + quote.height / 2;
+      return mark.y <= centerY && centerY <= mark.y + mark.height && Math.abs(mark.x - quote.x) < 3;
+    })
+    .toBe(true);
 });
 
 test("keeps PDF view options open while stepping zoom", async ({ page, context, baseURL }) => {
@@ -120,17 +241,16 @@ test("keeps PDF view options open while stepping zoom", async ({ page, context, 
   const draft = await uploadPaper(context, baseURL);
   await openPaper(page, draft);
 
-  const canvas = page.locator("#paper-canvas");
-  const canvasWidth = async () => Number(await canvas.getAttribute("width"));
-  const fittedWidth = await canvasWidth();
+  const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
+  const fittedWidth = await pageWidth();
   const viewOptions = page.getByRole("button", { name: "View options", exact: true });
   const panel = page.getByRole("group", { name: "PDF view options" });
   await viewOptions.click();
   await panel.getByRole("button", { name: "Zoom in", exact: true }).click();
-  await expect.poll(canvasWidth).toBeGreaterThan(fittedWidth);
+  await expect.poll(pageWidth).toBeGreaterThan(fittedWidth);
   await expect(panel).toBeVisible();
   await panel.getByRole("button", { name: "Zoom out", exact: true }).click();
-  await expect.poll(canvasWidth).toBe(fittedWidth);
+  await expect.poll(pageWidth).toBe(fittedWidth);
   await expect(panel).toBeVisible();
 
   await page.keyboard.press("Escape");
@@ -185,7 +305,7 @@ for (const viewport of [
       const card = page.getByRole("complementary", { name: "Note on page 1", exact: true });
       await expect(card).toContainText("Edge note");
       const close = page.getByRole("button", { name: "Close note on page 1" });
-      const pageBounds = await page.locator("#paper-page").boundingBox();
+      const pageBounds = await page.locator(".pdfViewer .page").boundingBox();
       const cardBounds = await card.boundingBox();
       const closeBounds = await close.boundingBox();
       if (!pageBounds || !cardBounds || !closeBounds) throw new Error("Expected visible note and PDF page");

@@ -83,6 +83,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="preview-file-context"');
     expect(html).toContain('<preview-context-status class="context-mode-controls" id="preview-context-controls">');
     expect(html).toContain('class="pdf-reader-status" id="paper-status" role="status" aria-live="polite" data-state="busy"');
+    expect(html).toContain('<div class="pdfViewer" id="paper-continuous-pages" aria-label="PDF pages"></div>');
+    expect(html).toContain('<div id="paper-markups-dock" hidden>');
     expect(html).toContain('<workspace-preview class="contents" id="workspace-preview">');
     expect(html).toContain('<preview-diagnostics-panel class="mx-auto');
     expect(html).toContain('<publication-intake-panel class="publication-intake-body" id="publication-intake-panel">');
@@ -282,7 +284,6 @@ describe("renderHomePage", () => {
     expect(html).toContain(
       'id="context-pdf-panel" role="tabpanel" aria-label="PDF context" aria-keyshortcuts="ArrowLeft ArrowRight" tabindex="0" hidden',
     );
-    expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain('id="save-and-link-annotation"');
     expect(html).not.toContain('id="paper-dialog"');
     expect(html).not.toContain('id="writing-assistant"');
@@ -316,7 +317,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-pdf-upload"');
     expect(html).toContain('id="library-highlight-composer"');
     expect(html).toContain('id="export-library-annotated-pdf"');
-    expect(html).toContain('id="paper-links"');
+    expect(html).toContain('id="paper-reader" tabindex="0" role="region" aria-label="PDF reader"');
     expect(html).not.toContain('<h2 title="Private references and research material">Library</h2>');
     expect(html).toContain('id="previous-library-paper-page"');
     expect(html).toContain('id="library-paper-page-indicator"');
