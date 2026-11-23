@@ -155,12 +155,12 @@ export class ProjectEvidencePanel extends LightDomElement {
   }
 
   async updateFragment(annotationId: string, fragmentId: string, input: UpdateAnnotationFragmentInput): Promise<boolean> {
+    if (this.mutationKey) return false;
     const quote = input.quote.trim();
     if (!quote) {
       this.status = "A highlight stroke needs enough text to find the idea again.";
       return false;
     }
-    if (this.mutationKey) return false;
     this.mutationKey = `fragment:${fragmentId}`;
     this.status = "Adjusting highlight stroke…";
     try {
@@ -363,21 +363,21 @@ export class ProjectEvidencePanel extends LightDomElement {
     const annotation = this.data.annotations.find((item) => item.id === button.dataset.annotationId);
     const fragment = annotation?.fragments.find((item) => item.id === button.dataset.fragmentId);
     if (!annotation || !fragment) return;
-    const section = button.closest("section");
-    const quote = section?.querySelector<HTMLTextAreaElement>("textarea")?.value ?? fragment.quote;
-    section?.closest("details")?.removeAttribute("open");
-    if (button.dataset.fragmentAction === "remove") {
-      await this.removeFragment(annotation.id, fragment.id, true);
-      return;
-    }
+    const stroke = button.closest("fieldset");
+    const editor = stroke?.closest("details");
+    const removing = button.dataset.fragmentAction === "remove";
     const adjustment = button.dataset.fragmentAdjustment as HighlightGeometryAdjustment | undefined;
-    const updated = await this.updateFragment(annotation.id, fragment.id, {
-      prefix: fragment.prefix,
-      quote,
-      rects: [...(adjustment ? adjustSelectionRects(fragment.rects, adjustment) : fragment.rects)],
-      suffix: fragment.suffix,
-    });
-    if (updated) this.binding?.completeMutation("Highlight stroke adjusted.");
+    const changed = removing
+      ? await this.removeFragment(annotation.id, fragment.id, true)
+      : await this.updateFragment(annotation.id, fragment.id, {
+          prefix: fragment.prefix,
+          quote: stroke?.querySelector("textarea")?.value ?? fragment.quote,
+          rects: [...(adjustment ? adjustSelectionRects(fragment.rects, adjustment) : fragment.rects)],
+          suffix: fragment.suffix,
+        });
+    if (!changed) return;
+    if (editor?.dataset.annotationId === annotation.id) editor.open = false;
+    if (!removing) this.binding?.completeMutation("Highlight stroke adjusted.");
   }
 
   private renderPdf(pdf: PdfResource): TemplateResult {
@@ -487,7 +487,7 @@ export class ProjectEvidencePanel extends LightDomElement {
 
   private renderStrokeEditor(annotation: AnnotationResource): TemplateResult {
     return html`
-      <details class="mt-3 border-t border-app-line pt-3" .open=${false}>
+      <details class="mt-3 border-t border-app-line pt-3" data-annotation-id=${annotation.id} .open=${false}>
         <summary class="cursor-pointer font-sans text-xs font-semibold">
           Adjust ${annotation.fragments.length} stroke${annotation.fragments.length === 1 ? "" : "s"}
         </summary>
@@ -508,7 +508,11 @@ export class ProjectEvidencePanel extends LightDomElement {
       ["Shorter", "shorter"],
     ] as const;
     return html`
-      <section class="mt-3 border border-app-line bg-app-paper p-3">
+      <fieldset
+        class="mt-3 min-w-0 border border-app-line bg-app-paper p-3"
+        aria-label=${`Highlight stroke ${index + 1}`}
+        ?disabled=${Boolean(this.mutationKey)}
+      >
         <textarea
           class="field min-h-16"
           maxlength="20000"
@@ -551,7 +555,7 @@ export class ProjectEvidencePanel extends LightDomElement {
             Erase stroke
           </button>
         </div>
-      </section>
+      </fieldset>
     `;
   }
 }

@@ -12,6 +12,8 @@ identity and downstream work.
 
 - Each stored highlight stroke exposes quotation correction and normalized
   geometry adjustment.
+- Stroke editing controls are disabled while a project evidence mutation is
+  pending. The stroke editor closes after a successful adjustment or erase.
 - Geometry operations nudge, widen/narrow, and lengthen/shorten every rectangle
   in one stroke.
 - Operations clamp to zero-to-one page coordinates with a visible minimum
