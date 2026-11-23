@@ -502,6 +502,15 @@ async function turnPdfPageWithTrackpad(page: Page, direction: -1 | 1, expectedPa
   await expect(page.locator("#paper-page-indicator")).toHaveText(`${expectedPage} / 2`);
 }
 
+async function fitPdfToWidth(page: Page, surface: "library" | "project"): Promise<void> {
+  const fit = page.locator(surface === "library" ? "#library-pdf-fit-mode" : "#pdf-fit-mode");
+  for (let step = 0; step < 2 && (await fit.getAttribute("title")) !== "Fit width"; step++) {
+    if (surface === "library") await page.locator("#library-pdf-view-options").click();
+    await fit.click();
+  }
+  await expect(fit).toHaveAttribute("title", "Fit width");
+}
+
 async function swipePdfPage(page: Page, identifier: number, fromX: number, toX: number): Promise<void> {
   await page.locator(".pdfViewer .textLayer").evaluate(
     (layer, gesture) => {
@@ -834,6 +843,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#toast")).toHaveText("1 PDF highlight imported to your library.");
   await expect(page.locator("#library-highlight-list")).toContainText("Imported from the PDF");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
+  await fitPdfToWidth(page, "library");
   const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
   const fittedPageWidth = await pageWidth();
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -40, deltaMode: 0 });
@@ -3338,6 +3348,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#library-highlight-form")).toBeHidden();
   await page.locator("#close-library-pdf-inspector").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
+  await fitPdfToWidth(page, "library");
   const pageWidth = () => page.locator(".pdfViewer .page").evaluate((element) => element.getBoundingClientRect().width);
   const fittedPageWidth = await pageWidth();
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
@@ -4713,6 +4724,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#annotation-pdf")).toHaveValue(delayedPdf.id);
   await expect(page.getByRole("button", { name: "Share project" })).toBeVisible();
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
+  await fitPdfToWidth(page, "project");
   await expect
     .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBeLessThanOrEqual(1);

@@ -101,7 +101,7 @@ export class PdfEvidenceViewer {
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
   #documentKey = "";
   #artifactId = "";
-  #fitMode: PdfFitMode = "width";
+  #fitMode: PdfFitMode = "page";
   #rotation = 0;
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {

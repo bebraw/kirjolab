@@ -349,10 +349,12 @@ memory and makes citation aliases compete with stable source identity.
   annotation kind and exact page, reports the visible result count, preserves
   direct page actions, and exports a page-ordered Markdown summary without
   changing or sharing the underlying annotations.
-  The fit control cycles through fit width, fit page, and actual size within
-  the selected display mode. Reading controls also provide bounded zoom from
-  50% to 400%, clockwise rotation, and a two-page spread with the cover alone
-  on the right. Spread and continuous layouts retain bounded rendering,
+  The reader starts in Fit page so the whole page is visible even on wide
+  displays. The fit control cycles through fit page, actual size, and fit width
+  within the selected display mode. Manual zoom ranges from 50% to 400% of
+  the selected fit. Reading controls also provide clockwise rotation and a
+  two-page spread with the cover alone on the right. Spread and continuous
+  layouts retain bounded rendering,
   links, text selection, page
   tracking, and page-local private markup without coupling annotation tools to
   display preferences.

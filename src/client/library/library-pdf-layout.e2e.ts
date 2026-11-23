@@ -118,7 +118,28 @@ test.describe("PDF pinch zoom", () => {
   });
 });
 
-test("fits the page without leaving the two-page layout", async ({ page, context, baseURL }) => {
+test("opens the whole page and zooms out immediately on a wide display", async ({ page, context, baseURL }) => {
+  if (!baseURL) throw new Error("Expected browser test origin");
+  await page.setViewportSize({ width: 2560, height: 1300 });
+  await openPaper(page, await uploadPaper(context, baseURL));
+  const reader = page.locator("#paper-reader");
+  const pdfPage = reader.locator(".page");
+  const pageHeight = () => pdfPage.evaluate((element) => element.getBoundingClientRect().height);
+  const fittedHeight = await pageHeight();
+  expect(fittedHeight).toBeLessThanOrEqual(await reader.evaluate((element) => element.clientHeight));
+  const bounds = await pdfPage.boundingBox();
+  if (!bounds) throw new Error("Expected a visible PDF page");
+  await reader.dispatchEvent("wheel", {
+    ctrlKey: true,
+    deltaY: 40,
+    clientX: bounds.x + bounds.width / 2,
+    clientY: bounds.y + bounds.height / 2,
+  });
+  await expect.poll(pageHeight).toBeLessThan(fittedHeight * 0.75);
+  await expect(page.locator("#library-pdf-fit-mode")).toHaveText("Fit page");
+});
+
+test("changes fit mode without leaving the two-page layout", async ({ page, context, baseURL }) => {
   if (!baseURL) throw new Error("Expected browser test origin");
   const draft = await uploadPaper(context, baseURL, createTwoPageEvidencePdf());
   await page.goto(`/library/pdfs/${draft.artifact.id}`);
@@ -129,6 +150,7 @@ test("fits the page without leaving the two-page layout", async ({ page, context
   await expect(page.locator("#paper-reader")).toHaveAttribute("data-display-mode", "spread");
   if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
   await page.locator("#library-pdf-fit-mode").click();
+  await expect(page.locator("#library-pdf-fit-mode")).toHaveText("Actual size");
   await expect(page.locator("#paper-reader")).toHaveAttribute("data-display-mode", "spread");
   await expect(page.locator("#library-pdf-spread")).toHaveAttribute("aria-pressed", "true");
 });

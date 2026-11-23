@@ -61,7 +61,7 @@ export class PdfComponentView {
   #runtime: Awaited<ReturnType<typeof loadPdfViewerRuntime>> | null = null;
   #mode: PdfDisplayMode = "single";
   #activeSpreadPage: number | null = null;
-  #fit: PdfFitMode = "width";
+  #fit: PdfFitMode = "page";
   #fitScale = 1;
   #zoom = 1;
   #zoomAnchor: { page: HTMLElement; clientX: number; clientY: number; x: number; y: number; at: number } | null = null;

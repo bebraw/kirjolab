@@ -365,7 +365,7 @@ describe("PDF reading controls", () => {
     await viewer.adjustZoom(0.25);
     expect(reader.dataset.zoomed).toBe("true");
     await viewer.cycleFitMode();
-    expect(fitMode.title).toBe("Fit page");
+    expect(fitMode.title).toBe("Actual size");
     await viewer.rotateClockwise();
     await viewer.setDisplayMode("continuous");
     expect(continuousMode.attributes.get("aria-pressed")).toBe("true");
