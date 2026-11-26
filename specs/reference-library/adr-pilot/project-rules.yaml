@@ -6,12 +6,12 @@ pdf-citation-key-refinement:
         keep-key: Keep the key allocated at intake.
         recompute-key: Recompute the key from the corrected metadata using the unique-key allocator. The result may equal the old key.
     linked-pdf-key:
-      question: Can a manual or explicitly reviewed correction to an author or publication year change a PDF draft's generated key after its first project link?
+      question: For a newly created PDF draft, can a manual or explicitly reviewed correction to an author or publication year change its generated key after its first project link?
       options:
         keep-key: Keep the key already exposed to the project.
         recompute-key: Recompute the generated library key. The PDF remains refinable after its first project link.
     unlinked-pdf-key:
-      question: After all projects unlink a previously linked PDF, can a later manual or explicitly reviewed correction change its generated key?
+      question: For a newly created PDF draft that was linked and later unlinked from every project, can a subsequent manual or explicitly reviewed correction change its generated key?
       options:
         keep-key: Keep the existing key after unlinking.
         recompute-key: Recompute the key on correction. The PDF remains refinable after unlinking.

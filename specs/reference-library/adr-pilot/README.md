@@ -4,16 +4,23 @@ This pilot replays three Kirjolab decisions about a new PDF draft's generated ci
 
 ## Run the query
 
-This replay used vibe-template commit `8b09487`. Install its locked dependencies with `npm ci` in that checkout, then run the commands below from the Kirjolab pilot root. The example assumes sibling checkouts. [Pinned template CLI](https://github.com/bebraw/vibe-template/blob/8b0948778278c31f054d0b6bf46d74d0916fc9fa/scripts/adr-rules.mjs)
+From the root of a Kirjolab checkout containing this pilot, clone the template into a fresh temporary directory. These commands select the tested template revision and install its locked dependencies with its pinned Node version. [Pinned template CLI](https://github.com/bebraw/vibe-template/blob/24320f20db6a2bada7d35eec4ec7a0a2c93146fd/scripts/adr-rules.mjs)
 
 ```sh
-TEMPLATE_CLI=../vibe-template/scripts/adr-rules.mjs
+TEMPLATE_DIR=$(mktemp -d)
+git clone --no-checkout https://github.com/bebraw/vibe-template.git "$TEMPLATE_DIR"
+git -C "$TEMPLATE_DIR" fetch origin 24320f20db6a2bada7d35eec4ec7a0a2c93146fd
+git -C "$TEMPLATE_DIR" checkout --detach FETCH_HEAD
+nvm install "$(cat "$TEMPLATE_DIR/.nvmrc")"
+npm --prefix "$TEMPLATE_DIR" ci
+
+TEMPLATE_CLI="$TEMPLATE_DIR/scripts/adr-rules.mjs"
 node "$TEMPLATE_CLI" --records specs/reference-library/adr-pilot pdf-citation-key-refinement
 node "$TEMPLATE_CLI" --records specs/reference-library/adr-pilot --json
 node "$TEMPLATE_CLI" --records specs/reference-library/adr-pilot --check
 ```
 
-Run the CLI with the Node version and dependencies specified in the template checkout. It reads evidence relative to Kirjolab's root. The selected directory supplies its complete YAML log and vocabulary.
+The CLI reads evidence relative to Kirjolab's root. The selected directory supplies its complete YAML log and vocabulary.
 
 ## Current answer
 
@@ -21,11 +28,11 @@ Run the CLI with the Node version and dependencies specified in the template che
 
 ### `pdf-citation-key-refinement`
 
-Current decision [ADR-154](implemented/ADR-154-refine-linked-pdf-reference-keys.yaml) · [Verification](../../../src/durable-objects/reference-library.workers.test.ts)
+Current decision [ADR-154](implemented/ADR-154-refine-linked-pdf-reference-keys.yaml) · [src/durable-objects/reference-library.workers.test.ts](../../../src/durable-objects/reference-library.workers.test.ts) · [src/durable-objects/document-room.workers.test.ts](../../../src/durable-objects/document-room.workers.test.ts) · [src/api/reference-library.test.ts](../../../src/api/reference-library.test.ts)
 
 - Can a manual or explicitly reviewed metadata correction change a new PDF draft's generated key before its first project link? — Recompute the key from the corrected metadata using the unique-key allocator. The result may equal the old key.
-- Can a manual or explicitly reviewed correction to an author or publication year change a PDF draft's generated key after its first project link? — Recompute the generated library key. The PDF remains refinable after its first project link.
-- After all projects unlink a previously linked PDF, can a later manual or explicitly reviewed correction change its generated key? — Recompute the key on correction. The PDF remains refinable after unlinking.
+- For a newly created PDF draft, can a manual or explicitly reviewed correction to an author or publication year change its generated key after its first project link? — Recompute the generated library key. The PDF remains refinable after its first project link.
+- For a newly created PDF draft that was linked and later unlinked from every project, can a subsequent manual or explicitly reviewed correction change its generated key? — Recompute the key on correction. The PDF remains refinable after unlinking.
 - What happens to the PDF's generated key when a researcher only previews a metadata suggestion? — Keep the existing key during preview.
 - Which identifier ties a project citation to the same library source across metadata corrections? — The library UUID remains the relational identity across corrections and alias changes.
 - When a linked PDF key changes, what happens in a project whose alias exactly matches the old generated key and whose new alias is free? — On successful propagation, replace the alias and rewrite its canonical citations and derived bibliography in one project revision.
@@ -38,9 +45,18 @@ History [ADR-076](implemented/ADR-076-assign-immutable-reference-keys.yaml) → 
 
 ## Compare the answers with product behavior
 
-The library Worker test creates a PDF draft, edits its metadata, links it to a project, refines the linked key, unlinks the project, and refines the key again. The document-room test checks an available generated alias, a custom alias, and a collision. The API tests check that a changed key is sent to the project and that previewing a suggestion leaves metadata untouched until acceptance. Run these cases with Kirjolab's pinned toolchain:
+Four tests at Kirjolab commit `403cd810` exercise the current answers.
+
+- The library Worker edits a new PDF draft before its first link, while linked, and after unlinking. [Key lifecycle test](https://github.com/bebraw/kirjolab/blob/403cd8109529822d20b481b639afe499099425a3/src/durable-objects/reference-library.workers.test.ts#L1124)
+- The document room rewrites a matching available alias and checks the custom-alias and collision exceptions. [Project alias and bibliography test](https://github.com/bebraw/kirjolab/blob/403cd8109529822d20b481b639afe499099425a3/src/durable-objects/document-room.workers.test.ts#L641)
+- The API sends the previous and refined keys to the project for the same reference ID. [Propagation test](https://github.com/bebraw/kirjolab/blob/403cd8109529822d20b481b639afe499099425a3/src/api/reference-library.test.ts#L968)
+- The API previews Crossref metadata without applying it until the researcher accepts a reviewed fingerprint. [Preview and acceptance test](https://github.com/bebraw/kirjolab/blob/403cd8109529822d20b481b639afe499099425a3/src/api/reference-library.test.ts#L1336)
+
+Run the four cases from Kirjolab's root with its pinned toolchain.
 
 ```sh
+nvm install
+npm ci
 npm run test:workers -- src/durable-objects/reference-library.workers.test.ts src/durable-objects/document-room.workers.test.ts -t 'keeps PDF-origin keys refinable after project linking|derives project aliases and bibliography from shared reference snapshots'
 npm test -- src/api/reference-library.test.ts -t 'propagates a refined generated key to matching project aliases|previews Crossref metadata without mutation and applies only a reviewed fingerprint'
 ```

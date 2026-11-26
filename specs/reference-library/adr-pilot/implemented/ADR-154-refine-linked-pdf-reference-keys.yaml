@@ -15,7 +15,10 @@ rules:
       matching-project-alias: rewrite-citations
       custom-project-alias: keep-alias
       colliding-project-alias: keep-alias
-    evidence: src/durable-objects/reference-library.workers.test.ts
+    evidence:
+      - src/durable-objects/reference-library.workers.test.ts
+      - src/durable-objects/document-room.workers.test.ts
+      - src/api/reference-library.test.ts
 context: |-
   ADR-083 lets a filename-derived PDF key improve only until the source first
   enters a project. In the normal capture-first workflow, however, a researcher
