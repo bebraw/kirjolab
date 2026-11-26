@@ -1,5 +1,7 @@
 # Feature: Shared Reference Library
 
+The [citation-key pilot](./adr-pilot/README.md) compares three historical decisions about PDF key refinement against the current library and project-alias tests.
+
 ## Blueprint
 
 ### Context
