@@ -1,0 +1,37 @@
+pdf-citation-key-refinement:
+  questions:
+    private-pdf-key:
+      question: Can a manual or explicitly reviewed metadata correction change a new PDF draft's generated key before its first project link?
+      options:
+        keep-key: Keep the key allocated at intake.
+        recompute-key: Recompute the key from the corrected metadata using the unique-key allocator. The result may equal the old key.
+    linked-pdf-key:
+      question: Can a manual or explicitly reviewed correction to an author or publication year change a PDF draft's generated key after its first project link?
+      options:
+        keep-key: Keep the key already exposed to the project.
+        recompute-key: Recompute the generated library key. The PDF remains refinable after its first project link.
+    unlinked-pdf-key:
+      question: After all projects unlink a previously linked PDF, can a later manual or explicitly reviewed correction change its generated key?
+      options:
+        keep-key: Keep the existing key after unlinking.
+        recompute-key: Recompute the key on correction. The PDF remains refinable after unlinking.
+    metadata-preview:
+      question: What happens to the PDF's generated key when a researcher only previews a metadata suggestion?
+      options:
+        keep-key: Keep the existing key during preview.
+    source-identity:
+      question: Which identifier ties a project citation to the same library source across metadata corrections?
+      options:
+        library-uuid: The library UUID remains the relational identity across corrections and alias changes.
+    matching-project-alias:
+      question: When a linked PDF key changes, what happens in a project whose alias exactly matches the old generated key and whose new alias is free?
+      options:
+        rewrite-citations: On successful propagation, replace the alias and rewrite its canonical citations and derived bibliography in one project revision.
+    custom-project-alias:
+      question: When a linked PDF key changes, what happens to a project alias the researcher customized to a different value?
+      options:
+        keep-alias: Preserve the project alias and its citations. The library key may still improve.
+    colliding-project-alias:
+      question: When a linked PDF key changes, what happens if the matching generated project alias would collide with another alias on replacement?
+      options:
+        keep-alias: Preserve the existing alias and its citations in that project. Other projects can accept the replacement independently.
